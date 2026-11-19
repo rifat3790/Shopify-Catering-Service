@@ -42,6 +42,9 @@ function UserDashboardContent() {
   const loadUserData = async () => {
     setLoading(true);
     try {
+      if (refreshUser) {
+        await refreshUser().catch(() => {});
+      }
       const ordRes = await fetch('/api/orders');
       if (ordRes.ok) {
         const o = await ordRes.json();
@@ -71,7 +74,7 @@ function UserDashboardContent() {
   }, [user]);
 
   // Current active name to filter orders
-  const activeDisplayName = inspectedUserName || user?.displayName || user?.email?.split('@')[0] || 'User';
+  const activeDisplayName = inspectedUserName || user?.displayName || user?.name || user?.email?.split('@')[0] || 'User';
   const activeEmail = user?.email || '';
 
   // Filter orders strictly for this user
@@ -90,8 +93,9 @@ function UserDashboardContent() {
     );
   });
 
+  const calculatedSpent = myOrders.reduce((acc, curr) => acc + (Number(curr.totalBill) || 0), 0);
   const displayBalance = user?.balance ?? 0;
-  const displaySpent = user?.totalSpent ?? 0;
+  const displaySpent = (user?.totalSpent && user.totalSpent > 0) ? user.totalSpent : calculatedSpent;
   const displayDue = user?.currentDue ?? 0;
 
   return (

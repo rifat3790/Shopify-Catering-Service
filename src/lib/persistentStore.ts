@@ -44,12 +44,12 @@ function loadStorage() {
         messages: Array.isArray(parsed.messages) ? parsed.messages : [],
         groups: Array.isArray(parsed.groups) ? parsed.groups : [],
         orders: Array.isArray(parsed.orders) ? parsed.orders : [],
-        menuItems: Array.isArray(parsed.menuItems) && parsed.menuItems.length > 0 ? parsed.menuItems : [...initialMenuItems],
+        menuItems: Array.isArray(parsed.menuItems) ? parsed.menuItems : [],
         userOverrides: parsed.userOverrides || {},
         routePermissions: parsed.routePermissions || { ...DEFAULT_ROUTE_PERMISSIONS },
       };
     } else {
-      memoryData.menuItems = [...initialMenuItems];
+      memoryData.menuItems = [];
       memoryData.routePermissions = { ...DEFAULT_ROUTE_PERMISSIONS };
     }
   } catch (err) {
@@ -62,7 +62,7 @@ function persistStorage() {
   try {
     fs.writeFileSync(STORAGE_FILE, JSON.stringify(memoryData, null, 2), 'utf-8');
   } catch (err) {
-    console.warn('Persistent storage write warning:', err);
+    // Vercel serverless has read-only filesystem; catch gracefully
   }
 }
 
@@ -93,11 +93,7 @@ export const persistentStore = {
   // Menu Items
   getMenuItems: (): MenuItemData[] => {
     loadStorage();
-    if (!memoryData.menuItems || memoryData.menuItems.length === 0) {
-      memoryData.menuItems = [...initialMenuItems];
-      persistStorage();
-    }
-    return [...memoryData.menuItems];
+    return [...(memoryData.menuItems || [])];
   },
 
   saveMenuItem: (item: MenuItemData): MenuItemData => {

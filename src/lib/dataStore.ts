@@ -598,7 +598,9 @@ export async function updateUserBalance(
     await connectToDatabase();
     if (User) {
       const isObjectId = idOrEmail.match(/^[0-9a-fA-F]{24}$/);
-      const query = isObjectId ? { _id: idOrEmail } : { $or: [{ email: search }, { name: search }] };
+      const query = isObjectId 
+        ? { _id: idOrEmail } 
+        : { $or: [{ uid: idOrEmail }, { email: search }, { name: search }] };
       const userDoc = await User.findOne(query);
       if (userDoc) {
         if (action === 'add') {
@@ -609,6 +611,30 @@ export async function updateUserBalance(
           userDoc.balance = Math.max(0, amt);
         }
         await userDoc.save();
+
+        // Also sync customClaims in Firebase Auth if available
+        if (adminAuth) {
+          try {
+            const fbUser = await adminAuth.getUser(userDoc.uid || '').catch(() => 
+              adminAuth.getUserByEmail(userDoc.email).catch(() => null)
+            );
+            if (fbUser) {
+              await adminAuth.setCustomUserClaims(fbUser.uid, {
+                ...(fbUser.customClaims || {}),
+                balance: userDoc.balance,
+                totalSpent: userDoc.totalSpent,
+                role: userDoc.role,
+              });
+            }
+          } catch (e) {}
+        }
+
+        // Persist to store
+        persistentStore.updateUserProfile(userDoc.email, {
+          balance: userDoc.balance,
+          totalSpent: userDoc.totalSpent,
+        });
+
         const updated: UserRecord = {
           id: userDoc._id.toString(),
           name: userDoc.name,
@@ -622,8 +648,8 @@ export async function updateUserBalance(
           phone: userDoc.phone,
           createdAt: userDoc.createdAt?.toISOString?.() || new Date().toISOString()
         };
-        usersCache = usersCache.map(u => u.id === updated.id ? updated : u);
-        return updated;
+        usersCache = usersCache.map(u => (u.id === updated.id || u.email.toLowerCase() === updated.email.toLowerCase()) ? updated : u);
+        return applyUserOverridesAndUsername(updated);
       }
     }
   } catch (err) {
@@ -639,37 +665,35 @@ export async function updateUserBalance(
     } else if (action === 'set') {
       usersCache[idx].balance = Math.max(0, amt);
     }
-    return usersCache[idx];
+    persistentStore.updateUserProfile(usersCache[idx].email, {
+      balance: usersCache[idx].balance,
+    });
+    return applyUserOverridesAndUsername(usersCache[idx]);
   }
   return null;
 }
 
 // Order Management APIs
 export async function getAllOrders(): Promise<OrderData[]> {
-  const stored = persistentStore.getOrders();
-  if (stored && stored.length > 0) {
-    return stored;
-  }
-
   try {
     const db = await connectToDatabase();
     if (db && Order) {
       const docs = await Order.find().sort({ createdAt: -1 }).lean();
-      if (docs && docs.length > 0) {
-        const mapped = docs.map((d: any) => ({
-          ...d,
-          _id: d._id.toString(),
-          orderDate: d.orderDate?.toISOString?.() || new Date().toISOString(),
-          createdAt: d.createdAt?.toISOString?.() || new Date().toISOString(),
-        })) as unknown as OrderData[];
-        mapped.forEach(o => persistentStore.saveOrder(o));
-        return mapped;
-      }
+      const mapped = docs.map((d: any) => ({
+        ...d,
+        _id: d._id.toString(),
+        orderDate: d.orderDate?.toISOString?.() || new Date().toISOString(),
+        createdAt: d.createdAt?.toISOString?.() || new Date().toISOString(),
+      })) as unknown as OrderData[];
+      ordersCache = mapped;
+      mapped.forEach(o => persistentStore.saveOrder(o));
+      return mapped;
     }
-    return ordersCache;
   } catch (err) {
-    return ordersCache;
+    console.warn("MongoDB getAllOrders error, fallback to persistentStore:", err);
   }
+
+  return persistentStore.getOrders();
 }
 
 export async function createOrder(data: Partial<OrderData>): Promise<OrderData> {
@@ -722,7 +746,7 @@ export async function createOrder(data: Partial<OrderData>): Promise<OrderData> 
     createdAt: new Date().toISOString()
   };
 
-  // 1. Update user balance/spent dynamically
+  // 1. Update user balance/spent dynamically in database and memory
   if (data.customerName || data.customerEmail) {
     const custEmail = (data.customerEmail || '').toLowerCase().trim();
     const custName = (data.customerName || '').toLowerCase().trim();
@@ -738,7 +762,7 @@ export async function createOrder(data: Partial<OrderData>): Promise<OrderData> 
           balance: user.balance,
           totalSpent: user.totalSpent,
         });
-        updateUserBalance(user.id, totalBill, 'deduct').catch(() => {});
+        await updateUserBalance(user.id || user.email, totalBill, 'deduct');
       } else {
         persistentStore.updateUserProfile(user.email, {
           totalSpent: user.totalSpent,
@@ -747,23 +771,24 @@ export async function createOrder(data: Partial<OrderData>): Promise<OrderData> 
     }
   }
 
-  // 2. Immediately persist to disk & memory (0ms)
+  // 2. Persist to MongoDB Atlas (Awaited for 100% serverless durability)
+  try {
+    const db = await connectToDatabase();
+    if (db && Order) {
+      const doc = await Order.create({
+        ...newOrder,
+        _id: undefined,
+        orderDate: new Date(newOrder.orderDate)
+      });
+      if (doc) newOrder._id = doc._id.toString();
+    }
+  } catch (e) {
+    console.error('MongoDB Order.create error:', e);
+  }
+
+  // 3. Immediately persist to disk & memory
   persistentStore.saveOrder(newOrder);
   ordersCache.unshift(newOrder);
-
-  // 3. Background async write to DB
-  connectToDatabase().then(async (db) => {
-    if (db && Order) {
-      try {
-        const doc = await Order.create({
-          ...newOrder,
-          _id: undefined,
-          orderDate: new Date(newOrder.orderDate)
-        });
-        if (doc) newOrder._id = doc._id.toString();
-      } catch (e) {}
-    }
-  }).catch(() => {});
 
   return newOrder;
 }
@@ -790,7 +815,7 @@ export async function updateOrder(id: string, updates: Partial<OrderData>): Prom
       }
     }
   } catch (err) {
-    // fallback
+    console.error('MongoDB Order.findOneAndUpdate error:', err);
   }
 
   return pUpdated || (ordersCache.find(o => o._id === id || o.orderNumber === id) || null);
@@ -814,7 +839,7 @@ export async function deleteOrder(id: string): Promise<boolean> {
         balance: user.balance,
         totalSpent: user.totalSpent,
       });
-      updateUserBalance(user.id, existing.totalBill, 'add').catch(() => {});
+      await updateUserBalance(user.id || user.email, existing.totalBill, 'add');
     }
   }
 
@@ -829,7 +854,7 @@ export async function deleteOrder(id: string): Promise<boolean> {
       await Order.findOneAndDelete(query);
     }
   } catch (err) {
-    // fallback
+    console.error('MongoDB Order.findOneAndDelete error:', err);
   }
 
   return true;
@@ -841,16 +866,17 @@ export async function getAllMenuItems(): Promise<MenuItemData[]> {
     const db = await connectToDatabase();
     if (db && MenuItem) {
       const docs = await MenuItem.find().sort({ createdAt: -1 }).lean();
-      if (docs && docs.length > 0) {
-        const mapped = docs.map((d: any) => ({
-          ...d,
-          _id: d._id.toString()
-        })) as unknown as MenuItemData[];
-        mapped.forEach(m => persistentStore.saveMenuItem(m));
-        return mapped;
-      }
+      const mapped = docs.map((d: any) => ({
+        ...d,
+        _id: d._id.toString()
+      })) as unknown as MenuItemData[];
+      menuItemsCache = mapped;
+      mapped.forEach(m => persistentStore.saveMenuItem(m));
+      return mapped;
     }
-  } catch (err) {}
+  } catch (err) {
+    console.warn("MongoDB getAllMenuItems error, fallback to persistentStore:", err);
+  }
 
   return persistentStore.getMenuItems();
 }
@@ -870,15 +896,19 @@ export async function createMenuItem(data: Partial<MenuItemData>): Promise<MenuI
     calories: Number(data.calories) || 0,
   };
 
-  persistentStore.saveMenuItem(newItem);
-  menuItemsCache = [newItem, ...menuItemsCache];
-
-  connectToDatabase().then(async (db) => {
+  // Await MongoDB write for durable cloud persistence
+  try {
+    const db = await connectToDatabase();
     if (db && MenuItem) {
       const doc = await MenuItem.create({ ...newItem, _id: undefined });
       if (doc) newItem._id = doc._id.toString();
     }
-  }).catch(() => {});
+  } catch (e) {
+    console.error('MongoDB MenuItem.create error:', e);
+  }
+
+  persistentStore.saveMenuItem(newItem);
+  menuItemsCache = [newItem, ...menuItemsCache];
 
   return newItem;
 }
@@ -900,7 +930,9 @@ export async function updateMenuItem(id: string, updates: Partial<MenuItemData>)
         return formatted;
       }
     }
-  } catch (err) {}
+  } catch (err) {
+    console.error('MongoDB MenuItem.findOneAndUpdate error:', err);
+  }
 
   const current = persistentStore.getMenuItems().find(m => m._id === id);
   if (current) {
@@ -923,7 +955,9 @@ export async function deleteMenuItem(id: string): Promise<boolean> {
       const query = isObjectId ? { _id: id } : { name: id };
       await MenuItem.findOneAndDelete(query);
     }
-  } catch (err) {}
+  } catch (err) {
+    console.error('MongoDB MenuItem.findOneAndDelete error:', err);
+  }
 
   return true;
 }

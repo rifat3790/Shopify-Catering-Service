@@ -1,8 +1,23 @@
 import { NextResponse } from 'next/server';
 import { persistentStore } from '@/lib/persistentStore';
 import { SUPER_ADMIN_EMAIL, RoutePermissions, DEFAULT_ROUTE_PERMISSIONS } from '@/lib/types';
+import { connectToDatabase } from '@/lib/mongodb';
+import Setting from '@/lib/models/Setting';
 
 export async function GET() {
+  try {
+    const db = await connectToDatabase();
+    if (db && Setting) {
+      const doc = await Setting.findOne({ key: 'route_permissions' }).lean();
+      if (doc && doc.value) {
+        persistentStore.setRoutePermissions(doc.value);
+        return NextResponse.json({ success: true, data: doc.value });
+      }
+    }
+  } catch (e) {
+    console.warn('MongoDB route_permissions fetch fallback:', e);
+  }
+
   try {
     const perms = persistentStore.getRoutePermissions();
     return NextResponse.json({ success: true, data: perms });
@@ -35,6 +50,20 @@ export async function POST(request: Request) {
     }
 
     const updated = persistentStore.setRoutePermissions(permissions);
+
+    try {
+      const db = await connectToDatabase();
+      if (db && Setting) {
+        await Setting.findOneAndUpdate(
+          { key: 'route_permissions' },
+          { key: 'route_permissions', value: permissions },
+          { upsert: true, new: true }
+        );
+      }
+    } catch (e) {
+      console.warn('MongoDB route_permissions save error:', e);
+    }
+
     return NextResponse.json({ success: true, data: updated, message: 'Permissions updated successfully' });
   } catch (error: any) {
     return NextResponse.json(

@@ -39,7 +39,7 @@ export default function QuickOrderModal({
   onSubmit,
   prefillCustomer,
 }: QuickOrderModalProps) {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const { language } = useLanguage();
   const { toast } = useToast();
   const [customerName, setCustomerName] = useState(prefillCustomer || user?.displayName || user?.name || '');
@@ -212,6 +212,11 @@ export default function QuickOrderModal({
           : `Order placed successfully! Total Bill: ৳${calculatedBill.toFixed(2)}`,
         'Order Confirmed 🎉'
       );
+
+      // Refresh live user balance across app
+      if (refreshUser) {
+        refreshUser().catch(() => {});
+      }
 
       // reset
       setItemQuantities({});

@@ -39,7 +39,7 @@ interface SidebarProps {
 
 export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
   const pathname = usePathname();
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
   const { language, toggleLanguage } = useLanguage();
   const { toast } = useToast();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -56,6 +56,13 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
         }
       })
       .catch(() => {});
+
+    if (refreshUser) {
+      refreshUser().catch(() => {});
+      const onFocus = () => refreshUser().catch(() => {});
+      window.addEventListener('focus', onFocus);
+      return () => window.removeEventListener('focus', onFocus);
+    }
   }, []);
 
   const isSuper = user?.role === 'super_admin';

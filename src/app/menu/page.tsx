@@ -176,12 +176,18 @@ function MenuPageContent() {
   };
 
   const handleDeleteDish = async (id?: string) => {
-    if (!id || !confirm('Are you sure you want to remove this dish from the menu?')) return;
+    if (!id) return;
     try {
-      await fetch(`/api/menu?id=${id}`, { method: 'DELETE' });
-      setMenuItems(prev => prev.filter(m => m._id !== id));
+      const res = await fetch(`/api/menu?id=${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setMenuItems(prev => prev.filter(m => m._id !== id));
+        toast.success(
+          language === 'bn' ? 'মেনু আইটেমটি সফলভাবে মুছে ফেলা হয়েছে!' : 'Dish removed from menu successfully!',
+          'Dish Removed'
+        );
+      }
     } catch (e) {
-      console.error(e);
+      toast.error('Failed to remove dish', 'Error');
     }
   };
 

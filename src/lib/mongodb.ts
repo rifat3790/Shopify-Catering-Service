@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://Shopify_Catering:ATxlhtQyol4o86Zr@cluster0.tma46bj.mongodb.net/shopify_catering?retryWrites=true&w=majority';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://Shopify_Catering:ATxIhtQyoI4o86Zr@cluster0.tma46bj.mongodb.net/shopify_catering?retryWrites=true&w=majority';
 
 if (!MONGODB_URI) {
   throw new Error('Please define the MONGODB_URI environment variable inside .env.local');
@@ -18,27 +18,27 @@ declare global {
 
 let cached: MongooseCache = global.mongooseCache || { conn: null, promise: null };
 let lastFailedAt = 0;
-const RETRY_INTERVAL_MS = 60000; // Don't block requests if DB is known to be failing
+const RETRY_INTERVAL_MS = 3000; // Fast retry
 
 if (!global.mongooseCache) {
   global.mongooseCache = cached;
 }
 
 export async function connectToDatabase() {
-  if (cached.conn) {
+  if (cached.conn && mongoose.connection.readyState === 1) {
     return cached.conn;
   }
 
-  // If connection failed within the last minute, fail fast (0ms) so APIs stay lightning fast
+  // If connection failed within the last 3s, fail fast
   if (Date.now() - lastFailedAt < RETRY_INTERVAL_MS) {
     return null;
   }
 
-  if (!cached.promise) {
+  if (!cached.promise || mongoose.connection.readyState === 0) {
     const opts: mongoose.ConnectOptions = {
       bufferCommands: false,
       maxPoolSize: 10,
-      serverSelectionTimeoutMS: 1500,
+      serverSelectionTimeoutMS: 5000,
     };
 
     cached.promise = mongoose.connect(MONGODB_URI, opts).then((m) => {
@@ -47,7 +47,7 @@ export async function connectToDatabase() {
       return m;
     }).catch((err) => {
       lastFailedAt = Date.now();
-      console.warn('❌ MongoDB Connection failed (circuit-breaker active for 60s):', err.message);
+      console.warn('❌ MongoDB Connection failed:', err.message);
       cached.promise = null;
       return null;
     });
