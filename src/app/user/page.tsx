@@ -69,8 +69,17 @@ function UserDashboardContent() {
           (user?.email && u.email.toLowerCase() === user.email.toLowerCase()) || 
           (user?.uid && u.id === user.uid)
         );
-        if (me && me.balance !== undefined) {
-          updateLocalUserProfile({ balance: me.balance, totalSpent: me.totalSpent });
+        if (me) {
+          updateLocalUserProfile({ 
+            balance: me.balance !== undefined ? me.balance : 0, 
+            totalSpent: me.totalSpent !== undefined ? me.totalSpent : 0,
+            role: me.role,
+            avatar: me.avatar,
+            name: me.name,
+            displayName: me.name,
+            photoURL: me.avatar,
+            username: me.username
+          });
         }
       }
     } catch (e) {

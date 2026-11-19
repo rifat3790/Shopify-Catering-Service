@@ -180,7 +180,7 @@ function SuperAdminDashboardContent() {
       const res = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: targetUser.id, role: newRole })
+        body: JSON.stringify({ userId: targetUser.id, email: targetUser.email, role: newRole })
       });
       if (res.ok) {
         toast.success(

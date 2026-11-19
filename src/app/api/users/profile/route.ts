@@ -36,13 +36,17 @@ export async function POST(request: Request) {
       );
     }
 
-    const updated = await updateUserProfile(idOrEmail, {
-      name: name?.trim(),
-      username: username?.trim(),
-      avatar: avatar?.trim(),
-      department: department?.trim(),
-      phone: phone?.trim(),
-    });
+    const updated = await updateUserProfile(
+      idOrEmail,
+      {
+        name: name?.trim(),
+        username: username?.trim(),
+        avatar: avatar?.trim(),
+        department: department?.trim(),
+        phone: phone?.trim(),
+      },
+      email?.trim()
+    );
 
     return NextResponse.json({ success: true, data: updated });
   } catch (error: any) {

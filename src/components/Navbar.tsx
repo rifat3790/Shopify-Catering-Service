@@ -181,9 +181,12 @@ export default function Navbar({ onOpenNewOrder }: NavbarProps) {
                   className="flex items-center gap-2 p-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-emerald-900/50 transition-colors"
                 >
                   <img
-                    src={user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || 'Staff')}&background=047857&color=fff`}
-                    alt={user.displayName || 'User'}
+                    src={user.photoURL || user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || user.name || 'Staff')}&background=047857&color=fff`}
+                    alt={user.displayName || user.name || 'User'}
                     className="w-8 h-8 rounded-lg object-cover ring-1 ring-amber-400/40"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || user.name || 'Staff')}&background=047857&color=fff`;
+                    }}
                   />
                   <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
                 </button>

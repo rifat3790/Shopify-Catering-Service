@@ -29,7 +29,7 @@ export async function PUT(
     const body = await request.json();
 
     if (body.role) {
-      const updated = await updateUserRole(id, body.role);
+      const updated = await updateUserRole(id, body.role, body.email);
       return NextResponse.json({ success: true, data: updated });
     }
 

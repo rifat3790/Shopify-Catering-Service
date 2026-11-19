@@ -1,4 +1,12 @@
 import mongoose from 'mongoose';
+import dns from 'dns';
+
+// Ensure robust DNS resolution for MongoDB Atlas SRV records
+try {
+  dns.setServers(['8.8.8.8', '1.1.1.1', '8.8.4.4']);
+} catch (e) {
+  // Graceful fallback if runtime restricts dns.setServers
+}
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://Shopify_Catering:ATxIhtQyoI4o86Zr@cluster0.tma46bj.mongodb.net/shopify_catering?retryWrites=true&w=majority';
 

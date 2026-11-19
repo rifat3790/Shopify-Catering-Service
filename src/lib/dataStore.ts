@@ -54,7 +54,7 @@ export function applyUserOverridesAndUsername(user: UserRecord): UserRecord {
   const cleanEmail = user.email.toLowerCase().trim();
   const defaultUsername = '@' + cleanEmail.split('@')[0].replace(/[^a-z0-9_]/g, '');
 
-  let rawUsername = ov.username || user.username || defaultUsername;
+  let rawUsername = user.username || ov.username || defaultUsername;
   if (!rawUsername.startsWith('@')) {
     rawUsername = '@' + rawUsername;
   }
@@ -63,13 +63,13 @@ export function applyUserOverridesAndUsername(user: UserRecord): UserRecord {
 
   return {
     ...user,
-    name: ov.name || user.name,
+    name: user.name || ov.name,
     username: rawUsername.toLowerCase(),
-    avatar: ov.avatar || user.avatar,
-    department: ov.department || user.department,
-    phone: ov.phone !== undefined ? ov.phone : user.phone,
+    avatar: (user.avatar && user.avatar.trim()) ? user.avatar : (ov.avatar || user.avatar),
+    department: user.department || ov.department,
+    phone: user.phone !== undefined ? user.phone : (ov.phone !== undefined ? ov.phone : ''),
     balance: user.balance !== undefined ? user.balance : (ov.balance !== undefined ? ov.balance : 0),
-    role: isSuper ? 'super_admin' : (ov.role || user.role),
+    role: isSuper ? 'super_admin' : (user.role || ov.role || 'user'),
   };
 }
 
@@ -109,6 +109,9 @@ export async function getAllUsers(): Promise<UserRecord[]> {
             avatar: fb.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(fb.displayName || 'Member')}&background=047857&color=fff`,
             createdAt: fb.createdAt ? new Date(fb.createdAt) : new Date(),
           });
+        } else if (fb.uid && !exists.uid) {
+          exists.uid = fb.uid;
+          await exists.save();
         }
       }
 
@@ -128,6 +131,7 @@ export async function getAllUsers(): Promise<UserRecord[]> {
       return {
         id: d.uid || d._id.toString(),
         name: d.name,
+        username: d.username || ('@' + d.email.split('@')[0].replace(/[^a-z0-9_]/g, '')),
         email: d.email,
         role: (isSuper ? 'super_admin' : d.role) as UserRole,
         balance: Number(d.balance) || 0,
@@ -247,7 +251,8 @@ export async function updateUserPresence(idOrEmail: string, isOnline: boolean = 
 // Update User Profile (Name, @Username, Avatar, Department, Phone)
 export async function updateUserProfile(
   userIdOrEmail: string,
-  updates: Partial<UserRecord>
+  updates: Partial<UserRecord>,
+  fallbackEmail?: string
 ): Promise<UserRecord | null> {
   if (updates.username) {
     let un = updates.username.trim();
@@ -255,39 +260,81 @@ export async function updateUserProfile(
     updates.username = un.toLowerCase().replace(/[^a-z0-9_@]/g, '');
   }
 
-  // 1. Update persistentStore
-  persistentStore.updateUserProfile(userIdOrEmail, updates);
+  const cleanEmail = (fallbackEmail || (userIdOrEmail.includes('@') ? userIdOrEmail : '')).toLowerCase().trim();
+  const isObjectId = userIdOrEmail.match(/^[0-9a-fA-F]{24}$/);
 
-  // 2. Also try MongoDB
+  // 1. Authoritative update in MongoDB Atlas
+  let updatedDoc: any = null;
   try {
     const db = await connectToDatabase();
     if (db && User) {
-      const emailMatch = userIdOrEmail.toLowerCase().trim();
-      const isObjectId = userIdOrEmail.match(/^[0-9a-fA-F]{24}$/);
-      const query = isObjectId ? { _id: userIdOrEmail } : { email: emailMatch };
-      await User.findOneAndUpdate(query, { $set: updates });
-    }
-  } catch (e) {}
+      const orConditions: any[] = [];
+      if (cleanEmail) orConditions.push({ email: cleanEmail });
+      orConditions.push({ uid: userIdOrEmail });
+      if (isObjectId) orConditions.push({ _id: userIdOrEmail });
+      if (userIdOrEmail.toLowerCase().trim() !== cleanEmail) {
+        orConditions.push({ email: userIdOrEmail.toLowerCase().trim() });
+      }
 
-  // 3. If Firebase user, update Firebase Auth profile
+      const query = orConditions.length === 1 ? orConditions[0] : { $or: orConditions };
+      updatedDoc = await User.findOneAndUpdate(query, { $set: updates }, { new: true });
+      if (!updatedDoc && cleanEmail) {
+        updatedDoc = await User.findOneAndUpdate({ email: cleanEmail }, { $set: updates }, { new: true });
+      }
+    }
+  } catch (e) {
+    console.error('MongoDB updateUserProfile error:', e);
+  }
+
+  // 2. Update persistentStore with email key
+  const storeKey = cleanEmail || updatedDoc?.email || userIdOrEmail;
+  persistentStore.updateUserProfile(storeKey, updates);
+
+  // 3. If Firebase user, update Firebase Auth profile (safe with photoURL format check)
   try {
     if (adminAuth) {
-      const all = await getAllUsers();
-      const target = all.find(
-        u => u.id === userIdOrEmail || u.email.toLowerCase() === userIdOrEmail.toLowerCase()
-      );
-      if (target && target.id && !target.id.startsWith('usr-')) {
-        await adminAuth.updateUser(target.id, {
-          displayName: updates.name || undefined,
-          photoURL: updates.avatar || undefined,
-        });
+      const targetUid = updatedDoc?.uid || (userIdOrEmail.length > 20 && !userIdOrEmail.includes('@') ? userIdOrEmail : null);
+      if (targetUid) {
+        const fbUpdates: any = {};
+        if (updates.name) fbUpdates.displayName = updates.name;
+        // Firebase strictly requires valid HTTP/HTTPS URL and <= 2048 chars for photoURL (data: URIs are rejected)
+        if (updates.avatar && (updates.avatar.startsWith('http://') || updates.avatar.startsWith('https://')) && updates.avatar.length <= 2000) {
+          fbUpdates.photoURL = updates.avatar;
+        }
+        if (Object.keys(fbUpdates).length > 0) {
+          await adminAuth.updateUser(targetUid, fbUpdates).catch(() => {});
+        }
       }
     }
   } catch (e) {}
 
+  // 4. Update in-memory cache and return finalized record
+  if (updatedDoc) {
+    const freshRecord: UserRecord = {
+      id: updatedDoc.uid || updatedDoc._id.toString(),
+      name: updatedDoc.name,
+      username: updatedDoc.username,
+      email: updatedDoc.email,
+      role: updatedDoc.role as UserRole,
+      balance: Number(updatedDoc.balance) || 0,
+      currentDue: Number(updatedDoc.currentDue) || 0,
+      totalSpent: Number(updatedDoc.totalSpent) || 0,
+      department: updatedDoc.department,
+      avatar: updatedDoc.avatar,
+      phone: updatedDoc.phone,
+      createdAt: updatedDoc.createdAt?.toISOString?.() || new Date().toISOString()
+    };
+    usersCache = usersCache.map(u => 
+      (u.id === freshRecord.id || u.email.toLowerCase() === freshRecord.email.toLowerCase()) ? freshRecord : u
+    );
+    return applyUserOverridesAndUsername(freshRecord);
+  }
+
   const all = await getAllUsers();
   return all.find(
-    u => u.id === userIdOrEmail || u.email.toLowerCase() === userIdOrEmail.toLowerCase()
+    u => u.id === userIdOrEmail || 
+    (cleanEmail && u.email.toLowerCase() === cleanEmail) || 
+    u.email.toLowerCase() === userIdOrEmail.toLowerCase()
   ) || null;
 }
 
@@ -334,12 +381,17 @@ export async function syncUser(userData: {
           doc.role = 'super_admin';
           changed = true;
         }
-        if (userData.avatar && userData.avatar !== doc.avatar) {
+        // CRITICAL FIX: Only set avatar if doc.avatar is empty! NEVER overwrite a user's chosen custom avatar with Firebase default
+        if (!doc.avatar && userData.avatar) {
           doc.avatar = userData.avatar;
           changed = true;
         }
         if (userData.uid && !doc.uid) {
           doc.uid = userData.uid;
+          changed = true;
+        }
+        if (userData.name && !doc.name) {
+          doc.name = userData.name;
           changed = true;
         }
         if (changed) {
@@ -348,8 +400,9 @@ export async function syncUser(userData: {
       }
 
       const syncedRecord: UserRecord = {
-        id: doc._id.toString(),
+        id: doc.uid || doc._id.toString(),
         name: doc.name,
+        username: doc.username,
         email: doc.email,
         role: (isSuper ? 'super_admin' : doc.role) as UserRole,
         balance: Number(doc.balance) || 0,
@@ -442,11 +495,16 @@ export async function createUser(data: Partial<UserRecord>): Promise<UserRecord>
   return newUser;
 }
 
-export async function updateUserRole(idOrEmail: string, newRole: UserRole): Promise<UserRecord | null> {
+export async function updateUserRole(
+  idOrEmail: string,
+  newRole: UserRole,
+  fallbackEmail?: string
+): Promise<UserRecord | null> {
   const search = idOrEmail.toLowerCase().trim();
+  const cleanEmail = (fallbackEmail || (idOrEmail.includes('@') ? idOrEmail : '')).toLowerCase().trim();
   
   // Primary super admin cannot be demoted
-  if (search === SUPER_ADMIN_EMAIL.toLowerCase() && newRole !== 'super_admin') {
+  if ((search === SUPER_ADMIN_EMAIL.toLowerCase() || cleanEmail === SUPER_ADMIN_EMAIL.toLowerCase()) && newRole !== 'super_admin') {
     newRole = 'super_admin';
   }
 
@@ -454,14 +512,40 @@ export async function updateUserRole(idOrEmail: string, newRole: UserRole): Prom
     await connectToDatabase();
     if (User) {
       const isObjectId = idOrEmail.match(/^[0-9a-fA-F]{24}$/);
-      const query = isObjectId ? { _id: idOrEmail } : { $or: [{ email: search }, { name: search }] };
-      const doc = await User.findOneAndUpdate(query, { role: newRole }, { new: true });
+      const orConditions: any[] = [];
+      if (cleanEmail) orConditions.push({ email: cleanEmail });
+      orConditions.push({ uid: idOrEmail });
+      if (isObjectId) orConditions.push({ _id: idOrEmail });
+      if (search && search !== cleanEmail) {
+        orConditions.push({ email: search });
+        orConditions.push({ name: search });
+      }
+
+      const query = orConditions.length === 1 ? orConditions[0] : { $or: orConditions };
+      let doc = await User.findOneAndUpdate(query, { role: newRole }, { new: true });
+      if (!doc && cleanEmail) {
+        doc = await User.findOneAndUpdate({ email: cleanEmail }, { role: newRole }, { new: true });
+      }
+
       if (doc) {
+        // Also update Firebase custom claims if Firebase Admin SDK available
+        if (adminAuth && doc.uid) {
+          try {
+            await adminAuth.setCustomUserClaims(doc.uid, { role: newRole });
+          } catch (fbErr) {
+            console.warn('Could not set Firebase custom claims for role:', fbErr);
+          }
+        }
+
+        // Also update persistentStore overrides
+        persistentStore.updateUserProfile(doc.email, { role: newRole });
+
         const updated: UserRecord = {
-          id: doc._id.toString(),
+          id: doc.uid || doc._id.toString(),
           name: doc.name,
+          username: doc.username,
           email: doc.email,
-          role: doc.role,
+          role: doc.role as UserRole,
           balance: Number(doc.balance) || 0,
           currentDue: Number(doc.currentDue) || 0,
           totalSpent: Number(doc.totalSpent) || 0,
@@ -470,7 +554,7 @@ export async function updateUserRole(idOrEmail: string, newRole: UserRole): Prom
           phone: doc.phone,
           createdAt: doc.createdAt?.toISOString?.() || new Date().toISOString()
         };
-        usersCache = usersCache.map(u => (u.id === doc._id.toString() || u.email.toLowerCase() === doc.email.toLowerCase()) ? updated : u);
+        usersCache = usersCache.map(u => (u.id === updated.id || u.email.toLowerCase() === doc.email.toLowerCase()) ? updated : u);
         return updated;
       }
     }
@@ -478,9 +562,15 @@ export async function updateUserRole(idOrEmail: string, newRole: UserRole): Prom
     console.warn("MongoDB update role failed, using cache:", err);
   }
 
-  const idx = usersCache.findIndex(u => u.id === idOrEmail || u.email.toLowerCase() === search || u.name.toLowerCase() === search);
+  const idx = usersCache.findIndex(u => 
+    u.id === idOrEmail || 
+    (cleanEmail && u.email.toLowerCase() === cleanEmail) || 
+    u.email.toLowerCase() === search || 
+    u.name.toLowerCase() === search
+  );
   if (idx !== -1) {
     usersCache[idx].role = newRole;
+    persistentStore.updateUserProfile(usersCache[idx].email, { role: newRole });
     return usersCache[idx];
   }
   return null;
@@ -513,7 +603,7 @@ export async function deleteUser(idOrEmail: string): Promise<boolean> {
       const isObjectId = idOrEmail.match(/^[0-9a-fA-F]{24}$/);
       const query = isObjectId 
         ? { _id: idOrEmail } 
-        : { $or: [{ email: search }, { name: search }] };
+        : { $or: [{ uid: idOrEmail }, { email: search }, { name: search }] };
 
       const target = await User.findOne(query);
       if (target && target.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) {
@@ -523,6 +613,9 @@ export async function deleteUser(idOrEmail: string): Promise<boolean> {
       const res = await User.findOneAndDelete(query);
       if (res) {
         deleted = true;
+        if (adminAuth && res.uid) {
+          await adminAuth.deleteUser(res.uid).catch(() => {});
+        }
       }
     }
   } catch (err: any) {

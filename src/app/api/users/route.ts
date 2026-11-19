@@ -21,21 +21,22 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { userId, role, balanceDelta, balanceAmount, action } = body;
+    const { userId, email, role, balanceDelta, balanceAmount, action } = body;
 
-    if (!userId) {
-      return NextResponse.json({ success: false, error: 'User ID is required' }, { status: 400 });
+    const idOrEmail = userId || email;
+    if (!idOrEmail) {
+      return NextResponse.json({ success: false, error: 'User ID or Email is required' }, { status: 400 });
     }
 
     if (role) {
-      const updated = await updateUserRole(userId, role);
+      const updated = await updateUserRole(idOrEmail, role, email);
       return NextResponse.json({ success: true, data: updated, message: `Role updated to ${role}` });
     }
 
     const amount = balanceAmount !== undefined ? balanceAmount : balanceDelta;
     if (amount !== undefined) {
       const act = action === 'deduct' ? 'deduct' : (action === 'set' ? 'set' : 'add');
-      const updated = await updateUserBalance(userId, Number(amount), act);
+      const updated = await updateUserBalance(idOrEmail, Number(amount), act);
       return NextResponse.json({ 
         success: true, 
         data: updated, 

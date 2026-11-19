@@ -124,8 +124,10 @@ export default function ProfileModal({ isOpen, onClose, onSaved }: ProfileModalP
         // Update client auth context state instantly
         updateLocalUserProfile({
           displayName: name.trim(),
+          name: name.trim(),
           username: formattedUsername.trim().toLowerCase(),
           photoURL: avatar.trim() || user.photoURL || '',
+          avatar: avatar.trim() || user.photoURL || '',
           department: department.trim(),
           phone: phone.trim(),
         });
