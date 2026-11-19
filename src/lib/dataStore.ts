@@ -3,11 +3,15 @@ import Order from './models/Order';
 import MenuItem from './models/MenuItem';
 import Customer from './models/Customer';
 import User from './models/User';
+import Message from './models/Message';
+import Group from './models/Group';
 import { 
   OrderData, 
   MenuItemData, 
   UserRecord, 
   UserRole,
+  ChatMessage,
+  ChatGroup,
   SUPER_ADMIN_EMAIL,
   initialOrders, 
   initialMenuItems,
@@ -18,7 +22,9 @@ export {
   type OrderData, 
   type MenuItemData, 
   type UserRecord, 
-  type UserRole, 
+  type UserRole,
+  type ChatMessage,
+  type ChatGroup, 
   SUPER_ADMIN_EMAIL,
   initialOrders, 
   initialMenuItems,
@@ -29,6 +35,29 @@ export {
 let ordersCache: OrderData[] = [];
 let menuItemsCache: MenuItemData[] = [];
 let usersCache: UserRecord[] = [];
+let messagesCache: ChatMessage[] = [];
+let groupsCache: ChatGroup[] = [
+  {
+    id: 'grp-all-team',
+    name: 'Shopify Team — All Hands',
+    description: 'Official Catering & Office Refreshment Discussion',
+    createdBy: 'system',
+    createdByName: 'Shopify Admin',
+    members: [],
+    avatar: 'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=120&q=80',
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'grp-lunch-club',
+    name: 'Lunch & Snack Specials',
+    description: 'Daily cravings, reviews & orders',
+    createdBy: 'system',
+    createdByName: 'Shopify Staff',
+    members: [],
+    avatar: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=120&q=80',
+    createdAt: new Date().toISOString(),
+  }
+];
 
 // User Management - ONLY REAL LOGGED-IN USERS
 export async function getAllUsers(): Promise<UserRecord[]> {
@@ -37,19 +66,28 @@ export async function getAllUsers(): Promise<UserRecord[]> {
     if (User) {
       const docs = await User.find().sort({ createdAt: -1 }).lean();
       if (docs && docs.length > 0) {
-        const mapped = docs.map((d: any) => ({
-          id: d._id.toString(),
-          name: d.name,
-          email: d.email,
-          role: (d.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase() ? 'super_admin' : d.role) as UserRole,
-          balance: Number(d.balance) || 0,
-          currentDue: Number(d.currentDue) || 0,
-          totalSpent: Number(d.totalSpent) || 0,
-          department: d.department || 'Shopify Team',
-          avatar: d.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(d.name || 'User')}&background=047857&color=fff`,
-          phone: d.phone || '',
-          createdAt: d.createdAt?.toISOString?.() || new Date().toISOString()
-        }));
+        const now = Date.now();
+        const mapped = docs.map((d: any) => {
+          const lastSeenTime = d.lastSeen ? new Date(d.lastSeen).getTime() : (d.updatedAt ? new Date(d.updatedAt).getTime() : now);
+          // Consider active if heartbeat within last 3 minutes
+          const isRecentlyActive = (now - lastSeenTime) < (3 * 60 * 1000);
+
+          return {
+            id: d._id.toString(),
+            name: d.name,
+            email: d.email,
+            role: (d.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase() ? 'super_admin' : d.role) as UserRole,
+            balance: Number(d.balance) || 0,
+            currentDue: Number(d.currentDue) || 0,
+            totalSpent: Number(d.totalSpent) || 0,
+            department: d.department || 'Shopify Team',
+            avatar: d.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(d.name || 'User')}&background=047857&color=fff`,
+            phone: d.phone || '',
+            lastSeen: d.lastSeen?.toISOString?.() || new Date(lastSeenTime).toISOString(),
+            isOnline: Boolean(d.isOnline || isRecentlyActive),
+            createdAt: d.createdAt?.toISOString?.() || new Date().toISOString()
+          };
+        });
         usersCache = mapped;
         return mapped;
       }
@@ -58,6 +96,29 @@ export async function getAllUsers(): Promise<UserRecord[]> {
     console.warn("MongoDB connection fallback to memory users:", err);
   }
   return usersCache;
+}
+
+// Presence & Heartbeat update
+export async function updateUserPresence(idOrEmail: string, isOnline: boolean = true): Promise<void> {
+  const search = idOrEmail.toLowerCase().trim();
+  const now = new Date();
+
+  try {
+    await connectToDatabase();
+    if (User) {
+      const isObjectId = idOrEmail.match(/^[0-9a-fA-F]{24}$/);
+      const query = isObjectId ? { _id: idOrEmail } : { $or: [{ email: search }, { name: search }] };
+      await User.updateOne(query, { $set: { lastSeen: now, isOnline } });
+    }
+  } catch (e) {
+    // fallback
+  }
+
+  const idx = usersCache.findIndex(u => u.id === idOrEmail || u.email.toLowerCase() === search || u.name.toLowerCase() === search);
+  if (idx !== -1) {
+    usersCache[idx].lastSeen = now.toISOString();
+    usersCache[idx].isOnline = isOnline;
+  }
 }
 
 export async function getUserById(idOrEmailOrName: string): Promise<UserRecord | null> {
@@ -616,4 +677,159 @@ export async function getStatsSummary() {
     collectionRate: `${collectionRate}%`,
     rawCollectionRate: Number(collectionRate)
   };
+}
+
+// Chat & Group APIs
+export async function getChatMessages(query: { 
+  userId1?: string; 
+  userId2?: string; 
+  groupId?: string 
+}): Promise<ChatMessage[]> {
+  try {
+    await connectToDatabase();
+    if (Message) {
+      let filter: any = {};
+      if (query.groupId) {
+        filter = { groupId: query.groupId };
+      } else if (query.userId1 && query.userId2) {
+        filter = {
+          $or: [
+            { senderId: query.userId1, receiverId: query.userId2 },
+            { senderId: query.userId2, receiverId: query.userId1 },
+          ]
+        };
+      }
+      const docs = await Message.find(filter).sort({ createdAt: 1 }).limit(100).lean();
+      if (docs) {
+        return docs.map((d: any) => ({
+          id: d._id.toString(),
+          senderId: d.senderId,
+          senderName: d.senderName,
+          senderAvatar: d.senderAvatar,
+          receiverId: d.receiverId,
+          groupId: d.groupId,
+          text: d.text,
+          createdAt: d.createdAt?.toISOString?.() || new Date().toISOString()
+        }));
+      }
+    }
+  } catch (err) {
+    // fallback to cache
+  }
+
+  if (query.groupId) {
+    return messagesCache.filter(m => m.groupId === query.groupId);
+  }
+  if (query.userId1 && query.userId2) {
+    return messagesCache.filter(m => 
+      (m.senderId === query.userId1 && m.receiverId === query.userId2) ||
+      (m.senderId === query.userId2 && m.receiverId === query.userId1)
+    );
+  }
+  return messagesCache;
+}
+
+export async function sendChatMessage(data: {
+  senderId: string;
+  senderName: string;
+  senderAvatar?: string;
+  receiverId?: string;
+  groupId?: string;
+  text: string;
+}): Promise<ChatMessage> {
+  const newMsg: ChatMessage = {
+    id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    senderId: data.senderId,
+    senderName: data.senderName,
+    senderAvatar: data.senderAvatar,
+    receiverId: data.receiverId,
+    groupId: data.groupId,
+    text: data.text,
+    createdAt: new Date().toISOString()
+  };
+
+  try {
+    await connectToDatabase();
+    if (Message) {
+      const doc = await Message.create({
+        senderId: data.senderId,
+        senderName: data.senderName,
+        senderAvatar: data.senderAvatar,
+        receiverId: data.receiverId,
+        groupId: data.groupId,
+        text: data.text
+      });
+      if (doc) newMsg.id = doc._id.toString();
+    }
+  } catch (err) {
+    console.warn("Message save to DB failed, using memory:", err);
+  }
+
+  messagesCache.push(newMsg);
+  return newMsg;
+}
+
+export async function getAllChatGroups(): Promise<ChatGroup[]> {
+  try {
+    await connectToDatabase();
+    if (Group) {
+      const docs = await Group.find().sort({ createdAt: -1 }).lean();
+      if (docs && docs.length > 0) {
+        const mapped = docs.map((d: any) => ({
+          id: d._id.toString(),
+          name: d.name,
+          description: d.description,
+          createdBy: d.createdBy,
+          createdByName: d.createdByName,
+          members: d.members || [],
+          avatar: d.avatar,
+          createdAt: d.createdAt?.toISOString?.() || new Date().toISOString()
+        }));
+        return [...groupsCache, ...mapped];
+      }
+    }
+  } catch (err) {
+    // fallback
+  }
+  return groupsCache;
+}
+
+export async function createChatGroup(data: {
+  name: string;
+  description?: string;
+  createdBy: string;
+  createdByName?: string;
+  members: string[];
+  avatar?: string;
+}): Promise<ChatGroup> {
+  const newGroup: ChatGroup = {
+    id: `grp-${Date.now()}`,
+    name: data.name,
+    description: data.description || '',
+    createdBy: data.createdBy,
+    createdByName: data.createdByName || 'Team Member',
+    members: data.members,
+    avatar: data.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(data.name)}&background=047857&color=fff`,
+    createdAt: new Date().toISOString()
+  };
+
+  try {
+    await connectToDatabase();
+    if (Group) {
+      const doc = await Group.create({
+        name: data.name,
+        description: data.description,
+        createdBy: data.createdBy,
+        createdByName: data.createdByName,
+        members: data.members,
+        avatar: newGroup.avatar
+      });
+      if (doc) newGroup.id = doc._id.toString();
+    }
+  } catch (err) {
+    console.warn("Group save to DB failed, using memory:", err);
+  }
+
+  groupsCache.unshift(newGroup);
+  return newGroup;
 }

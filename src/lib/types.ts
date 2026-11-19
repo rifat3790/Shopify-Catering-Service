@@ -52,6 +52,30 @@ export interface UserRecord {
   department: string;
   avatar: string;
   phone?: string;
+  lastSeen?: string;
+  isOnline?: boolean;
+  createdAt: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  senderId: string;
+  senderName: string;
+  senderAvatar?: string;
+  receiverId?: string;
+  groupId?: string;
+  text: string;
+  createdAt: string;
+}
+
+export interface ChatGroup {
+  id: string;
+  name: string;
+  description?: string;
+  createdBy: string;
+  createdByName?: string;
+  members: string[];
+  avatar?: string;
   createdAt: string;
 }
 

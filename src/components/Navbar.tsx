@@ -19,7 +19,8 @@ import {
   ChevronDown, 
   Crown, 
   Wallet, 
-  LayoutDashboard 
+  LayoutDashboard,
+  MessageSquare
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -37,6 +38,7 @@ export default function Navbar({ onOpenNewOrder }: NavbarProps) {
 
   const navLinks = [
     { href: '/menu', label: language === 'bn' ? 'ক্যাটারিং মেনু' : 'Menu', icon: MenuSquare, show: true },
+    { href: '/chat', label: language === 'bn' ? 'টিম চ্যাট ও কল' : 'Team Chat', icon: MessageSquare, show: !!user },
     { href: '/tracker', label: language === 'bn' ? 'অর্ডার ট্র্যাকার' : 'Live Tracker', icon: TableProperties, show: isAdmin },
     { href: '/pos', label: language === 'bn' ? 'কাউন্টার পিওএস' : 'Express POS', icon: Calculator, show: isAdmin },
   ];
@@ -231,6 +233,15 @@ export default function Navbar({ onOpenNewOrder }: NavbarProps) {
                     >
                       <LayoutDashboard className="w-4 h-4 text-sky-400" />
                       <span>{language === 'bn' ? 'আমার খাবার ও ব্যালেন্স' : 'My User Dashboard'}</span>
+                    </Link>
+
+                    <Link
+                      href="/chat"
+                      onClick={() => setShowUserMenu(false)}
+                      className="flex items-center gap-2 px-4 py-2 text-xs text-slate-300 hover:bg-slate-800 font-semibold"
+                    >
+                      <MessageSquare className="w-4 h-4 text-emerald-400" />
+                      <span>{language === 'bn' ? 'টিম চ্যাট ও কল' : 'Team Connect & Chat'}</span>
                     </Link>
 
                     <div className="border-t border-slate-800 my-1" />

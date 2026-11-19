@@ -12,6 +12,8 @@ export interface IUser extends Document {
   department: string;
   avatar: string;
   phone?: string;
+  lastSeen?: Date;
+  isOnline?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -32,6 +34,8 @@ const UserSchema = new Schema<IUser>(
     department: { type: String, default: 'General Team' },
     avatar: { type: String, default: '' },
     phone: { type: String, default: '' },
+    lastSeen: { type: Date, default: Date.now },
+    isOnline: { type: Boolean, default: false },
   },
   {
     timestamps: true,

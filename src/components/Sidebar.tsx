@@ -22,7 +22,8 @@ import {
   Menu,
   X,
   ShieldCheck,
-  LogIn
+  LogIn,
+  MessageSquare
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -46,6 +47,14 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
       icon: MenuSquare,
       badge: '',
       show: true,
+    },
+    {
+      href: '/chat',
+      labelEn: 'Team & Voice Chat',
+      labelBn: 'টিম চ্যাট ও কল',
+      icon: MessageSquare,
+      badge: 'Live',
+      show: !!user, // Available to all team members!
     },
     {
       href: '/tracker',

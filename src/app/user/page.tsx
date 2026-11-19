@@ -18,7 +18,8 @@ import {
   Receipt, 
   UtensilsCrossed, 
   Plus, 
-  RefreshCw 
+  RefreshCw,
+  MessageSquare 
 } from 'lucide-react';
 
 function UserDashboardContent() {
@@ -139,6 +140,14 @@ function UserDashboardContent() {
                   </select>
                 </div>
               )}
+
+              <Link
+                href="/chat"
+                className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-emerald-300 border border-emerald-600/50 font-semibold text-xs flex items-center gap-1.5 transition-all hover:scale-105"
+              >
+                <MessageSquare className="w-3.5 h-3.5 text-amber-400" />
+                <span>Team & Voice Chat</span>
+              </Link>
 
               <button
                 onClick={() => { refreshUser(); loadUserData(); }}
