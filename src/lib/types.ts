@@ -82,6 +82,16 @@ export interface ChatGroup {
   updatedAt?: string;
 }
 
+export interface PasswordResetRequest {
+  id: string;
+  email: string;
+  userName?: string;
+  code: string;
+  createdAt: string;
+  expiresAt: string;
+  status: 'pending' | 'used' | 'cancelled';
+}
+
 // System Super Admin configuration
 export const SUPER_ADMIN_EMAIL = 'mdrifayethossen@gmail.com';
 

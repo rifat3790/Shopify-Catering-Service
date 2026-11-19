@@ -1,11 +1,12 @@
 import { connectToDatabase } from './mongodb';
-import { getFirebaseUsersList } from './firebaseAdmin';
+import { adminAuth, getFirebaseUsersList } from './firebaseAdmin';
 import Order from './models/Order';
 import MenuItem from './models/MenuItem';
 import Customer from './models/Customer';
 import User from './models/User';
 import Message from './models/Message';
 import Group from './models/Group';
+import PasswordReset from './models/PasswordReset';
 import { 
   OrderData, 
   MenuItemData, 
@@ -13,6 +14,7 @@ import {
   UserRole,
   ChatMessage,
   ChatGroup,
+  PasswordResetRequest,
   SUPER_ADMIN_EMAIL,
   initialOrders, 
   initialMenuItems,
@@ -25,7 +27,8 @@ export {
   type UserRecord, 
   type UserRole,
   type ChatMessage,
-  type ChatGroup, 
+  type ChatGroup,
+  type PasswordResetRequest,
   SUPER_ADMIN_EMAIL,
   initialOrders, 
   initialMenuItems,
@@ -38,6 +41,7 @@ let menuItemsCache: MenuItemData[] = [];
 let usersCache: UserRecord[] = [];
 let messagesCache: ChatMessage[] = [];
 let groupsCache: ChatGroup[] = [];
+let resetRequestsCache: PasswordResetRequest[] = [];
 
 // User Management - ALL REGISTERED USERS (FROM FIREBASE AUTH & DATABASE)
 export async function getAllUsers(): Promise<UserRecord[]> {
@@ -1228,5 +1232,181 @@ export async function deleteChatGroup(
   groupsCache = groupsCache.filter(g => g.id !== groupId);
   messagesCache = messagesCache.filter(m => m.groupId !== groupId);
 
+  return true;
+}
+
+// ==================== PASSWORD RESET & OTP SYSTEM ====================
+
+export async function createPasswordResetRequest(email: string): Promise<PasswordResetRequest> {
+  const cleanEmail = email.toLowerCase().trim();
+  const allUsers = await getAllUsers();
+  const user = allUsers.find(u => u.email.toLowerCase() === cleanEmail);
+  if (!user) {
+    throw new Error('No registered account found with this email address.');
+  }
+
+  // Generate a secure 6-digit verification OTP code
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + 30 * 60 * 1000); // 30 minutes validity
+
+  const newRequest: PasswordResetRequest = {
+    id: `reset-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    email: cleanEmail,
+    userName: user.name,
+    code,
+    createdAt: now.toISOString(),
+    expiresAt: expiresAt.toISOString(),
+    status: 'pending',
+  };
+
+  try {
+    await connectToDatabase();
+    if (PasswordReset) {
+      // Invalidate existing pending requests for this email
+      await PasswordReset.updateMany(
+        { email: cleanEmail, status: 'pending' },
+        { $set: { status: 'cancelled' } }
+      );
+
+      const doc = await PasswordReset.create({
+        email: cleanEmail,
+        userName: user.name,
+        code,
+        status: 'pending',
+        expiresAt,
+      });
+      if (doc) newRequest.id = doc._id.toString();
+    }
+  } catch (err) {
+    console.warn("MongoDB save reset request failed, using memory:", err);
+  }
+
+  // Invalidate previous pending in memory cache
+  resetRequestsCache = resetRequestsCache.map(r => 
+    r.email === cleanEmail && r.status === 'pending' ? { ...r, status: 'cancelled' } : r
+  );
+  resetRequestsCache.unshift(newRequest);
+
+  return newRequest;
+}
+
+export async function getActivePasswordResetRequests(): Promise<PasswordResetRequest[]> {
+  const now = new Date();
+
+  try {
+    await connectToDatabase();
+    if (PasswordReset) {
+      const docs = await PasswordReset.find({
+        status: 'pending',
+        expiresAt: { $gt: now },
+      }).sort({ createdAt: -1 }).lean();
+
+      if (docs && docs.length > 0) {
+        return docs.map((d: any) => ({
+          id: d._id.toString(),
+          email: d.email,
+          userName: d.userName,
+          code: d.code,
+          createdAt: d.createdAt?.toISOString?.() || new Date().toISOString(),
+          expiresAt: d.expiresAt?.toISOString?.() || new Date(Date.now() + 1800000).toISOString(),
+          status: d.status,
+        }));
+      }
+    }
+  } catch (err) {
+    console.warn("MongoDB get reset requests failed, using memory:", err);
+  }
+
+  return resetRequestsCache.filter(r => r.status === 'pending' && new Date(r.expiresAt) > now);
+}
+
+export async function verifyAndResetPassword(
+  email: string,
+  code: string,
+  newPassword: string
+): Promise<{ success: boolean; message: string }> {
+  const cleanEmail = email.toLowerCase().trim();
+  const cleanCode = code.trim();
+
+  if (newPassword.length < 6) {
+    throw new Error('New password must be at least 6 characters long.');
+  }
+
+  const now = new Date();
+  let matchedRequest: PasswordResetRequest | null = null;
+
+  try {
+    await connectToDatabase();
+    if (PasswordReset) {
+      const doc = await PasswordReset.findOne({
+        email: cleanEmail,
+        code: cleanCode,
+        status: 'pending',
+        expiresAt: { $gt: now },
+      });
+
+      if (doc) {
+        matchedRequest = {
+          id: doc._id.toString(),
+          email: doc.email,
+          userName: doc.userName,
+          code: doc.code,
+          createdAt: doc.createdAt?.toISOString?.() || new Date().toISOString(),
+          expiresAt: doc.expiresAt?.toISOString?.() || new Date().toISOString(),
+          status: doc.status,
+        };
+        doc.status = 'used';
+        await doc.save();
+      }
+    }
+  } catch (err) {
+    console.warn("MongoDB verify reset failed, checking memory:", err);
+  }
+
+  if (!matchedRequest) {
+    const memReq = resetRequestsCache.find(
+      r => r.email === cleanEmail && r.code === cleanCode && r.status === 'pending' && new Date(r.expiresAt) > now
+    );
+    if (!memReq) {
+      throw new Error('Invalid or expired verification code. Please check with your Admin.');
+    }
+    memReq.status = 'used';
+    matchedRequest = memReq;
+  }
+
+  // Update password in Firebase Auth via Admin SDK
+  if (adminAuth) {
+    try {
+      const userRecord = await adminAuth.getUserByEmail(cleanEmail);
+      await adminAuth.updateUser(userRecord.uid, { password: newPassword });
+    } catch (fbErr: any) {
+      console.error("Firebase admin password update failed:", fbErr);
+      throw new Error(fbErr.message || 'Failed to update password in Firebase Auth.');
+    }
+  } else {
+    throw new Error('Firebase Admin Auth is not available.');
+  }
+
+  return { success: true, message: 'Password has been successfully reset. You can now login.' };
+}
+
+export async function cancelPasswordResetRequest(requestId: string): Promise<boolean> {
+  try {
+    await connectToDatabase();
+    if (PasswordReset) {
+      const isObjectId = requestId.match(/^[0-9a-fA-F]{24}$/);
+      if (isObjectId) {
+        await PasswordReset.findByIdAndUpdate(requestId, { $set: { status: 'cancelled' } });
+      }
+    }
+  } catch (err) {
+    console.warn("MongoDB cancel reset failed:", err);
+  }
+
+  const idx = resetRequestsCache.findIndex(r => r.id === requestId);
+  if (idx !== -1) {
+    resetRequestsCache[idx].status = 'cancelled';
+  }
   return true;
 }

@@ -6,7 +6,7 @@ import AuthGuard from '@/components/AuthGuard';
 import LuxuryLoader from '@/components/LuxuryLoader';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
-import { UserRecord, UserRole, SUPER_ADMIN_EMAIL } from '@/lib/types';
+import { UserRecord, UserRole, SUPER_ADMIN_EMAIL, PasswordResetRequest } from '@/lib/types';
 import Link from 'next/link';
 import { 
   Crown, 
@@ -24,7 +24,9 @@ import {
   UserPlus,
   Coins,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  Copy,
+  Clock
 } from 'lucide-react';
 
 function SuperAdminDashboardContent() {
@@ -54,20 +56,57 @@ function SuperAdminDashboardContent() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
 
+  // Password Reset Requests State
+  const [resetRequests, setResetRequests] = useState<PasswordResetRequest[]>([]);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/users');
-      if (res.ok) {
-        const json = await res.json();
+      const [uRes, rRes] = await Promise.all([
+        fetch('/api/users'),
+        fetch('/api/auth/reset-password'),
+      ]);
+
+      if (uRes.ok) {
+        const json = await uRes.json();
         if (json.success && json.data) {
           setUsers(json.data);
+        }
+      }
+
+      if (rRes.ok) {
+        const rJson = await rRes.json();
+        if (rJson.success && rJson.data) {
+          setResetRequests(rJson.data);
         }
       }
     } catch (e) {
       console.warn('Error fetching users:', e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCopyCode = (id: string, code: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2500);
+  };
+
+  const handleCancelReset = async (requestId: string) => {
+    if (!window.confirm('Cancel this password reset request?')) return;
+    try {
+      const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'cancel', requestId }),
+      });
+      if (res.ok) {
+        setResetRequests(prev => prev.filter(r => r.id !== requestId));
+      }
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -305,6 +344,101 @@ function SuperAdminDashboardContent() {
               <p className="text-[11px] text-slate-400 mt-1">Full Admin Privileges</p>
             </div>
           </div>
+
+          {/* Password Reset Requests & OTP Codes (Real-time Admin Dispatch) */}
+          {resetRequests.length > 0 && (
+            <div className="bg-slate-900/90 border border-amber-500/50 rounded-3xl p-5 shadow-2xl space-y-4 animate-in fade-in">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
+                    <KeyRound className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-serif font-bold text-white text-base flex items-center gap-2">
+                      <span>Pending Password Reset Requests</span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] bg-rose-600 text-white font-bold animate-pulse">
+                        {resetRequests.length} Waiting
+                      </span>
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      Employees requested a password reset. Provide them with their 6-digit verification code below.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={fetchUsers}
+                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 flex items-center gap-1.5 self-start sm:self-auto"
+                >
+                  <RefreshCw className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Refresh Codes</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                {resetRequests.map((req) => (
+                  <div
+                    key={req.id}
+                    className="bg-slate-950 border border-amber-500/40 rounded-2xl p-4 shadow-lg space-y-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                        OTP Active
+                      </span>
+                      <span className="text-[10px] text-slate-500 font-mono">
+                        {new Date(req.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+
+                    <div>
+                      <h4 className="font-bold text-white text-sm truncate">{req.userName || 'Member'}</h4>
+                      <p className="text-xs text-slate-400 font-mono truncate">{req.email}</p>
+                    </div>
+
+                    <div className="bg-slate-900 border border-amber-500/60 rounded-xl p-3 flex items-center justify-between">
+                      <div>
+                        <p className="text-[10px] text-amber-400 font-semibold uppercase tracking-wider">
+                          Verification Code
+                        </p>
+                        <p className="text-xl font-mono font-extrabold text-amber-300 tracking-widest">
+                          {req.code}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleCopyCode(req.id, req.code)}
+                        className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1 shadow transition-all active:scale-95"
+                      >
+                        {copiedId === req.id ? (
+                          <>
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Copied!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5" />
+                            <span>Copy</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-1 text-[11px] text-slate-500">
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5" />
+                        <span>Valid for 30m</span>
+                      </span>
+                      <button
+                        onClick={() => handleCancelReset(req.id)}
+                        className="text-rose-400 hover:text-rose-300 font-semibold hover:underline"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Role & Balance Management Section */}
           <div className="rounded-3xl bg-slate-900/90 border border-emerald-900/60 shadow-2xl overflow-hidden backdrop-blur-xl">

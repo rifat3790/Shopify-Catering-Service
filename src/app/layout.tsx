@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
 import { LanguageProvider } from '@/context/LanguageContext';
-import Footer from '@/components/Footer';
 
 export const metadata: Metadata = {
   title: 'Shopify Catering Service — Order & Payment Tracker',
@@ -25,7 +24,6 @@ export default function RootLayout({
             <div className="flex-1 flex flex-col">
               {children}
             </div>
-            <Footer />
           </LanguageProvider>
         </AuthProvider>
       </body>

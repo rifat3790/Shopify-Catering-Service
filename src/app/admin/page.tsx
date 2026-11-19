@@ -10,22 +10,26 @@ import QuickOrderModal from '@/components/QuickOrderModal';
 import InvoiceModal from '@/components/InvoiceModal';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
-import { OrderData, MenuItemData, UserRecord } from '@/lib/types';
+import { OrderData, MenuItemData, UserRecord, PasswordResetRequest } from '@/lib/types';
 import Link from 'next/link';
 import { 
   ShieldCheck, 
   ChefHat, 
   Utensils, 
   Plus, 
-  RefreshCw,
-  PlusCircle,
-  MinusCircle,
-  Edit3,
-  Trash2,
-  Wallet,
-  Users,
-  Coins,
-  Search
+  RefreshCw, 
+  PlusCircle, 
+  MinusCircle, 
+  Edit3, 
+  Trash2, 
+  Wallet, 
+  Users, 
+  Coins, 
+  Search,
+  KeyRound,
+  Copy,
+  Check,
+  Clock
 } from 'lucide-react';
 
 function AdminPageContent() {
@@ -49,7 +53,11 @@ function AdminPageContent() {
   const [loading, setLoading] = useState(true);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<OrderData | null>(null);
-  const [activeTab, setActiveTab] = useState<'orders' | 'menu' | 'balance'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'menu' | 'balance' | 'resets'>('orders');
+
+  // Password reset requests state
+  const [resetRequests, setResetRequests] = useState<PasswordResetRequest[]>([]);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // Menu item modal
   const [isDishModalOpen, setIsDishModalOpen] = useState(false);
@@ -66,11 +74,12 @@ function AdminPageContent() {
 
   const fetchAdminData = async () => {
     try {
-      const [ordRes, statRes, menuRes, userRes] = await Promise.all([
+      const [ordRes, statRes, menuRes, userRes, resetRes] = await Promise.all([
         fetch('/api/orders'),
         fetch('/api/stats'),
         fetch('/api/menu'),
-        fetch('/api/users')
+        fetch('/api/users'),
+        fetch('/api/auth/reset-password')
       ]);
 
       if (ordRes.ok) {
@@ -89,10 +98,36 @@ function AdminPageContent() {
         const u = await userRes.json();
         if (u.success && u.data) setMembers(u.data);
       }
+      if (resetRes.ok) {
+        const r = await resetRes.json();
+        if (r.success && r.data) setResetRequests(r.data);
+      }
     } catch (e) {
       console.warn('Using live state');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCopyCode = (id: string, code: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2500);
+  };
+
+  const handleCancelReset = async (requestId: string) => {
+    if (!window.confirm('Cancel this password reset request?')) return;
+    try {
+      const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'cancel', requestId }),
+      });
+      if (res.ok) {
+        setResetRequests(prev => prev.filter(r => r.id !== requestId));
+      }
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -279,7 +314,21 @@ function AdminPageContent() {
                 activeTab === 'balance' ? 'bg-amber-500 text-slate-950 shadow' : 'text-slate-400 hover:text-white'
               }`}
             >
-              💳 {language === 'bn' ? 'মেম্বার ব্যালেন্স কন্ট্রোল (Add/Edit)' : 'Member Balances'}
+              💳 {language === 'bn' ? 'মেম্বার ব্যালেন্স কন্ট্রোল' : 'Member Balances'}
+            </button>
+            <button
+              onClick={() => setActiveTab('resets')}
+              className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                activeTab === 'resets' ? 'bg-amber-400 text-slate-950 shadow' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <KeyRound className="w-3.5 h-3.5" />
+              <span>Reset Codes (OTP)</span>
+              {resetRequests.length > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-rose-600 text-white font-bold animate-pulse">
+                  {resetRequests.length}
+                </span>
+              )}
             </button>
           </div>
 
@@ -454,6 +503,111 @@ function AdminPageContent() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Tab 4: Password Reset Requests & OTP Codes */}
+          {activeTab === 'resets' && (
+            <div className="bg-slate-900/90 border border-amber-500/40 rounded-3xl p-6 shadow-2xl space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
+                    <KeyRound className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-serif font-bold text-white text-base">
+                      Password Reset Requests & OTP Codes
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      When members request a password reset, their 6-digit verification code appears here.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={fetchAdminData}
+                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 border border-slate-700 flex items-center gap-1.5 self-start sm:self-auto"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Refresh</span>
+                </button>
+              </div>
+
+              {resetRequests.length === 0 ? (
+                <div className="py-16 text-center text-slate-400 space-y-2">
+                  <div className="w-12 h-12 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-center text-slate-500 mx-auto">
+                    <KeyRound className="w-6 h-6" />
+                  </div>
+                  <p className="font-semibold text-slate-300 text-sm">No Pending Password Reset Requests</p>
+                  <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                    When a user requests a reset from the login page, their 6-digit OTP code will arrive here instantly.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {resetRequests.map((req) => (
+                    <div
+                      key={req.id}
+                      className="bg-slate-950 border border-amber-500/40 rounded-2xl p-4 shadow-lg space-y-3 relative overflow-hidden"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                          Active Request
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-mono">
+                          {new Date(req.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+
+                      <div>
+                        <h4 className="font-bold text-white text-sm truncate">{req.userName || 'Member'}</h4>
+                        <p className="text-xs text-slate-400 font-mono truncate">{req.email}</p>
+                      </div>
+
+                      {/* Golden Highlighted 6-digit OTP code */}
+                      <div className="bg-slate-900 border border-amber-500/60 rounded-xl p-3 flex items-center justify-between">
+                        <div>
+                          <p className="text-[10px] text-amber-400 font-semibold uppercase tracking-wider">
+                            Verification OTP Code
+                          </p>
+                          <p className="text-xl font-mono font-extrabold text-amber-300 tracking-widest">
+                            {req.code}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => handleCopyCode(req.id, req.code)}
+                          className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1 shadow-md transition-all active:scale-95"
+                        >
+                          {copiedId === req.id ? (
+                            <>
+                              <Check className="w-3.5 h-3.5" />
+                              <span>Copied!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3.5 h-3.5" />
+                              <span>Copy</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-1 text-[11px] text-slate-500">
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3.5 h-3.5" />
+                          <span>Valid for 30m</span>
+                        </span>
+                        <button
+                          onClick={() => handleCancelReset(req.id)}
+                          className="text-rose-400 hover:text-rose-300 font-semibold hover:underline"
+                        >
+                          Cancel Code
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>

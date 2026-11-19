@@ -9,6 +9,7 @@ import {
   createUserWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
+  updateProfile,
   type User,
 } from '@/lib/firebase';
 import { UserRole, SUPER_ADMIN_EMAIL } from '@/lib/types';
@@ -209,7 +210,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(true);
       const res = await createUserWithEmailAndPassword(auth, email, pass);
       if (res.user && res.user.email) {
-        const synced = await syncWithBackend(res.user);
+        if (name && auth.currentUser) {
+          try {
+            await updateProfile(auth.currentUser, { displayName: name.trim() });
+          } catch (e) {
+            console.warn('Could not update profile display name:', e);
+          }
+        }
+        const userObj = {
+          ...res.user,
+          displayName: name?.trim() || res.user.displayName,
+        };
+        const synced = await syncWithBackend(userObj as User);
         setUser(synced);
       }
     } catch (err: any) {
