@@ -174,20 +174,38 @@ function UserDashboardContent() {
     };
   }, [allPersonalOrders]);
 
-  // Calculations strictly for this user
-  const calculatedSpent = useMemo(() => {
+  // Calculations strictly for this user (100% dynamic from real orders)
+  const lifetimeSpent = useMemo(() => {
     return allPersonalOrders.reduce((acc, curr) => acc + (Number(curr.totalBill) || 0), 0);
   }, [allPersonalOrders]);
 
-  const calculatedDue = useMemo(() => {
+  const periodSpent = useMemo(() => {
+    return myOrders.reduce((acc, curr) => acc + (Number(curr.totalBill) || 0), 0);
+  }, [myOrders]);
+
+  const lifetimeDue = useMemo(() => {
     return allPersonalOrders
       .filter(o => o.status === 'Due' || o.changeDue < 0)
       .reduce((acc, curr) => acc + Math.max(0, (Number(curr.totalBill) || 0) - (Number(curr.paidAmount) || 0)), 0);
   }, [allPersonalOrders]);
 
+  const periodDue = useMemo(() => {
+    return myOrders
+      .filter(o => o.status === 'Due' || o.changeDue < 0)
+      .reduce((acc, curr) => acc + Math.max(0, (Number(curr.totalBill) || 0) - (Number(curr.paidAmount) || 0)), 0);
+  }, [myOrders]);
+
   const displayBalance = activeUserRecord ? (Number(activeUserRecord.balance) || 0) : (Number(user?.balance) || 0);
-  const displaySpent = activeUserRecord && activeUserRecord.totalSpent > 0 ? activeUserRecord.totalSpent : calculatedSpent;
-  const displayDue = activeUserRecord && activeUserRecord.currentDue > 0 ? activeUserRecord.currentDue : calculatedDue;
+
+  // If allPersonalOrders is 0: Spent and Due are strictly 0!
+  // If dateFilter === 'lifetime', show lifetime totals; otherwise show selected period totals!
+  const displaySpent = allPersonalOrders.length === 0
+    ? 0
+    : (dateFilter === 'lifetime' ? lifetimeSpent : periodSpent);
+
+  const displayDue = allPersonalOrders.length === 0
+    ? 0
+    : (dateFilter === 'lifetime' ? lifetimeDue : periodDue);
 
   const handleBalanceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -375,9 +393,19 @@ function UserDashboardContent() {
               <h2 className="text-2xl sm:text-3xl font-bold font-mono text-amber-300">
                 ৳{displaySpent.toFixed(2)}
               </h2>
-              <p className="text-[11px] text-slate-400 mt-2">
-                {myOrders.length} {language === 'bn' ? 'টি সফল অর্ডার সম্পন্ন' : 'Orders completed'}
-              </p>
+              <div className="flex items-center justify-between mt-2 flex-wrap gap-1">
+                <p className="text-[11px] text-slate-400">
+                  {dateFilter === 'lifetime'
+                    ? `${allPersonalOrders.length} ${language === 'bn' ? 'টি সফল অর্ডার সম্পন্ন' : 'Orders completed'}`
+                    : `${myOrders.length} ${language === 'bn' ? 'টি সফল অর্ডার সম্পন্ন' : 'Orders completed'}`
+                  }
+                </p>
+                {dateFilter !== 'lifetime' && allPersonalOrders.length > 0 && (
+                  <span className="text-[10px] text-amber-400/90 font-mono font-semibold">
+                    {language === 'bn' ? 'লাইফটাইম' : 'Lifetime'}: ৳{lifetimeSpent.toFixed(2)}
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* Unpaid / Due */}
@@ -386,14 +414,14 @@ function UserDashboardContent() {
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                   {language === 'bn' ? 'বকেয়া হিসাব (Current Due)' : 'Current Due / Credit'}
                 </span>
-                <div className="p-2 rounded-xl bg-teal-500/20 text-teal-300 border border-teal-500/30">
+                <div className={`p-2 rounded-xl border ${displayDue > 0 ? 'bg-rose-500/20 text-rose-400 border-rose-500/30' : 'bg-teal-500/20 text-teal-300 border-teal-500/30'}`}>
                   <CheckCircle2 className="w-5 h-5" />
                 </div>
               </div>
-              <h2 className="text-2xl sm:text-3xl font-bold font-mono text-teal-300">
+              <h2 className={`text-2xl sm:text-3xl font-bold font-mono ${displayDue > 0 ? 'text-rose-400' : 'text-teal-300'}`}>
                 ৳{displayDue.toFixed(2)}
               </h2>
-              <p className="text-[11px] text-teal-400 mt-2">
+              <p className={`text-[11px] mt-2 ${displayDue > 0 ? 'text-rose-400' : 'text-teal-400'}`}>
                 {displayDue > 0 ? `৳${displayDue.toFixed(2)} বকেয়া` : (language === 'bn' ? 'কোনো বকেয়া নেই (Clear)' : 'Zero outstanding dues')}
               </p>
             </div>

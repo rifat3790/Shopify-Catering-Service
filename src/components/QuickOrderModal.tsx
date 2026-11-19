@@ -5,7 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/context/ToastContext';
 import { OrderData, MenuItemData } from '@/lib/types';
-import { getClientCache, setClientCache } from '@/lib/clientCache';
+import { getClientCache, setClientCache, clearClientCache } from '@/lib/clientCache';
 import {
   X,
   Plus,
@@ -315,6 +315,10 @@ export default function QuickOrderModal({
           : `Order placed successfully! Total Bill: ৳${effectiveBill.toFixed(2)}${changeMsg}`,
         'Order Confirmed 🎉'
       );
+
+      // Invalidate caches so orders and user profile refresh instantly
+      clearClientCache('orders_list');
+      clearClientCache('members_list');
 
       // Refresh live user balance across app
       if (refreshUser) {

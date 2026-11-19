@@ -199,12 +199,51 @@ export async function getAllUsers(): Promise<UserRecord[]> {
     console.warn("MongoDB connection fallback to Firebase users & memory:", err);
   }
 
+  // Pre-calculate real totalSpent and real currentDue strictly from MongoDB orders
+  const orderStatsMap = new Map<string, { totalSpent: number; currentDue: number }>();
+  try {
+    if (Order) {
+      const orderDocs = await Order.find({}).select('customerEmail userId customerName totalBill paidAmount changeDue status').lean();
+      for (const o of orderDocs as any[]) {
+        const mail = (o.customerEmail || '').toLowerCase().trim();
+        const uid = (o.userId || '').toLowerCase().trim();
+        const name = (o.customerName || '').toLowerCase().trim();
+        const bill = Number(o.totalBill) || 0;
+        const isDue = o.status === 'Due' || o.changeDue < 0;
+        const due = isDue ? Math.max(0, bill - (Number(o.paidAmount) || 0)) : 0;
+
+        const keys = [mail, uid, name].filter(Boolean);
+        for (const k of keys) {
+          const current = orderStatsMap.get(k) || { totalSpent: 0, currentDue: 0 };
+          current.totalSpent += bill;
+          current.currentDue += due;
+          orderStatsMap.set(k, current);
+        }
+      }
+    }
+  } catch (ordErr) {
+    console.warn("Could not calculate orderStatsMap:", ordErr);
+  }
+
   // 3. If MongoDB has records, map them
   if (mongoDocs && mongoDocs.length > 0) {
     const mapped: UserRecord[] = mongoDocs.map((d: any) => {
       const lastSeenTime = d.lastSeen ? new Date(d.lastSeen).getTime() : (d.updatedAt ? new Date(d.updatedAt).getTime() : now);
       const isRecentlyActive = (now - lastSeenTime) < (3 * 60 * 1000);
       const isSuper = d.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase();
+
+      const userMail = (d.email || '').toLowerCase().trim();
+      const userUid = (d.uid || '').toLowerCase().trim();
+      const userName = (d.name || '').toLowerCase().trim();
+
+      const stats = orderStatsMap.get(userMail) || (userUid ? orderStatsMap.get(userUid) : undefined) || (userName ? orderStatsMap.get(userName) : undefined);
+      const realSpent = stats ? stats.totalSpent : 0;
+      const realDue = stats ? stats.currentDue : 0;
+
+      // Auto-heal User record in MongoDB Atlas if stale
+      if (User && (Number(d.totalSpent) !== realSpent || Number(d.currentDue) !== realDue)) {
+        User.updateOne({ _id: d._id }, { $set: { totalSpent: realSpent, currentDue: realDue } }).catch(() => {});
+      }
 
       return {
         id: d.uid || d._id.toString(),
@@ -213,8 +252,8 @@ export async function getAllUsers(): Promise<UserRecord[]> {
         email: d.email,
         role: (isSuper ? 'super_admin' : d.role) as UserRole,
         balance: Number(d.balance) || 0,
-        currentDue: Number(d.currentDue) || 0,
-        totalSpent: Number(d.totalSpent) || 0,
+        currentDue: realDue,
+        totalSpent: realSpent,
         department: d.department || (isSuper ? 'Executive Management' : 'Shopify Team'),
         avatar: d.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(d.name || 'User')}&background=047857&color=fff`,
         phone: d.phone || '',
@@ -1188,41 +1227,104 @@ export async function deleteOrder(id: string): Promise<boolean> {
   invalidateOrdersCache();
   invalidateUsersCache();
 
-  const existing = persistentStore.getOrders().find(o => o._id === id || o.orderNumber === id) ||
-                   ordersCache.find(o => o._id === id || o.orderNumber === id);
-
-  if (existing && existing.paymentMethod === 'Wallet' && existing.totalBill > 0) {
-    const custEmail = (existing.customerEmail || '').toLowerCase().trim();
-    const custName = (existing.customerName || '').toLowerCase().trim();
-    const user = usersCache.find(u =>
-      (custEmail && u.email.toLowerCase() === custEmail) ||
-      (custName && u.name.toLowerCase() === custName)
-    );
-    if (user) {
-      user.balance = (user.balance || 0) + existing.totalBill;
-      user.totalSpent = Math.max(0, (user.totalSpent || 0) - existing.totalBill);
-      persistentStore.updateUserProfile(user.email, {
-        balance: user.balance,
-        totalSpent: user.totalSpent,
-      });
-      await updateUserBalance(user.id || user.email, existing.totalBill, 'add');
-    }
-  }
-
-  persistentStore.deleteOrder(id);
-  ordersCache = ordersCache.filter(o => o._id !== id && o.orderNumber !== id);
+  let orderDoc: any = null;
+  const isObjectId = id.match(/^[0-9a-fA-F]{24}$/);
+  const query = isObjectId ? { _id: id } : { orderNumber: id };
 
   try {
     const db = await connectToDatabase();
     if (db && Order) {
-      const isObjectId = id.match(/^[0-9a-fA-F]{24}$/);
-      const query = isObjectId ? { _id: id } : { orderNumber: id };
+      orderDoc = await Order.findOne(query).lean();
+    }
+  } catch (findErr) {
+    console.warn('MongoDB Order.findOne error on delete:', findErr);
+  }
+
+  const existing = orderDoc ||
+                   persistentStore.getOrders().find(o => o._id === id || o.orderNumber === id) ||
+                   ordersCache.find(o => o._id === id || o.orderNumber === id);
+
+  const custEmail = (existing?.customerEmail || '').toLowerCase().trim();
+  const custName = (existing?.customerName || '').toLowerCase().trim();
+  const custUserId = existing?.userId || '';
+  const bill = Number(existing?.totalBill) || 0;
+  const method = existing?.paymentMethod;
+
+  // 1. If paid with Wallet, refund the totalBill back to the user's wallet
+  if (method === 'Wallet' && bill > 0 && (custUserId || custEmail || custName)) {
+    try {
+      await updateUserBalance(custUserId || custEmail || custName, bill, 'add');
+    } catch (refErr) {
+      console.warn('Error refunding wallet on order delete:', refErr);
+    }
+  }
+
+  // 2. Remove order from MongoDB Atlas
+  try {
+    const db = await connectToDatabase();
+    if (db && Order) {
       await Order.findOneAndDelete(query);
     }
   } catch (err) {
     console.error('MongoDB Order.findOneAndDelete error:', err);
   }
 
+  // 3. Remove order from memory & persistent store
+  persistentStore.deleteOrder(id);
+  ordersCache = ordersCache.filter(o => o._id !== id && o.orderNumber !== id);
+
+  // 4. Recalculate and auto-sync accurate totalSpent & currentDue from remaining orders in MongoDB
+  try {
+    const db = await connectToDatabase();
+    if (db && Order && User && (custEmail || custUserId || custName)) {
+      const orderFilterList: any[] = [];
+      if (custEmail) orderFilterList.push({ customerEmail: custEmail });
+      if (custUserId) orderFilterList.push({ userId: custUserId });
+      if (custName) orderFilterList.push({ customerName: custName });
+
+      const remainingOrders = await Order.find({ $or: orderFilterList }).select('totalBill status changeDue paidAmount').lean();
+      const realTotalSpent = remainingOrders.reduce((sum: number, o: any) => sum + (Number(o.totalBill) || 0), 0);
+      const realCurrentDue = remainingOrders
+        .filter((o: any) => o.status === 'Due' || o.changeDue < 0)
+        .reduce((sum: number, o: any) => sum + Math.max(0, (Number(o.totalBill) || 0) - (Number(o.paidAmount) || 0)), 0);
+
+      const userFilterList: any[] = [];
+      if (custEmail) userFilterList.push({ email: custEmail });
+      if (custUserId) userFilterList.push({ uid: custUserId });
+      if (custName) userFilterList.push({ name: custName });
+
+      await User.updateMany(
+        { $or: userFilterList },
+        { $set: { totalSpent: realTotalSpent, currentDue: realCurrentDue } }
+      );
+
+      if (Customer && custName) {
+        await Customer.updateOne(
+          { name: custName },
+          { $set: { totalSpent: realTotalSpent, totalOrders: remainingOrders.length, currentDue: realCurrentDue } }
+        );
+      }
+
+      const matched = usersCache.find(u =>
+        (custEmail && u.email.toLowerCase() === custEmail) ||
+        (custUserId && u.id === custUserId) ||
+        (custName && u.name.toLowerCase() === custName)
+      );
+      if (matched) {
+        matched.totalSpent = realTotalSpent;
+        matched.currentDue = realCurrentDue;
+        persistentStore.updateUserProfile(matched.email, {
+          totalSpent: realTotalSpent,
+          currentDue: realCurrentDue,
+        });
+      }
+    }
+  } catch (syncErr) {
+    console.warn('Error recalculating user spent after delete:', syncErr);
+  }
+
+  invalidateOrdersCache();
+  invalidateUsersCache();
   return true;
 }
 

@@ -7,7 +7,7 @@ import InvoiceModal from '@/components/InvoiceModal';
 import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/context/ToastContext';
 import { MenuItemData, OrderData, UserRecord } from '@/lib/types';
-import { getClientCache, setClientCache } from '@/lib/clientCache';
+import { getClientCache, setClientCache, clearClientCache } from '@/lib/clientCache';
 import {
   Calculator,
   Trash2,
@@ -159,6 +159,8 @@ function PosPageContent() {
       if (json.success) {
         setSavedOrder(json.data);
         handleClearCart();
+        clearClientCache('orders_list');
+        clearClientCache('members_list');
         toast.success(
           language === 'bn'
             ? `অর্ডার #${json.data.orderNumber} সফলভাবে গ্রহণ করা হয়েছে!`

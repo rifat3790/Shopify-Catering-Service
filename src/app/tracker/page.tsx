@@ -11,7 +11,7 @@ import DateFilterPills from '@/components/DateFilterPills';
 import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/context/ToastContext';
 import { OrderData } from '@/lib/types';
-import { getClientCache, setClientCache } from '@/lib/clientCache';
+import { getClientCache, setClientCache, clearClientCache } from '@/lib/clientCache';
 import { filterOrdersByDate, calculateStatsFromOrders, DateFilterType } from '@/lib/dateFilterUtils';
 import { TableProperties, RefreshCw } from 'lucide-react';
 
@@ -103,6 +103,8 @@ function TrackerContent() {
           language === 'bn' ? 'অর্ডার সফলভাবে ডাটাবেজে যুক্ত হয়েছে!' : 'Order created successfully!',
           'Order Added 🎉'
         );
+        clearClientCache('orders_list');
+        clearClientCache('members_list');
         await fetchTrackerData();
       } else {
         toast.error(data.error || 'Failed to create order', 'Error');
@@ -137,6 +139,8 @@ function TrackerContent() {
       const res = await fetch(`/api/orders/${id}`, { method: 'DELETE' });
       if (res.ok) {
         toast.success('Order removed from tracker', 'Order Deleted');
+        clearClientCache('orders_list');
+        clearClientCache('members_list');
         fetchTrackerData();
       } else {
         toast.error('Failed to delete order', 'Error');

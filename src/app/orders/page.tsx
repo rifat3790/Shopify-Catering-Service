@@ -11,7 +11,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/context/ToastContext';
 import { OrderData } from '@/lib/types';
-import { getClientCache, setClientCache } from '@/lib/clientCache';
+import { getClientCache, setClientCache, clearClientCache } from '@/lib/clientCache';
 import { filterOrdersByDate, DateFilterType } from '@/lib/dateFilterUtils';
 import { 
   ClipboardList, 
@@ -272,6 +272,7 @@ function OrdersPageContent() {
             setClientCache('orders_list', next);
             return next;
           });
+          clearClientCache('members_list');
           setEditOrder(null);
           toast.success('Order details updated successfully!', 'Order Updated');
         }
@@ -297,6 +298,7 @@ function OrdersPageContent() {
           setClientCache('orders_list', next);
           return next;
         });
+        clearClientCache('members_list');
         toast.success(`Order ${order.orderNumber} deleted successfully.`, 'Order Deleted');
       } else {
         toast.error('Failed to delete order', 'Delete Failed');

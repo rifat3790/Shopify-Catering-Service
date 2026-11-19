@@ -13,7 +13,7 @@ import DateFilterPills from '@/components/DateFilterPills';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { OrderData, MenuItemData, UserRecord, PasswordResetRequest } from '@/lib/types';
-import { getClientCache, setClientCache } from '@/lib/clientCache';
+import { getClientCache, setClientCache, clearClientCache } from '@/lib/clientCache';
 import { filterOrdersByDate, calculateStatsFromOrders, DateFilterType } from '@/lib/dateFilterUtils';
 import Link from 'next/link';
 import {
@@ -39,7 +39,7 @@ import {
 function AdminPageContent() {
   const { user } = useAuth();
   const { language } = useLanguage();
-  
+
   // Instant 0ms cache initialize
   const [orders, setOrders] = useState<OrderData[]>(() => {
     return getClientCache<OrderData[]>('orders_list') || [];
@@ -127,6 +127,7 @@ function AdminPageContent() {
 
       if (ordRes.ok) {
         const o = await ordRes.json();
+        if (o.success && o.data) setOrders(o.data);
         if (o.success && o.data) {
           setOrders(o.data);
           setClientCache('orders_list', o.data);
@@ -138,6 +139,7 @@ function AdminPageContent() {
       }
       if (menuRes.ok) {
         const m = await menuRes.json();
+        if (m.success && m.data) setMenuItems(m.data);
         if (m.success && m.data) {
           setMenuItems(m.data);
           setClientCache('menu_items', m.data);
@@ -145,6 +147,7 @@ function AdminPageContent() {
       }
       if (userRes.ok) {
         const u = await userRes.json();
+        if (u.success && u.data) setMembers(u.data);
         if (u.success && u.data) {
           setMembers(u.data);
           setClientCache('members_list', u.data);
@@ -206,6 +209,8 @@ function AdminPageContent() {
     setOrders(prev => prev.filter(o => o._id !== id && o.orderNumber !== id));
     try {
       await fetch(`/api/orders/${id}`, { method: 'DELETE' });
+      clearClientCache('orders_list');
+      clearClientCache('members_list');
       fetchAdminData();
     } catch (e) {
       console.error(e);
