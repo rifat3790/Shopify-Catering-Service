@@ -1,5 +1,22 @@
 import { NextResponse } from 'next/server';
-import { updateOrder, deleteOrder } from '@/lib/dataStore';
+import { updateOrder, deleteOrder, getAllOrders } from '@/lib/dataStore';
+
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const orders = await getAllOrders();
+    const order = orders.find(o => o._id === id || o.orderNumber === id);
+    if (!order) {
+      return NextResponse.json({ success: false, error: 'Order not found' }, { status: 404 });
+    }
+    return NextResponse.json({ success: true, data: order });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
 
 export async function PUT(
   request: Request,
@@ -8,34 +25,13 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-
-    if (body.totalBill !== undefined || body.paidAmount !== undefined) {
-      const bill = Number(body.totalBill);
-      const paid = Number(body.paidAmount);
-      body.changeDue = paid - bill;
-      if (bill > 0 && paid >= bill) {
-        body.status = 'Paid';
-      } else if (bill > 0 && paid > 0 && paid < bill) {
-        body.status = 'Partial';
-      } else if (bill > 0 && paid === 0) {
-        body.status = 'Due';
-      }
-    }
-
     const updated = await updateOrder(id, body);
     if (!updated) {
-      return NextResponse.json(
-        { success: false, error: 'Order not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ success: false, error: 'Order not found' }, { status: 404 });
     }
-
     return NextResponse.json({ success: true, data: updated });
   } catch (error: any) {
-    return NextResponse.json(
-      { success: false, error: error.message || 'Failed to update order' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
@@ -45,13 +41,9 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    await deleteOrder(id);
-    return NextResponse.json({ success: true, message: 'Order deleted successfully' });
+    const ok = await deleteOrder(id);
+    return NextResponse.json({ success: ok, message: 'Order deleted successfully' });
   } catch (error: any) {
-    return NextResponse.json(
-      { success: false, error: error.message || 'Failed to delete order' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
-

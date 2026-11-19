@@ -724,13 +724,25 @@ export async function createOrder(data: Partial<OrderData>): Promise<OrderData> 
 
   // 1. Update user balance/spent dynamically
   if (data.customerName || data.customerEmail) {
-    const custSearch = (data.customerEmail || data.customerName || '').toLowerCase().trim();
-    const user = usersCache.find(u => u.name.toLowerCase() === custSearch || u.email.toLowerCase() === custSearch);
+    const custEmail = (data.customerEmail || '').toLowerCase().trim();
+    const custName = (data.customerName || '').toLowerCase().trim();
+    const user = usersCache.find(u => 
+      (custEmail && u.email.toLowerCase() === custEmail) ||
+      (custName && u.name.toLowerCase() === custName)
+    );
     if (user) {
-      user.totalSpent += totalBill;
+      user.totalSpent = (user.totalSpent || 0) + totalBill;
       if (data.paymentMethod === 'Wallet') {
-        user.balance = Math.max(0, user.balance - totalBill);
+        user.balance = Math.max(0, (user.balance || 0) - totalBill);
+        persistentStore.updateUserProfile(user.email, {
+          balance: user.balance,
+          totalSpent: user.totalSpent,
+        });
         updateUserBalance(user.id, totalBill, 'deduct').catch(() => {});
+      } else {
+        persistentStore.updateUserProfile(user.email, {
+          totalSpent: user.totalSpent,
+        });
       }
     }
   }
@@ -757,9 +769,14 @@ export async function createOrder(data: Partial<OrderData>): Promise<OrderData> 
 }
 
 export async function updateOrder(id: string, updates: Partial<OrderData>): Promise<OrderData | null> {
+  const pUpdated = persistentStore.updateOrder(id, updates);
+  if (pUpdated) {
+    ordersCache = ordersCache.map(o => (o._id === id || o.orderNumber === id) ? pUpdated : o);
+  }
+
   try {
-    await connectToDatabase();
-    if (Order) {
+    const db = await connectToDatabase();
+    if (db && Order) {
       const isObjectId = id.match(/^[0-9a-fA-F]{24}$/);
       const query = isObjectId ? { _id: id } : { orderNumber: id };
       const doc = await Order.findOneAndUpdate(query, updates, { new: true }).lean();
@@ -769,7 +786,6 @@ export async function updateOrder(id: string, updates: Partial<OrderData>): Prom
           _id: (doc as any)._id.toString(),
           orderDate: (doc as any).orderDate?.toISOString?.() || new Date().toISOString(),
         } as unknown as OrderData;
-        ordersCache = ordersCache.map(o => (o._id === id || o.orderNumber === id) ? formatted : o);
         return formatted;
       }
     }
@@ -777,18 +793,37 @@ export async function updateOrder(id: string, updates: Partial<OrderData>): Prom
     // fallback
   }
 
-  const idx = ordersCache.findIndex(o => o._id === id || o.orderNumber === id);
-  if (idx !== -1) {
-    ordersCache[idx] = { ...ordersCache[idx], ...updates, updatedAt: new Date().toISOString() };
-    return ordersCache[idx];
-  }
-  return null;
+  return pUpdated || (ordersCache.find(o => o._id === id || o.orderNumber === id) || null);
 }
 
 export async function deleteOrder(id: string): Promise<boolean> {
+  const existing = persistentStore.getOrders().find(o => o._id === id || o.orderNumber === id) ||
+                   ordersCache.find(o => o._id === id || o.orderNumber === id);
+
+  if (existing && existing.paymentMethod === 'Wallet' && existing.totalBill > 0) {
+    const custEmail = (existing.customerEmail || '').toLowerCase().trim();
+    const custName = (existing.customerName || '').toLowerCase().trim();
+    const user = usersCache.find(u =>
+      (custEmail && u.email.toLowerCase() === custEmail) ||
+      (custName && u.name.toLowerCase() === custName)
+    );
+    if (user) {
+      user.balance = (user.balance || 0) + existing.totalBill;
+      user.totalSpent = Math.max(0, (user.totalSpent || 0) - existing.totalBill);
+      persistentStore.updateUserProfile(user.email, {
+        balance: user.balance,
+        totalSpent: user.totalSpent,
+      });
+      updateUserBalance(user.id, existing.totalBill, 'add').catch(() => {});
+    }
+  }
+
+  persistentStore.deleteOrder(id);
+  ordersCache = ordersCache.filter(o => o._id !== id && o.orderNumber !== id);
+
   try {
-    await connectToDatabase();
-    if (Order) {
+    const db = await connectToDatabase();
+    if (db && Order) {
       const isObjectId = id.match(/^[0-9a-fA-F]{24}$/);
       const query = isObjectId ? { _id: id } : { orderNumber: id };
       await Order.findOneAndDelete(query);
@@ -797,27 +832,27 @@ export async function deleteOrder(id: string): Promise<boolean> {
     // fallback
   }
 
-  ordersCache = ordersCache.filter(o => o._id !== id && o.orderNumber !== id);
   return true;
 }
 
 // Menu Management APIs
 export async function getAllMenuItems(): Promise<MenuItemData[]> {
   try {
-    await connectToDatabase();
-    if (MenuItem) {
+    const db = await connectToDatabase();
+    if (db && MenuItem) {
       const docs = await MenuItem.find().sort({ createdAt: -1 }).lean();
-      if (docs) {
-        return docs.map((d: any) => ({
+      if (docs && docs.length > 0) {
+        const mapped = docs.map((d: any) => ({
           ...d,
           _id: d._id.toString()
         })) as unknown as MenuItemData[];
+        mapped.forEach(m => persistentStore.saveMenuItem(m));
+        return mapped;
       }
     }
-    return menuItemsCache;
-  } catch (err) {
-    return menuItemsCache;
-  }
+  } catch (err) {}
+
+  return persistentStore.getMenuItems();
 }
 
 export async function createMenuItem(data: Partial<MenuItemData>): Promise<MenuItemData> {
@@ -835,24 +870,23 @@ export async function createMenuItem(data: Partial<MenuItemData>): Promise<MenuI
     calories: Number(data.calories) || 0,
   };
 
-  try {
-    await connectToDatabase();
-    if (MenuItem) {
+  persistentStore.saveMenuItem(newItem);
+  menuItemsCache = [newItem, ...menuItemsCache];
+
+  connectToDatabase().then(async (db) => {
+    if (db && MenuItem) {
       const doc = await MenuItem.create({ ...newItem, _id: undefined });
       if (doc) newItem._id = doc._id.toString();
     }
-  } catch (err) {
-    // fallback
-  }
+  }).catch(() => {});
 
-  menuItemsCache = [newItem, ...menuItemsCache];
   return newItem;
 }
 
 export async function updateMenuItem(id: string, updates: Partial<MenuItemData>): Promise<MenuItemData | null> {
   try {
-    await connectToDatabase();
-    if (MenuItem) {
+    const db = await connectToDatabase();
+    if (db && MenuItem) {
       const isObjectId = id.match(/^[0-9a-fA-F]{24}$/);
       const query = isObjectId ? { _id: id } : { name: id };
       const doc = await MenuItem.findOneAndUpdate(query, updates, { new: true }).lean();
@@ -861,35 +895,36 @@ export async function updateMenuItem(id: string, updates: Partial<MenuItemData>)
           ...doc,
           _id: (doc as any)._id.toString(),
         } as unknown as MenuItemData;
+        persistentStore.saveMenuItem(formatted);
         menuItemsCache = menuItemsCache.map(m => m._id === id ? formatted : m);
         return formatted;
       }
     }
-  } catch (err) {
-    // fallback
-  }
+  } catch (err) {}
 
-  const idx = menuItemsCache.findIndex(m => m._id === id);
-  if (idx !== -1) {
-    menuItemsCache[idx] = { ...menuItemsCache[idx], ...updates };
-    return menuItemsCache[idx];
+  const current = persistentStore.getMenuItems().find(m => m._id === id);
+  if (current) {
+    const updated = { ...current, ...updates };
+    persistentStore.saveMenuItem(updated);
+    menuItemsCache = menuItemsCache.map(m => m._id === id ? updated : m);
+    return updated;
   }
   return null;
 }
 
 export async function deleteMenuItem(id: string): Promise<boolean> {
+  persistentStore.deleteMenuItem(id);
+  menuItemsCache = menuItemsCache.filter(m => m._id !== id);
+
   try {
-    await connectToDatabase();
-    if (MenuItem) {
+    const db = await connectToDatabase();
+    if (db && MenuItem) {
       const isObjectId = id.match(/^[0-9a-fA-F]{24}$/);
       const query = isObjectId ? { _id: id } : { name: id };
       await MenuItem.findOneAndDelete(query);
     }
-  } catch (err) {
-    // fallback
-  }
+  } catch (err) {}
 
-  menuItemsCache = menuItemsCache.filter(m => m._id !== id);
   return true;
 }
 

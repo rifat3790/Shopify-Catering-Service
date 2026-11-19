@@ -6,7 +6,7 @@ import AuthGuard from '@/components/AuthGuard';
 import LuxuryLoader from '@/components/LuxuryLoader';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
-import { UserRecord, UserRole, SUPER_ADMIN_EMAIL, PasswordResetRequest } from '@/lib/types';
+import { UserRecord, UserRole, SUPER_ADMIN_EMAIL, PasswordResetRequest, RoutePermissions, DEFAULT_ROUTE_PERMISSIONS } from '@/lib/types';
 import Link from 'next/link';
 import { 
   Crown, 
@@ -26,7 +26,11 @@ import {
   Trash2,
   AlertTriangle,
   Copy,
-  Clock
+  Clock,
+  Shield,
+  Lock,
+  Unlock,
+  Sliders
 } from 'lucide-react';
 
 function SuperAdminDashboardContent() {
@@ -37,6 +41,11 @@ function SuperAdminDashboardContent() {
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  // Dynamic Route Permissions state
+  const [routePerms, setRoutePerms] = useState<RoutePermissions>(DEFAULT_ROUTE_PERMISSIONS);
+  const [savingPerms, setSavingPerms] = useState(false);
+  const [permsMessage, setPermsMessage] = useState('');
 
   // Balance Management Modal
   const [balanceModalUser, setBalanceModalUser] = useState<UserRecord | null>(null);
@@ -63,9 +72,10 @@ function SuperAdminDashboardContent() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const [uRes, rRes] = await Promise.all([
+      const [uRes, rRes, pRes] = await Promise.all([
         fetch('/api/users'),
         fetch('/api/auth/reset-password'),
+        fetch('/api/admin/permissions'),
       ]);
 
       if (uRes.ok) {
@@ -81,10 +91,51 @@ function SuperAdminDashboardContent() {
           setResetRequests(rJson.data);
         }
       }
+
+      if (pRes.ok) {
+        const pJson = await pRes.json();
+        if (pJson.success && pJson.data) {
+          setRoutePerms(pJson.data);
+        }
+      }
     } catch (e) {
       console.warn('Error fetching users:', e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleToggleRoute = (role: 'admin' | 'user', route: string) => {
+    setRoutePerms(prev => {
+      const currentList = prev[role] || [];
+      const hasRoute = currentList.includes(route);
+      const nextList = hasRoute
+        ? currentList.filter(r => r !== route)
+        : [...currentList, route];
+      return { ...prev, [role]: nextList };
+    });
+  };
+
+  const handleSavePerms = async () => {
+    setSavingPerms(true);
+    setPermsMessage('');
+    try {
+      const res = await fetch('/api/admin/permissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          permissions: routePerms,
+          requesterEmail: user?.email,
+        }),
+      });
+      if (res.ok) {
+        setPermsMessage(language === 'bn' ? '✓ রুট পারমিশন সফলভাবে সেভ করা হয়েছে!' : '✓ Route permissions saved successfully!');
+        setTimeout(() => setPermsMessage(''), 4000);
+      }
+    } catch (e: any) {
+      alert('Error saving permissions: ' + e.message);
+    } finally {
+      setSavingPerms(false);
     }
   };
 
@@ -439,6 +490,117 @@ function SuperAdminDashboardContent() {
               </div>
             </div>
           )}
+
+          {/* Dynamic Route Permissions Control (Super Admin Exclusive) */}
+          <div className="rounded-3xl bg-slate-900/90 border border-amber-500/40 shadow-2xl p-5 space-y-4 backdrop-blur-xl">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
+                  <Sliders className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-serif font-bold text-white text-base flex items-center gap-2">
+                    <span>{language === 'bn' ? 'রুট অ্যাক্সেস পারমিশন কন্ট্রোল' : 'Dynamic Route Permissions Control'}</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                      Super Admin Authority
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    {language === 'bn'
+                      ? 'Admin এবং সাধারণ User কোন কোন পেজ দেখতে পারবে তা নির্ধারণ করুন। অননুমোদিত পেজগুলো লক হিসেবে প্রদর্শিত হবে।'
+                      : 'Control which routes Admin and regular User roles can view. Unauthorized routes will display a locked screen.'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                {permsMessage && (
+                  <span className="text-xs font-semibold text-emerald-400 animate-in fade-in">
+                    {permsMessage}
+                  </span>
+                )}
+                <button
+                  onClick={handleSavePerms}
+                  disabled={savingPerms}
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-lg transition-all flex items-center gap-2 hover:scale-105"
+                >
+                  {savingPerms ? (
+                    <span>Saving...</span>
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4" />
+                      <span>{language === 'bn' ? 'পারমিশন সেভ করুন' : 'Save Route Permissions'}</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Matrix Grid */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
+                  <tr>
+                    <th className="px-4 py-3">Route / Page Name</th>
+                    <th className="px-4 py-3">Path</th>
+                    <th className="px-4 py-3 text-center">Admin Clearance</th>
+                    <th className="px-4 py-3 text-center">User Clearance</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                  {[
+                    { path: '/menu', name: 'Digital Menu', desc: 'ক্যাটারিং মেনু ক্যাটালগ ও খাবার' },
+                    { path: '/orders', name: 'Order Details', desc: 'সকল অর্ডারের হিস্টোরি ও রসিদ ডাউনলোড' },
+                    { path: '/chat', name: 'Team & Voice Chat', desc: 'টিম মেসেজিং, গ্রুপ চ্যাট ও ভয়েস কল' },
+                    { path: '/tracker', name: 'Live Ledger Tracker', desc: 'রিয়েল-টাইম অর্ডার ট্র্যাকার' },
+                    { path: '/members', name: 'Team Directory', desc: 'টিম মেম্বার লিস্ট ও ব্যালেন্স ওভারভিউ' },
+                    { path: '/pos', name: 'Express POS', desc: 'কাউন্টার ক্যাশ সেলস' },
+                    { path: '/user', name: 'My Catering Hub', desc: 'ইউজার পার্সোনাল ড্যাশবোর্ড ও ওয়ালেট' },
+                    { path: '/admin', name: 'Admin Kitchen', desc: 'কিচেন অর্ডার ম্যানেজমেন্ট' },
+                  ].map((r) => {
+                    const adminAllowed = (routePerms.admin || []).includes(r.path);
+                    const userAllowed = (routePerms.user || []).includes(r.path);
+
+                    return (
+                      <tr key={r.path} className="hover:bg-slate-800/30">
+                        <td className="px-4 py-3 font-semibold text-white">
+                          <p>{r.name}</p>
+                          <p className="text-[10px] text-slate-400 font-normal">{r.desc}</p>
+                        </td>
+                        <td className="px-4 py-3 font-mono text-amber-300 text-[11px]">{r.path}</td>
+                        <td className="px-4 py-3 text-center">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleRoute('admin', r.path)}
+                            className={`px-3 py-1 rounded-full text-[10px] font-bold transition-all border ${
+                              adminAllowed
+                                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30'
+                                : 'bg-rose-950/60 text-rose-300 border-rose-800 hover:bg-rose-900/60'
+                            }`}
+                          >
+                            {adminAllowed ? '✓ ALLOWED' : '🔒 LOCKED'}
+                          </button>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleRoute('user', r.path)}
+                            className={`px-3 py-1 rounded-full text-[10px] font-bold transition-all border ${
+                              userAllowed
+                                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30'
+                                : 'bg-rose-950/60 text-rose-300 border-rose-800 hover:bg-rose-900/60'
+                            }`}
+                          >
+                            {userAllowed ? '✓ ALLOWED' : '🔒 LOCKED'}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
 
           {/* Role & Balance Management Section */}
           <div className="rounded-3xl bg-slate-900/90 border border-emerald-900/60 shadow-2xl overflow-hidden backdrop-blur-xl">

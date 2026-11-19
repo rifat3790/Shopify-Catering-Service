@@ -78,13 +78,15 @@ function UserDashboardContent() {
   const myOrders = orders.filter(o => {
     const cust = (o.customerName || '').toLowerCase().trim();
     const mail = (o.customerEmail || '').toLowerCase().trim();
+    const uId = o.userId || '';
     const targetName = activeDisplayName.toLowerCase().trim();
     const targetMail = activeEmail.toLowerCase().trim();
+    const myUid = user?.uid || '';
 
     return (
-      cust.includes(targetName) || 
-      (mail && targetMail && mail === targetMail) || 
-      (cust && targetMail && targetMail.includes(cust))
+      (uId && myUid && uId === myUid) ||
+      (mail && targetMail && mail === targetMail) ||
+      (cust && targetName && (cust.includes(targetName) || targetName.includes(cust)))
     );
   });
 
@@ -349,8 +351,10 @@ function UserDashboardContent() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               ...data,
-              customerName: user?.displayName || 'User',
+              customerName: data.customerName || user?.displayName || user?.name || 'Member',
               customerEmail: user?.email || '',
+              userId: user?.uid || '',
+              customerAvatar: data.customerAvatar || user?.photoURL || '',
             }),
           });
           refreshUser();

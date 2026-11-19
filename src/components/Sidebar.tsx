@@ -1,11 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import ProfileModal from './ProfileModal';
+import QuickOrderModal from './QuickOrderModal';
+import { RoutePermissions, DEFAULT_ROUTE_PERMISSIONS } from '@/lib/types';
 import { 
   UtensilsCrossed, 
   LayoutDashboard, 
@@ -25,7 +27,9 @@ import {
   ShieldCheck,
   LogIn,
   MessageSquare,
-  Edit3
+  Edit3,
+  Receipt,
+  Lock
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -38,9 +42,31 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
   const { language, toggleLanguage } = useLanguage();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [internalOrderOpen, setInternalOrderOpen] = useState(false);
+  const [routePerms, setRoutePerms] = useState<RoutePermissions>(DEFAULT_ROUTE_PERMISSIONS);
+
+  useEffect(() => {
+    fetch('/api/admin/permissions')
+      .then(r => r.json())
+      .then(data => {
+        if (data.success && data.data) {
+          setRoutePerms(data.data);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const isSuper = user?.role === 'super_admin';
   const isAdmin = user?.role === 'admin' || isSuper;
+
+  // Check if a specific route is allowed for the user's role
+  const isRouteAllowed = (path: string): boolean => {
+    if (!user) return path === '/menu'; // unauthenticated can view menu
+    if (isSuper) return true; // Super admin can access everything
+    const role = user.role || 'user';
+    const allowedList = role === 'admin' ? (routePerms.admin || []) : (routePerms.user || []);
+    return allowedList.includes(path);
+  };
 
   const navItems = [
     {
@@ -52,12 +78,20 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
       show: true,
     },
     {
+      href: '/orders',
+      labelEn: 'Order Details',
+      labelBn: 'অর্ডার ডিটেইলস',
+      icon: Receipt,
+      badge: 'All',
+      show: !!user, // Available to all authenticated users
+    },
+    {
       href: '/chat',
       labelEn: 'Team & Voice Chat',
       labelBn: 'টিম চ্যাট ও কল',
       icon: MessageSquare,
       badge: 'Live',
-      show: !!user, // Available to all team members!
+      show: !!user,
     },
     {
       href: '/tracker',
@@ -65,7 +99,7 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
       labelBn: 'অর্ডার ট্র্যাকার',
       icon: TableProperties,
       badge: 'Live',
-      show: isAdmin, // Only Admins and Super Admins see the live ledger
+      show: isAdmin || isRouteAllowed('/tracker'),
     },
     {
       href: '/members',
@@ -73,7 +107,7 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
       labelBn: 'মেম্বার তালিকা',
       icon: Users,
       badge: '',
-      show: isAdmin, // Only Admins and Super Admins manage team members
+      show: isAdmin || isRouteAllowed('/members'),
     },
     {
       href: '/pos',
@@ -81,7 +115,7 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
       labelBn: 'কাউন্টার পিওএস',
       icon: Calculator,
       badge: 'Fast',
-      show: isAdmin, // Only Staff/Admins manage POS register
+      show: isAdmin || isRouteAllowed('/pos'),
     },
   ];
 
@@ -112,6 +146,14 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
       show: !!user, // Available to all logged-in users
     },
   ].filter(p => p.show);
+
+  const handleOrderClick = () => {
+    if (onOpenNewOrder) {
+      onOpenNewOrder();
+    } else {
+      setInternalOrderOpen(true);
+    }
+  };
 
   const content = (
     <div className="flex flex-col h-full bg-slate-950 border-r border-emerald-900/40 text-slate-100 select-none">
@@ -206,9 +248,9 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
         )}
 
         {/* Quick Add Order CTA */}
-        {user && onOpenNewOrder && (
+        {user && (
           <button
-            onClick={onOpenNewOrder}
+            onClick={handleOrderClick}
             className="w-full mt-3 py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-950/50 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
           >
             <PlusCircle className="w-4 h-4 text-slate-950" />
@@ -226,6 +268,7 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
         {navItems.filter(item => item.show).map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
+          const allowed = isRouteAllowed(item.href);
 
           return (
             <Link
@@ -236,17 +279,25 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
                 isActive
                   ? 'bg-gradient-to-r from-emerald-950 to-slate-900 text-amber-300 border border-emerald-500/50 shadow-md shadow-emerald-950/50'
                   : 'text-slate-400 hover:text-white hover:bg-slate-900'
-              }`}
+              } ${!allowed ? 'opacity-60' : ''}`}
             >
               <div className="flex items-center gap-2.5">
                 <Icon className={`w-4 h-4 ${isActive ? 'text-amber-400' : 'text-slate-400'}`} />
                 <span>{language === 'bn' ? item.labelBn : item.labelEn}</span>
               </div>
-              {item.badge && (
-                <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                  {item.badge}
-                </span>
-              )}
+              <div className="flex items-center gap-1.5">
+                {!allowed && (
+                  <span className="flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full font-bold bg-rose-950/60 text-rose-300 border border-rose-800">
+                    <Lock className="w-2.5 h-2.5" />
+                    <span>Locked</span>
+                  </span>
+                )}
+                {item.badge && allowed && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    {item.badge}
+                  </span>
+                )}
+              </div>
             </Link>
           );
         })}
@@ -370,6 +421,21 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
       <ProfileModal
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
+      />
+
+      {/* Internal Quick Order Modal for anywhere on any page */}
+      <QuickOrderModal
+        isOpen={internalOrderOpen}
+        onClose={() => setInternalOrderOpen(false)}
+        onSubmit={async (data) => {
+          await fetch('/api/orders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+          });
+          alert(language === 'bn' ? 'অর্ডার সফলভাবে ডাটাবেজে যুক্ত হয়েছে!' : 'Order added and saved to database successfully!');
+          window.location.reload();
+        }}
       />
     </>
   );
