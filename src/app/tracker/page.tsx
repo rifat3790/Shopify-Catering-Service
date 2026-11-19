@@ -8,11 +8,13 @@ import LiveTrackerTable from '@/components/LiveTrackerTable';
 import QuickOrderModal from '@/components/QuickOrderModal';
 import InvoiceModal from '@/components/InvoiceModal';
 import { useLanguage } from '@/context/LanguageContext';
+import { useToast } from '@/context/ToastContext';
 import { OrderData } from '@/lib/types';
 import { TableProperties, RefreshCw } from 'lucide-react';
 
 function TrackerContent() {
   const { language } = useLanguage();
+  const { toast } = useToast();
   const [orders, setOrders] = useState<OrderData[]>([]);
   const [stats, setStats] = useState({
     ordersCount: 0,
@@ -71,10 +73,16 @@ function TrackerContent() {
       });
       const data = await res.json();
       if (data.success) {
+        toast.success(
+          language === 'bn' ? 'অর্ডার সফলভাবে ডাটাবেজে যুক্ত হয়েছে!' : 'Order created successfully!',
+          'Order Added 🎉'
+        );
         await fetchTrackerData();
+      } else {
+        toast.error(data.error || 'Failed to create order', 'Error');
       }
     } catch (err: any) {
-      alert('Error: ' + err.message);
+      toast.error(err.message || 'Error creating order', 'Failed');
     }
   };
 
@@ -87,21 +95,28 @@ function TrackerContent() {
         body: JSON.stringify({ status: newStatus })
       });
       if (res.ok) {
+        toast.success(`Order status updated to ${newStatus}`, 'Status Updated');
         fetchTrackerData();
+      } else {
+        toast.error('Failed to update status', 'Error');
       }
-    } catch (err) {
-      console.error(err);
+    } catch (e: any) {
+      toast.error(e.message || 'Error updating status', 'Failed');
     }
   };
 
   const handleDeleteOrder = async (id: string) => {
-    if (!confirm(language === 'bn' ? 'অর্ডারটি মুছে ফেলতে চান?' : 'Delete order?')) return;
     setOrders(prev => prev.filter(o => o._id !== id && o.orderNumber !== id));
     try {
-      await fetch(`/api/orders/${id}`, { method: 'DELETE' });
-      fetchTrackerData();
-    } catch (err) {
-      console.error(err);
+      const res = await fetch(`/api/orders/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        toast.success('Order removed from tracker', 'Order Deleted');
+        fetchTrackerData();
+      } else {
+        toast.error('Failed to delete order', 'Error');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Error deleting order', 'Failed');
     }
   };
 

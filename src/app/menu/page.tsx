@@ -8,6 +8,7 @@ import QuickOrderModal from '@/components/QuickOrderModal';
 import InvoiceModal from '@/components/InvoiceModal';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
+import { useToast } from '@/context/ToastContext';
 import { MenuItemData, OrderData } from '@/lib/types';
 import { 
   MenuSquare, 
@@ -26,6 +27,7 @@ import {
 function MenuPageContent() {
   const { user } = useAuth();
   const { language } = useLanguage();
+  const { toast } = useToast();
   const [menuItems, setMenuItems] = useState<MenuItemData[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [cart, setCart] = useState<Record<string, number>>({});
@@ -523,19 +525,30 @@ function MenuPageContent() {
         isOpen={isOrderModalOpen}
         onClose={() => setIsOrderModalOpen(false)}
         onSubmit={async (data) => {
-          await fetch('/api/orders', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              ...data,
-              customerName: data.customerName || user?.displayName || 'User',
-              customerEmail: user?.email || '',
-              customerAvatar: data.customerAvatar || user?.photoURL || '',
-              userId: user?.uid || '',
-            }),
-          });
-          setCart({});
-          alert('অর্ডার সফলভাবে গ্রহণ করা হয়েছে!');
+          try {
+            const res = await fetch('/api/orders', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                ...data,
+                customerName: data.customerName || user?.displayName || user?.name || 'User',
+                customerEmail: user?.email || '',
+                customerAvatar: data.customerAvatar || user?.photoURL || '',
+                userId: user?.uid || '',
+              }),
+            });
+            if (res.ok) {
+              setCart({});
+              toast.success(
+                language === 'bn' ? 'অর্ডার সফলভাবে গ্রহণ করা হয়েছে!' : 'Order confirmed successfully!',
+                'Order Placed 🎉'
+              );
+            } else {
+              toast.error('Could not submit order', 'Error');
+            }
+          } catch (e: any) {
+            toast.error(e.message || 'Error submitting order', 'Error');
+          }
         }}
       />
     </div>

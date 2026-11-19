@@ -5,6 +5,7 @@ import Sidebar from '@/components/Sidebar';
 import AuthGuard from '@/components/AuthGuard';
 import InvoiceModal from '@/components/InvoiceModal';
 import { useLanguage } from '@/context/LanguageContext';
+import { useToast } from '@/context/ToastContext';
 import { MenuItemData, OrderData, UserRecord } from '@/lib/types';
 import { 
   Calculator, 
@@ -22,6 +23,7 @@ const cashPresets = [20, 30, 50, 100, 200, 500, 1000];
 
 function PosPageContent() {
   const { language } = useLanguage();
+  const { toast } = useToast();
   const [customer, setCustomer] = useState('Customer');
   const [members, setMembers] = useState<UserRecord[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItemData[]>([]);
@@ -91,11 +93,11 @@ function PosPageContent() {
 
   const handleCompleteOrder = async () => {
     if (!customer.trim()) {
-      alert(language === 'bn' ? 'গ্রাহকের নাম দিন' : 'Enter customer name');
+      toast.warning(language === 'bn' ? 'গ্রাহকের নাম দিন' : 'Enter customer name', 'Name Required');
       return;
     }
     if (totalBill === 0) {
-      alert(language === 'bn' ? 'কমপক্ষে একটি খাবার নির্বাচন করুন' : 'Select at least one food item');
+      toast.warning(language === 'bn' ? 'কমপক্ষে একটি খাবার নির্বাচন করুন' : 'Select at least one food item', 'Cart Empty');
       return;
     }
 
@@ -131,11 +133,17 @@ function PosPageContent() {
       if (json.success) {
         setSavedOrder(json.data);
         handleClearCart();
+        toast.success(
+          language === 'bn' 
+            ? `অর্ডার #${json.data.orderNumber} সফলভাবে গ্রহণ করা হয়েছে!` 
+            : `Order #${json.data.orderNumber} created successfully!`,
+          'Order Completed 🎉'
+        );
       } else {
         throw new Error(json.error);
       }
     } catch (err: any) {
-      alert('Error: ' + err.message);
+      toast.error(err.message || 'Error processing order', 'Order Failed');
     } finally {
       setLoading(false);
     }

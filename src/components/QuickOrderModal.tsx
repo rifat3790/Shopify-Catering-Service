@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
+import { useToast } from '@/context/ToastContext';
 import { OrderData, MenuItemData } from '@/lib/types';
 import { 
   X, 
@@ -40,6 +41,7 @@ export default function QuickOrderModal({
 }: QuickOrderModalProps) {
   const { user } = useAuth();
   const { language } = useLanguage();
+  const { toast } = useToast();
   const [customerName, setCustomerName] = useState(prefillCustomer || user?.displayName || user?.name || '');
   const [customerAvatar, setCustomerAvatar] = useState(user?.photoURL || user?.avatar || '');
   const [department, setDepartment] = useState('Shopify Team');
@@ -177,7 +179,12 @@ export default function QuickOrderModal({
     const finalAvatar = customerAvatar || user?.photoURL || user?.avatar || '';
 
     if (itemsList.length === 0 && calculatedBill === 0) {
-      alert(language === 'bn' ? 'দয়া করে অন্তত একটি খাবারের আইটেম বা কাস্টম খাবার যোগ করুন!' : 'Please select at least one menu item or add a custom dish!');
+      toast.warning(
+        language === 'bn' 
+          ? 'দয়া করে অন্তত একটি খাবারের আইটেম বা কাস্টম খাবার যোগ করুন!' 
+          : 'Please select at least one menu item or add a custom dish!',
+        language === 'bn' ? 'খাবার নির্বাচন করুন' : 'Item Required'
+      );
       return;
     }
 
@@ -198,6 +205,14 @@ export default function QuickOrderModal({
         paymentMethod,
         notes,
       });
+
+      toast.success(
+        language === 'bn' 
+          ? `আপনার খাবার অর্ডার সফলভাবে গ্রহণ করা হয়েছে! মোট বিল: ৳${calculatedBill.toFixed(2)}` 
+          : `Order placed successfully! Total Bill: ৳${calculatedBill.toFixed(2)}`,
+        'Order Confirmed 🎉'
+      );
+
       // reset
       setItemQuantities({});
       setCustomItems([]);
@@ -205,7 +220,7 @@ export default function QuickOrderModal({
       setCustomerName(user?.displayName || user?.name || '');
       onClose();
     } catch (err: any) {
-      alert('Failed: ' + err.message);
+      toast.error(err.message || 'Failed to place order', 'Order Failed');
     } finally {
       setSubmitting(false);
     }

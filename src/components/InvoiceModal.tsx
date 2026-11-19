@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useLanguage } from '@/context/LanguageContext';
+import { useToast } from '@/context/ToastContext';
 import { OrderData } from '@/lib/types';
 import { X, Printer, Download, UtensilsCrossed, CheckCircle2, Image as ImageIcon, Sparkles } from 'lucide-react';
 
@@ -12,6 +13,7 @@ interface InvoiceModalProps {
 
 export default function InvoiceModal({ order, onClose }: InvoiceModalProps) {
   const { language } = useLanguage();
+  const { toast } = useToast();
   const [downloading, setDownloading] = useState(false);
 
   if (!order) return null;
@@ -180,9 +182,10 @@ export default function InvoiceModal({ order, onClose }: InvoiceModalProps) {
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
+      toast.success(`Receipt for ${order.orderNumber} downloaded!`, 'Receipt Downloaded 🎉');
     } catch (e) {
       console.error(e);
-      alert('Could not generate image');
+      toast.error('Could not generate receipt image', 'Export Failed');
     } finally {
       setDownloading(false);
     }

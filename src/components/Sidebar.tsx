@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
+import { useToast } from '@/context/ToastContext';
 import ProfileModal from './ProfileModal';
 import QuickOrderModal from './QuickOrderModal';
 import { RoutePermissions, DEFAULT_ROUTE_PERMISSIONS } from '@/lib/types';
@@ -40,6 +41,7 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const { language, toggleLanguage } = useLanguage();
+  const { toast } = useToast();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [internalOrderOpen, setInternalOrderOpen] = useState(false);
@@ -428,13 +430,26 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
         isOpen={internalOrderOpen}
         onClose={() => setInternalOrderOpen(false)}
         onSubmit={async (data) => {
-          await fetch('/api/orders', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data),
-          });
-          alert(language === 'bn' ? 'অর্ডার সফলভাবে ডাটাবেজে যুক্ত হয়েছে!' : 'Order added and saved to database successfully!');
-          window.location.reload();
+          try {
+            const res = await fetch('/api/orders', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(data),
+            });
+            if (res.ok) {
+              toast.success(
+                language === 'bn' 
+                  ? 'অর্ডার সফলভাবে ডাটাবেজে যুক্ত হয়েছে!' 
+                  : 'Order added and saved to database successfully!',
+                'Order Placed 🎉'
+              );
+              setTimeout(() => window.location.reload(), 1200);
+            } else {
+              toast.error('Failed to create order', 'Error');
+            }
+          } catch (e: any) {
+            toast.error(e.message || 'Error creating order', 'Failed');
+          }
         }}
       />
     </>

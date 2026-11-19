@@ -6,6 +6,7 @@ import AuthGuard from '@/components/AuthGuard';
 import LuxuryLoader from '@/components/LuxuryLoader';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
+import { useToast } from '@/context/ToastContext';
 import { UserRecord, UserRole, SUPER_ADMIN_EMAIL, PasswordResetRequest, RoutePermissions, DEFAULT_ROUTE_PERMISSIONS } from '@/lib/types';
 import Link from 'next/link';
 import { 
@@ -36,6 +37,7 @@ import {
 function SuperAdminDashboardContent() {
   const { user } = useAuth();
   const { language } = useLanguage();
+  const { toast } = useToast();
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -129,11 +131,14 @@ function SuperAdminDashboardContent() {
         }),
       });
       if (res.ok) {
+        toast.success(language === 'bn' ? 'রুট পারমিশন সফলভাবে সেভ করা হয়েছে!' : 'Route permissions saved successfully!', 'Permissions Saved');
         setPermsMessage(language === 'bn' ? '✓ রুট পারমিশন সফলভাবে সেভ করা হয়েছে!' : '✓ Route permissions saved successfully!');
         setTimeout(() => setPermsMessage(''), 4000);
+      } else {
+        toast.error('Failed to save permissions', 'Error');
       }
     } catch (e: any) {
-      alert('Error saving permissions: ' + e.message);
+      toast.error('Error saving permissions: ' + e.message, 'Error');
     } finally {
       setSavingPerms(false);
     }
@@ -142,11 +147,11 @@ function SuperAdminDashboardContent() {
   const handleCopyCode = (id: string, code: string) => {
     navigator.clipboard.writeText(code);
     setCopiedId(id);
+    toast.info(language === 'bn' ? `কোড ${code} ক্লিপবোর্ডে কপি হয়েছে!` : `Verification code ${code} copied!`, 'Copied');
     setTimeout(() => setCopiedId(null), 2500);
   };
 
   const handleCancelReset = async (requestId: string) => {
-    if (!window.confirm('Cancel this password reset request?')) return;
     try {
       const res = await fetch('/api/auth/reset-password', {
         method: 'POST',
@@ -155,9 +160,10 @@ function SuperAdminDashboardContent() {
       });
       if (res.ok) {
         setResetRequests(prev => prev.filter(r => r.id !== requestId));
+        toast.info(language === 'bn' ? 'পাসওয়ার্ড রিসেট রিকোয়েস্ট বাতিল করা হয়েছে।' : 'Password reset request cancelled.', 'Cancelled');
       }
-    } catch (e) {
-      console.error(e);
+    } catch (e: any) {
+      toast.error(e.message || 'Error cancelling request', 'Error');
     }
   };
 
@@ -175,11 +181,19 @@ function SuperAdminDashboardContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: targetUser.id, role: newRole })
       });
-      if (!res.ok) {
+      if (res.ok) {
+        toast.success(
+          language === 'bn' 
+            ? `${targetUser.name}-এর রোল সফলভাবে "${newRole.toUpperCase()}" নির্ধারণ করা হয়েছে!` 
+            : `Role for ${targetUser.name} changed to ${newRole.toUpperCase()}!`, 
+          'Role Updated'
+        );
+      } else {
+        toast.error('Could not update role', 'Error');
         fetchUsers();
       }
-    } catch (e) {
-      console.error(e);
+    } catch (e: any) {
+      toast.error(e.message || 'Error updating role', 'Failed');
       fetchUsers();
     } finally {
       setUpdatingId(null);
@@ -204,13 +218,21 @@ function SuperAdminDashboardContent() {
         const json = await res.json();
         if (json.success && json.data) {
           setUsers(prev => prev.map(u => u.id === balanceModalUser.id ? json.data : u));
+          toast.success(
+            language === 'bn' 
+              ? `${balanceModalUser.name}-এর ব্যালেন্স সফলভাবে আপডেট হয়েছে! বর্তমান ব্যালেন্স: ৳${Number(json.data.balance).toFixed(2)}` 
+              : `Balance updated for ${balanceModalUser.name}! Balance: ৳${Number(json.data.balance).toFixed(2)}`,
+            'Balance Updated'
+          );
         } else {
           fetchUsers();
         }
         setBalanceModalUser(null);
+      } else {
+        toast.error('Failed to update balance', 'Error');
       }
-    } catch (e) {
-      console.error(e);
+    } catch (e: any) {
+      toast.error(e.message || 'Error updating balance', 'Failed');
     }
   };
 
@@ -231,12 +253,20 @@ function SuperAdminDashboardContent() {
       const json = await res.json();
       if (json.success) {
         setUsers(prev => prev.filter(u => u.id !== deleteModalUser.id));
+        toast.success(
+          language === 'bn' 
+            ? `${deleteModalUser.name} কে ডাটাবেজ থেকে সফলভাবে রিমুভ করা হয়েছে।` 
+            : `${deleteModalUser.name} removed from database successfully.`,
+          'Member Removed'
+        );
         setDeleteModalUser(null);
       } else {
         setDeleteError(json.error || 'Failed to remove member from database');
+        toast.error(json.error || 'Failed to remove member', 'Error');
       }
     } catch (err: any) {
       setDeleteError(err.message || 'Error deleting member');
+      toast.error(err.message || 'Error deleting member', 'Error');
     } finally {
       setIsDeleting(false);
     }
@@ -272,16 +302,21 @@ function SuperAdminDashboardContent() {
               body: JSON.stringify({ userId: json.data.id, balanceAmount: newUserBalance, action: 'set' })
             });
           }
+          toast.success(
+            language === 'bn' 
+              ? `নতুন মেম্বার "${newUserName}" সফলভাবে তৈরি হয়েছে!` 
+              : `New member "${newUserName}" created successfully!`,
+            'Member Created'
+          );
           fetchUsers();
           setIsNewUserModalOpen(false);
           setNewUserName('');
           setNewUserEmail('');
-          setNewUserRole('user');
           setNewUserBalance(0);
         }
       }
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      toast.error(err.message || 'Error creating user', 'Error');
     }
   };
 

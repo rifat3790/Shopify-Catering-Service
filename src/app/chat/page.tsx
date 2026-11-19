@@ -7,6 +7,7 @@ import LuxuryLoader from '@/components/LuxuryLoader';
 import AudioCallModal from '@/components/AudioCallModal';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
+import { useToast } from '@/context/ToastContext';
 import { UserRecord, ChatMessage, ChatGroup, SUPER_ADMIN_EMAIL } from '@/lib/types';
 import { 
   MessageSquare, 
@@ -42,6 +43,7 @@ import {
 function ChatHubContent() {
   const { user } = useAuth();
   const { language } = useLanguage();
+  const { toast } = useToast();
 
   // Mobile navigation state
   const [mobileView, setMobileView] = useState<'list' | 'chat'>('list');
@@ -364,11 +366,12 @@ function ChatHubContent() {
         setSelectedGroup(json.data);
         setGroups(prev => prev.map(g => g.id === json.data.id ? json.data : g));
         setIsEditingGroup(false);
+        toast.success('Group settings updated successfully!', 'Settings Saved');
       } else {
-        alert(json.error || 'Failed to update group settings');
+        toast.error(json.error || 'Failed to update group settings', 'Error');
       }
     } catch (err: any) {
-      alert(err.message || 'Error updating settings');
+      toast.error(err.message || 'Error updating settings', 'Error');
     } finally {
       setSavingGroupSettings(false);
     }
@@ -396,11 +399,12 @@ function ChatHubContent() {
         setGroups(prev => prev.map(g => g.id === json.data.id ? json.data : g));
         setIsAddMemberOpen(false);
         setNewMembersToAdd([]);
+        toast.success('Members added to group successfully!', 'Members Added');
       } else {
-        alert(json.error || 'Failed to add members');
+        toast.error(json.error || 'Failed to add members', 'Error');
       }
     } catch (err: any) {
-      alert(err.message || 'Error adding members');
+      toast.error(err.message || 'Error adding members', 'Error');
     } finally {
       setAddingMembers(false);
     }
@@ -434,15 +438,17 @@ function ChatHubContent() {
           setGroups(prev => prev.filter(g => g.id !== selectedGroup.id));
           setSelectedGroup(null);
           setIsGroupSettingsOpen(false);
+          toast.info('You have left the group', 'Left Group');
         } else {
           setSelectedGroup(json.data);
           setGroups(prev => prev.map(g => g.id === json.data.id ? json.data : g));
+          toast.success('Member removed from group', 'Removed');
         }
       } else {
-        alert(json.error || 'Failed to remove member');
+        toast.error(json.error || 'Failed to remove member', 'Error');
       }
     } catch (err: any) {
-      alert(err.message || 'Error removing member');
+      toast.error(err.message || 'Error removing member', 'Error');
     }
   };
 
@@ -465,11 +471,12 @@ function ChatHubContent() {
       if (res.ok && json.success) {
         setSelectedGroup(json.data);
         setGroups(prev => prev.map(g => g.id === json.data.id ? json.data : g));
+        toast.success('Admin privileges updated', 'Role Updated');
       } else {
-        alert(json.error || 'Failed to update admin role');
+        toast.error(json.error || 'Failed to update admin role', 'Error');
       }
     } catch (err: any) {
-      alert(err.message || 'Error updating role');
+      toast.error(err.message || 'Error updating role', 'Error');
     }
   };
 
@@ -489,11 +496,12 @@ function ChatHubContent() {
         setSelectedGroup(null);
         setIsDeleteGroupConfirmOpen(false);
         setIsGroupSettingsOpen(false);
+        toast.success('Group deleted permanently', 'Group Deleted');
       } else {
-        alert(json.error || 'Failed to delete group');
+        toast.error(json.error || 'Failed to delete group', 'Error');
       }
     } catch (err: any) {
-      alert(err.message || 'Error deleting group');
+      toast.error(err.message || 'Error deleting group', 'Error');
     } finally {
       setDeletingGroup(false);
     }
@@ -518,11 +526,12 @@ function ChatHubContent() {
       if (res.ok && json.success) {
         await loadDirectory();
         setIsUserMenuOpen(false);
+        toast.success(json.message || 'User block status updated', 'Updated');
       } else {
-        alert(json.error || 'Failed to change block status');
+        toast.error(json.error || 'Failed to change block status', 'Error');
       }
     } catch (err: any) {
-      alert(err.message || 'Error toggling block');
+      toast.error(err.message || 'Error toggling block', 'Error');
     } finally {
       setTogglingBlock(false);
     }

@@ -8,6 +8,7 @@ import QuickOrderModal from '@/components/QuickOrderModal';
 import InvoiceModal from '@/components/InvoiceModal';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
+import { useToast } from '@/context/ToastContext';
 import { OrderData } from '@/lib/types';
 import { 
   ClipboardList, 
@@ -183,6 +184,7 @@ function downloadReceiptPng(order: OrderData) {
 function OrdersPageContent() {
   const { user } = useAuth();
   const { language } = useLanguage();
+  const { toast } = useToast();
   const [orders, setOrders] = useState<OrderData[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -253,20 +255,19 @@ function OrdersPageContent() {
         if (json.success && json.data) {
           setOrders(prev => prev.map(o => (o._id === json.data._id || o.orderNumber === json.data.orderNumber) ? json.data : o));
           setEditOrder(null);
+          toast.success('Order details updated successfully!', 'Order Updated');
         }
+      } else {
+        toast.error('Failed to update order', 'Update Failed');
       }
     } catch (err: any) {
-      alert('Error updating order: ' + err.message);
+      toast.error(err.message || 'Error updating order', 'Update Failed');
     } finally {
       setSavingEdit(false);
     }
   };
 
   const handleDeleteOrder = async (order: OrderData) => {
-    if (!window.confirm(`Are you sure you want to permanently delete order ${order.orderNumber}? If paid via Wallet, balance will be refunded.`)) {
-      return;
-    }
-
     try {
       const targetId = order._id || order.orderNumber;
       const res = await fetch(`/api/orders?id=${encodeURIComponent(targetId)}`, {
@@ -274,9 +275,12 @@ function OrdersPageContent() {
       });
       if (res.ok) {
         setOrders(prev => prev.filter(o => o._id !== targetId && o.orderNumber !== targetId));
+        toast.success(`Order ${order.orderNumber} deleted successfully.`, 'Order Deleted');
+      } else {
+        toast.error('Failed to delete order', 'Delete Failed');
       }
     } catch (err: any) {
-      alert('Failed to delete order: ' + err.message);
+      toast.error(err.message || 'Failed to delete order', 'Delete Failed');
     }
   };
 
@@ -583,13 +587,26 @@ function OrdersPageContent() {
         isOpen={isOrderModalOpen}
         onClose={() => setIsOrderModalOpen(false)}
         onSubmit={async (data) => {
-          await fetch('/api/orders', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data),
-          });
-          fetchOrders();
-          alert(language === 'bn' ? 'অর্ডার সফলভাবে ডাটাবেজে যুক্ত হয়েছে!' : 'Order added and saved to database successfully!');
+          try {
+            const res = await fetch('/api/orders', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(data),
+            });
+            if (res.ok) {
+              fetchOrders();
+              toast.success(
+                language === 'bn' 
+                  ? 'অর্ডার সফলভাবে ডাটাবেজে যুক্ত হয়েছে!' 
+                  : 'Order added and saved to database successfully!',
+                'Order Placed 🎉'
+              );
+            } else {
+              toast.error('Failed to save order', 'Error');
+            }
+          } catch (e: any) {
+            toast.error(e.message || 'Error saving order', 'Failed');
+          }
         }}
       />
 
