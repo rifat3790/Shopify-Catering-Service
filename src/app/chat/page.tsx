@@ -149,9 +149,23 @@ function ChatHubContent() {
             const updated = uJson.data.find((m: UserRecord) => m.id === selectedMember.id);
             if (updated) setSelectedMember(updated);
           } else if (!selectedGroup && uJson.data.length > 0) {
-            const others = uJson.data.filter((u: UserRecord) => u.email.toLowerCase() !== user?.email?.toLowerCase());
-            if (others.length > 0) {
-              setSelectedMember(others[0]);
+            let targetFromUrl: UserRecord | undefined;
+            if (typeof window !== 'undefined') {
+              const sp = new URLSearchParams(window.location.search);
+              const targetId = sp.get('memberId') || sp.get('userId') || sp.get('email');
+              if (targetId) {
+                targetFromUrl = uJson.data.find((u: UserRecord) => 
+                  u.id === targetId || u.email.toLowerCase() === targetId.toLowerCase()
+                );
+              }
+            }
+            if (targetFromUrl) {
+              setSelectedMember(targetFromUrl);
+            } else {
+              const others = uJson.data.filter((u: UserRecord) => u.email.toLowerCase() !== user?.email?.toLowerCase());
+              if (others.length > 0) {
+                setSelectedMember(others[0]);
+              }
             }
           }
         }

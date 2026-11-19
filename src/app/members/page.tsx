@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import AuthGuard from '@/components/AuthGuard';
 import LuxuryLoader from '@/components/LuxuryLoader';
@@ -23,7 +24,8 @@ import {
   Coins,
   Trash2,
   AlertTriangle,
-  ShieldCheck
+  ShieldCheck,
+  MessageSquare
 } from 'lucide-react';
 
 function MembersPageContent() {
@@ -393,14 +395,23 @@ function MembersPageContent() {
                     </button>
                   </div>
 
-                  {/* Order for Member */}
-                  <button
-                    onClick={() => setSelectedOrderMember(member.name)}
-                    className="w-full py-2 px-3 rounded-xl bg-slate-800 hover:bg-emerald-600 text-slate-200 hover:text-slate-950 font-bold text-xs transition-all flex items-center justify-center gap-1.5"
-                  >
-                    <Utensils className="w-3.5 h-3.5" />
-                    <span>{language === 'bn' ? 'খাবার অর্ডার দিন' : 'Order for Member'}</span>
-                  </button>
+                  {/* Member Actions: Order & Chat/Call */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => setSelectedOrderMember(member.name)}
+                      className="py-2 px-2.5 rounded-xl bg-slate-800 hover:bg-emerald-600 text-slate-200 hover:text-slate-950 font-bold text-xs transition-all flex items-center justify-center gap-1.5"
+                    >
+                      <Utensils className="w-3.5 h-3.5" />
+                      <span>{language === 'bn' ? 'অর্ডার দিন' : 'Order Food'}</span>
+                    </button>
+                    <Link
+                      href={`/chat?memberId=${encodeURIComponent(member.id)}`}
+                      className="py-2 px-2.5 rounded-xl bg-slate-900 hover:bg-amber-500 text-amber-300 hover:text-slate-950 font-bold text-xs border border-amber-500/30 transition-all flex items-center justify-center gap-1.5"
+                    >
+                      <MessageSquare className="w-3.5 h-3.5" />
+                      <span>{language === 'bn' ? 'মেসেজ ও কল' : 'Chat & Call'}</span>
+                    </Link>
+                  </div>
                 </div>
               </div>
             );

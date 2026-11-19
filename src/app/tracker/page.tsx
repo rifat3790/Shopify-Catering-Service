@@ -18,6 +18,7 @@ function TrackerContent() {
   const { language } = useLanguage();
   const { toast } = useToast();
   const [orders, setOrders] = useState<OrderData[]>([]);
+  const [totalBalance, setTotalBalance] = useState<number>(0);
   const [dateFilter, setDateFilter] = useState<DateFilterType>('today');
   const [loading, setLoading] = useState(true);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
@@ -25,11 +26,21 @@ function TrackerContent() {
 
   const fetchTrackerData = async () => {
     try {
-      const ordersRes = await fetch('/api/orders');
+      const [ordersRes, usersRes] = await Promise.all([
+        fetch('/api/orders'),
+        fetch('/api/users')
+      ]);
       if (ordersRes.ok) {
         const oData = await ordersRes.json();
         if (oData.success && oData.data) {
           setOrders(oData.data);
+        }
+      }
+      if (usersRes.ok) {
+        const uData = await usersRes.json();
+        if (uData.success && Array.isArray(uData.data)) {
+          const sum = uData.data.reduce((acc: number, curr: any) => acc + (Number(curr.balance) || 0), 0);
+          setTotalBalance(sum);
         }
       }
     } catch (err) {
@@ -52,8 +63,8 @@ function TrackerContent() {
 
   // Dynamic calculated stats for the selected date range
   const dynamicStats = useMemo(() => {
-    return calculateStatsFromOrders(filteredOrders);
-  }, [filteredOrders]);
+    return calculateStatsFromOrders(filteredOrders, totalBalance);
+  }, [filteredOrders, totalBalance]);
 
   // Counts for date filter pills
   const dateCounts = useMemo(() => {

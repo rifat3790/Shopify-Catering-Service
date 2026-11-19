@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getAllOrders, getStatsSummary } from '@/lib/dataStore';
+import { getAllOrders, getStatsSummary, getAllUsers } from '@/lib/dataStore';
 import { filterOrdersByDate, calculateStatsFromOrders, DateFilterType } from '@/lib/dateFilterUtils';
 
 export async function GET(request: Request) {
@@ -8,9 +8,13 @@ export async function GET(request: Request) {
     const dateFilter = searchParams.get('dateFilter') as DateFilterType;
 
     if (dateFilter) {
-      const allOrders = await getAllOrders();
+      const [allOrders, allUsers] = await Promise.all([
+        getAllOrders(),
+        getAllUsers()
+      ]);
       const filtered = filterOrdersByDate(allOrders, dateFilter);
-      const stats = calculateStatsFromOrders(filtered);
+      const totalMemberBalance = allUsers.reduce((acc, curr) => acc + (Number(curr.balance) || 0), 0);
+      const stats = calculateStatsFromOrders(filtered, totalMemberBalance);
       return NextResponse.json({ success: true, data: stats });
     }
 

@@ -1271,7 +1271,10 @@ export async function deleteMenuItem(id: string): Promise<boolean> {
 }
 
 export async function getStatsSummary() {
-  const orders = await getAllOrders();
+  const [orders, users] = await Promise.all([
+    getAllOrders(),
+    getAllUsers()
+  ]);
   
   const completedOrders = orders.filter(o => o.status === 'Paid');
   const activeOrdersCount = orders.filter(o => o.totalBill > 0).length;
@@ -1289,6 +1292,7 @@ export async function getStatsSummary() {
     return diff > 0 ? acc + diff : acc;
   }, 0);
 
+  const totalMemberBalance = users.reduce((acc, curr) => acc + (Number(curr.balance) || 0), 0);
   const collectionRate = totalBill > 0 ? ((totalPaid / totalBill) * 100).toFixed(1) : "0.0";
 
   return {
@@ -1299,6 +1303,7 @@ export async function getStatsSummary() {
     totalPaid,
     totalRefundChange,
     totalDue,
+    totalMemberBalance,
     collectionRate: `${collectionRate}%`,
     rawCollectionRate: Number(collectionRate)
   };

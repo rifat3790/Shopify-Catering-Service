@@ -53,7 +53,7 @@ export function filterOrdersByDate<T extends { orderDate?: string | Date; create
   });
 }
 
-export function calculateStatsFromOrders(orders: any[]) {
+export function calculateStatsFromOrders(orders: any[], totalMemberBalance?: number) {
   const completedOrders = orders.filter(o => o.status === 'Paid');
   const activeOrdersCount = orders.filter(o => Number(o.totalBill) > 0).length;
   
@@ -80,6 +80,7 @@ export function calculateStatsFromOrders(orders: any[]) {
     totalPaid,
     totalRefundChange,
     totalDue,
+    totalMemberBalance,
     collectionRate: `${collectionRate}%`,
     rawCollectionRate: parseFloat(collectionRate) || 0
   };

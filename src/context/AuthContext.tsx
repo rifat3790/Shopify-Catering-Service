@@ -226,26 +226,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         } catch (e) {}
 
+        // Read cached user to prevent avatar / balance / profile flash on refresh
+        let cachedData: any = null;
+        if (typeof window !== 'undefined') {
+          try {
+            const saved = localStorage.getItem('shopify_cached_user');
+            if (saved) {
+              const parsed = JSON.parse(saved);
+              if (parsed.email?.toLowerCase() === firebaseUser.email.toLowerCase() || parsed.uid === firebaseUser.uid) {
+                cachedData = parsed;
+              }
+            }
+          } catch (e) {}
+        }
+
         // Optimistic fast state: NEVER downgrade to 'user'!
         setUser(prev => {
-          const resolvedRole: UserRole = isSuper ? 'super_admin' : (claimRole || prev?.role || 'user');
+          const resolvedRole: UserRole = isSuper ? 'super_admin' : (claimRole || cachedData?.role || prev?.role || 'user');
           if (prev) {
             return {
               ...prev,
               role: resolvedRole,
             };
           }
+          const chosenAvatar = cachedData?.avatar || cachedData?.photoURL || firebaseUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(firebaseUser.displayName || 'Member')}&background=047857&color=fff`;
           return {
             uid: firebaseUser.uid,
             email: firebaseUser.email,
-            displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Member',
-            name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Member',
-            username: '@' + (firebaseUser.email || 'member').split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, ''),
-            photoURL: firebaseUser.photoURL,
+            displayName: cachedData?.displayName || cachedData?.name || firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Member',
+            name: cachedData?.name || cachedData?.displayName || firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Member',
+            username: cachedData?.username || ('@' + (firebaseUser.email || 'member').split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '')),
+            photoURL: chosenAvatar,
+            avatar: chosenAvatar,
             role: resolvedRole,
-            balance: 0,
-            currentDue: 0,
-            totalSpent: 0,
+            balance: typeof cachedData?.balance === 'number' ? cachedData.balance : 0,
+            currentDue: typeof cachedData?.currentDue === 'number' ? cachedData.currentDue : 0,
+            totalSpent: typeof cachedData?.totalSpent === 'number' ? cachedData.totalSpent : 0,
+            department: cachedData?.department || 'Shopify Team',
+            phone: cachedData?.phone || '',
           };
         });
         setLoading(false);
