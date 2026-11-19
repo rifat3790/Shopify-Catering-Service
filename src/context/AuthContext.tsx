@@ -11,7 +11,7 @@ import {
   onAuthStateChanged,
   type User,
 } from '@/lib/firebase';
-import { UserRole } from '@/lib/types';
+import { UserRole, SUPER_ADMIN_EMAIL } from '@/lib/types';
 
 export interface AuthUser {
   uid: string;
@@ -21,6 +21,7 @@ export interface AuthUser {
   role: UserRole;
   balance: number;
   currentDue: number;
+  totalSpent: number;
   department?: string;
 }
 
@@ -31,7 +32,6 @@ interface AuthContextType {
   signInWithEmail: (e: string, p: string) => Promise<void>;
   signUpWithEmail: (e: string, p: string, name?: string) => Promise<void>;
   logout: () => Promise<void>;
-  setDemoUser: (role: UserRole, customName?: string) => void;
   refreshUser: () => Promise<void>;
 }
 
@@ -42,7 +42,6 @@ const AuthContext = createContext<AuthContextType>({
   signInWithEmail: async () => {},
   signUpWithEmail: async () => {},
   logout: async () => {},
-  setDemoUser: () => {},
   refreshUser: async () => {},
 });
 
@@ -50,71 +49,75 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Sync user balance from backend
-  const fetchUserBalance = async (userName: string, currentRole: UserRole, currentEmail?: string | null) => {
+  // Sync user with MongoDB backend
+  const syncWithBackend = async (firebaseUser: User): Promise<AuthUser> => {
+    const isSuper = firebaseUser.email?.toLowerCase().trim() === SUPER_ADMIN_EMAIL.toLowerCase();
+
     try {
-      const res = await fetch(`/api/users/${encodeURIComponent(userName)}`);
+      const res = await fetch('/api/users/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          uid: firebaseUser.uid,
+          name: firebaseUser.displayName,
+          email: firebaseUser.email,
+          avatar: firebaseUser.photoURL,
+        }),
+      });
+
       if (res.ok) {
         const json = await res.json();
         if (json.success && json.data) {
+          const dbUser = json.data;
           return {
-            balance: json.data.balance,
-            currentDue: json.data.currentDue,
-            department: json.data.department,
-            role: json.data.role || currentRole
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            displayName: dbUser.name || firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Member',
+            photoURL: dbUser.avatar || firebaseUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(dbUser.name || 'User')}&background=047857&color=fff`,
+            role: isSuper ? 'super_admin' : (dbUser.role || 'user'),
+            balance: Number(dbUser.balance) || 0,
+            currentDue: Number(dbUser.currentDue) || 0,
+            totalSpent: Number(dbUser.totalSpent) || 0,
+            department: dbUser.department || (isSuper ? 'Executive Management' : 'Shopify Member'),
           };
         }
       }
     } catch (e) {
-      // fallback
+      console.warn('Backend sync error:', e);
     }
-    return null;
+
+    // Local fallback if backend is unreachable
+    return {
+      uid: firebaseUser.uid,
+      email: firebaseUser.email,
+      displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Member',
+      photoURL: firebaseUser.photoURL || `https://ui-avatars.com/api/?name=Member&background=047857&color=fff`,
+      role: isSuper ? 'super_admin' : 'user',
+      balance: 0,
+      currentDue: 0,
+      totalSpent: 0,
+      department: isSuper ? 'Executive Management' : 'Shopify Member',
+    };
   };
 
   const refreshUser = async () => {
-    if (!user) return;
-    const synced = await fetchUserBalance(user.displayName || 'Shamim', user.role, user.email);
-    if (synced) {
-      setUser(prev => prev ? { ...prev, ...synced } : null);
+    if (auth.currentUser) {
+      const synced = await syncWithBackend(auth.currentUser);
+      setUser(synced);
     }
   };
 
   useEffect(() => {
-    const savedDemo = localStorage.getItem('shopify_demo_user');
-    if (savedDemo) {
-      try {
-        const parsed = JSON.parse(savedDemo);
-        setUser(parsed);
-        setLoading(false);
-        // refresh balance in background
-        fetchUserBalance(parsed.displayName, parsed.role).then(synced => {
-          if (synced) {
-            setUser(prev => prev ? { ...prev, ...synced } : null);
-          }
-        });
-      } catch (e) {
-        localStorage.removeItem('shopify_demo_user');
-      }
+    // Clear any legacy demo data from localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('shopify_demo_user');
     }
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: User | null) => {
-      if (firebaseUser) {
-        const isSuper = firebaseUser.email?.includes('super') || firebaseUser.email === 'rifat@shopify.com';
-        const isAdmin = firebaseUser.email?.includes('admin');
-        const role: UserRole = isSuper ? 'super_admin' : (isAdmin ? 'admin' : 'user');
-        
-        const mappedUser: AuthUser = {
-          uid: firebaseUser.uid,
-          email: firebaseUser.email,
-          displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
-          photoURL: firebaseUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(firebaseUser.displayName || 'User')}&background=047857&color=fff`,
-          role,
-          balance: role === 'super_admin' ? 5000 : (role === 'admin' ? 2400 : 450),
-          currentDue: 0,
-        };
-        setUser(mappedUser);
-        localStorage.removeItem('shopify_demo_user');
-      } else if (!localStorage.getItem('shopify_demo_user')) {
+      if (firebaseUser && firebaseUser.email) {
+        const syncedUser = await syncWithBackend(firebaseUser);
+        setUser(syncedUser);
+      } else {
         setUser(null);
       }
       setLoading(false);
@@ -126,7 +129,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithGoogle = async () => {
     try {
       setLoading(true);
-      await signInWithPopup(auth, googleProvider);
+      const res = await signInWithPopup(auth, googleProvider);
+      if (res.user && res.user.email) {
+        const synced = await syncWithBackend(res.user);
+        setUser(synced);
+      }
     } catch (err: any) {
       console.error('Google Sign In Error:', err);
       throw err;
@@ -138,7 +145,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithEmail = async (email: string, pass: string) => {
     try {
       setLoading(true);
-      await signInWithEmailAndPassword(auth, email, pass);
+      const res = await signInWithEmailAndPassword(auth, email, pass);
+      if (res.user && res.user.email) {
+        const synced = await syncWithBackend(res.user);
+        setUser(synced);
+      }
     } catch (err: any) {
       console.error('Email Sign In Error:', err);
       throw err;
@@ -150,7 +161,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUpWithEmail = async (email: string, pass: string, name?: string) => {
     try {
       setLoading(true);
-      await createUserWithEmailAndPassword(auth, email, pass);
+      const res = await createUserWithEmailAndPassword(auth, email, pass);
+      if (res.user && res.user.email) {
+        const synced = await syncWithBackend(res.user);
+        setUser(synced);
+      }
     } catch (err: any) {
       console.error('Sign Up Error:', err);
       throw err;
@@ -160,50 +175,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
-    localStorage.removeItem('shopify_demo_user');
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('shopify_demo_user');
+    }
     await signOut(auth);
     setUser(null);
-  };
-
-  const setDemoUser = (role: UserRole, customName?: string) => {
-    let displayName = customName || 'Shamim';
-    let balance = 450;
-    let dept = 'Development';
-
-    if (role === 'super_admin') {
-      displayName = 'Rifat (Super Admin)';
-      balance = 5000;
-      dept = 'Executive Board';
-    } else if (role === 'admin') {
-      displayName = 'Tanvir Hasan (Admin)';
-      balance = 2400;
-      dept = 'Catering Management';
-    } else if (role === 'staff') {
-      displayName = 'Counter Cashier';
-      balance = 1000;
-      dept = 'Kitchen & Counter';
-    } else {
-      if (customName === 'Shagor') balance = 620;
-      else if (customName === 'Refayet') balance = 550;
-      else if (customName === 'Ismail') balance = 310;
-    }
-
-    const demo: AuthUser = {
-      uid: `demo-${role}-${Date.now()}`,
-      email: `${role}@shopifycatering.com`,
-      displayName,
-      photoURL: role === 'super_admin'
-        ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
-        : (role === 'admin' 
-          ? 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80'
-          : 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80'),
-      role,
-      balance,
-      currentDue: 0,
-      department: dept,
-    };
-    setUser(demo);
-    localStorage.setItem('shopify_demo_user', JSON.stringify(demo));
   };
 
   return (
@@ -215,7 +191,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signInWithEmail,
         signUpWithEmail,
         logout,
-        setDemoUser,
         refreshUser,
       }}
     >

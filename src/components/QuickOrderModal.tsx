@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLanguage } from '@/context/LanguageContext';
-import { OrderData, initialMenuItems, MenuItemData } from '@/lib/types';
+import { OrderData, MenuItemData } from '@/lib/types';
 import { 
   X, 
   Plus, 
@@ -11,7 +11,6 @@ import {
   Check, 
   Sparkles, 
   User, 
-  UtensilsCrossed,
   PlusSquare,
   Trash2
 } from 'lucide-react';
@@ -22,16 +21,6 @@ interface QuickOrderModalProps {
   onSubmit: (orderData: Partial<OrderData>) => Promise<void>;
   prefillCustomer?: string;
 }
-
-const regularCustomers = [
-  "Shamim",
-  "Ismail",
-  "Shagor",
-  "Muhaimenul",
-  "Azim",
-  "Refayet",
-  "Muzahid",
-];
 
 const cashPresets = [20, 30, 50, 100, 200, 500, 1000];
 
@@ -51,6 +40,7 @@ export default function QuickOrderModal({
   const { language } = useLanguage();
   const [customerName, setCustomerName] = useState(prefillCustomer || '');
   const [department, setDepartment] = useState('Shopify Team');
+  const [menuItems, setMenuItems] = useState<MenuItemData[]>([]);
   const [itemQuantities, setItemQuantities] = useState<Record<string, number>>({});
   const [customItems, setCustomItems] = useState<CustomItem[]>([]);
   const [newCustomName, setNewCustomName] = useState('');
@@ -61,6 +51,17 @@ export default function QuickOrderModal({
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  useEffect(() => {
+    if (isOpen) {
+      fetch('/api/menu')
+        .then(r => r.json())
+        .then(data => {
+          if (data.success && data.data) setMenuItems(data.data);
+        })
+        .catch(() => {});
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   // Calculate bill
@@ -68,8 +69,8 @@ export default function QuickOrderModal({
   const selectedItemsSummary: string[] = [];
   const itemsList: Array<{ name: string; quantity: number; unitPrice: number; subtotal: number }> = [];
 
-  // 1. Presets from initialMenuItems
-  initialMenuItems.forEach((item) => {
+  // 1. Presets from dynamic menuItems
+  menuItems.forEach((item) => {
     const qty = itemQuantities[item._id || item.name] || 0;
     if (qty > 0) {
       const sub = qty * item.price;
@@ -133,7 +134,7 @@ export default function QuickOrderModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const finalCust = customerName.trim() || prefillCustomer || 'Shamim';
+    const finalCust = customerName.trim() || prefillCustomer || 'Member';
 
     setSubmitting(true);
     try {
@@ -195,26 +196,9 @@ export default function QuickOrderModal({
           {/* Customer Selection */}
           <div>
             <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
-              {language === 'bn' ? 'গ্রাহক বা মেম্বার নির্বাচন করুন *' : 'Select Team Member or Enter Name *'}
+              {language === 'bn' ? 'গ্রাহক বা মেম্বার নাম *' : 'Customer / Team Member Name *'}
             </label>
             
-            <div className="flex flex-wrap gap-1.5 mb-2.5">
-              {regularCustomers.map((cust) => (
-                <button
-                  type="button"
-                  key={cust}
-                  onClick={() => setCustomerName(cust)}
-                  className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
-                    customerName === cust
-                      ? 'bg-amber-400 text-slate-950 font-bold ring-2 ring-amber-300'
-                      : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700'
-                  }`}
-                >
-                  {cust}
-                </button>
-              ))}
-            </div>
-
             <div className="relative">
               <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
@@ -222,7 +206,7 @@ export default function QuickOrderModal({
                 required
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
-                placeholder={language === 'bn' ? 'উদাঃ Shamim, Shagor, বা নতুন নাম' : 'e.g. Shamim, Shagor, or custom name'}
+                placeholder={language === 'bn' ? 'গ্রাহকের নাম লিখুন' : 'Enter customer name'}
                 className="w-full pl-10 pr-4 py-2 bg-slate-950 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
               />
             </div>
@@ -257,7 +241,7 @@ export default function QuickOrderModal({
                     type="text"
                     value={newCustomName}
                     onChange={e => setNewCustomName(e.target.value)}
-                    placeholder={language === 'bn' ? 'খাবারের নাম (যেমনঃ স্পেশাল পুডিং)' : 'Item name (e.g. Egg Pudding)'}
+                    placeholder={language === 'bn' ? 'খাবারের নাম' : 'Item name'}
                     className="flex-1 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white"
                   />
                   <input
@@ -302,47 +286,53 @@ export default function QuickOrderModal({
               </div>
             )}
 
-            {/* Standard Catalog Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-48 overflow-y-auto pr-1">
-              {initialMenuItems.map((item) => {
-                const count = itemQuantities[item._id || item.name] || 0;
-                return (
-                  <div
-                    key={item._id || item.name}
-                    className={`flex items-center justify-between p-2.5 rounded-xl border transition-all ${
-                      count > 0
-                        ? 'bg-emerald-950/40 border-emerald-500/60 shadow-sm'
-                        : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
-                    }`}
-                  >
-                    <div>
-                      <p className="text-xs font-semibold text-white">{item.name}</p>
-                      <p className="text-[11px] text-amber-300 font-mono">৳{item.price}</p>
-                    </div>
+            {/* Dynamic Catalog Grid */}
+            {menuItems.length === 0 ? (
+              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 text-center text-slate-400 text-xs">
+                মেনুতে কোনো খাবার নেই। উপরে &quot;+ কাস্টম আইটেম&quot; দিয়ে খাবার যুক্ত করুন।
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-48 overflow-y-auto pr-1">
+                {menuItems.map((item) => {
+                  const count = itemQuantities[item._id || item.name] || 0;
+                  return (
+                    <div
+                      key={item._id || item.name}
+                      className={`flex items-center justify-between p-2.5 rounded-xl border transition-all ${
+                        count > 0
+                          ? 'bg-emerald-950/40 border-emerald-500/60 shadow-sm'
+                          : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
+                      }`}
+                    >
+                      <div>
+                        <p className="text-xs font-semibold text-white">{item.name}</p>
+                        <p className="text-[11px] text-amber-300 font-mono">৳{item.price}</p>
+                      </div>
 
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleItemCount(item._id || item.name, -1)}
-                        className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition-colors"
-                      >
-                        <Minus className="w-3.5 h-3.5" />
-                      </button>
-                      <span className="w-6 text-center text-xs font-bold text-white">
-                        {count}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleItemCount(item._id || item.name, 1)}
-                        className="w-7 h-7 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold flex items-center justify-center transition-colors"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleItemCount(item._id || item.name, -1)}
+                          className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition-colors"
+                        >
+                          <Minus className="w-3.5 h-3.5" />
+                        </button>
+                        <span className="w-6 text-center text-xs font-bold text-white">
+                          {count}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleItemCount(item._id || item.name, 1)}
+                          className="w-7 h-7 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold flex items-center justify-center transition-colors"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Real-time Calculation Summary Box */}

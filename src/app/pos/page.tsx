@@ -1,16 +1,15 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
+import AuthGuard from '@/components/AuthGuard';
 import InvoiceModal from '@/components/InvoiceModal';
 import { useLanguage } from '@/context/LanguageContext';
-import { initialMenuItems, OrderData } from '@/lib/types';
+import { MenuItemData, OrderData, UserRecord } from '@/lib/types';
 import { 
   Calculator, 
   Trash2, 
   Check, 
-  Printer, 
-  Sparkles, 
   User, 
   Banknote, 
   Coins, 
@@ -19,26 +18,15 @@ import {
   PlusSquare
 } from 'lucide-react';
 
-const regularCustomers = [
-  "Shamim",
-  "Ismail",
-  "Shagor",
-  "Muhaimenul",
-  "Azim",
-  "Refayet",
-  "Muzahid"
-];
-
 const cashPresets = [20, 30, 50, 100, 200, 500, 1000];
 
-export default function PosPage() {
+function PosPageContent() {
   const { language } = useLanguage();
-  const [customer, setCustomer] = useState('Shamim');
-  const [cart, setCart] = useState<{ [id: string]: { name: string; price: number; qty: number } }>({
-    'singara': { name: 'Singara (সিঙ্গারা)', price: 10, qty: 2 },
-    'somucha': { name: 'Comoccha / Somucha (চমচা)', price: 10, qty: 1 }
-  });
-  const [tenderedCash, setTenderedCash] = useState<number>(30);
+  const [customer, setCustomer] = useState('Customer');
+  const [members, setMembers] = useState<UserRecord[]>([]);
+  const [menuItems, setMenuItems] = useState<MenuItemData[]>([]);
+  const [cart, setCart] = useState<{ [id: string]: { name: string; price: number; qty: number } }>({});
+  const [tenderedCash, setTenderedCash] = useState<number>(0);
   const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'bKash' | 'Nagad' | 'Wallet'>('Cash');
   const [savedOrder, setSavedOrder] = useState<OrderData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -47,6 +35,19 @@ export default function PosPage() {
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [customItemName, setCustomItemName] = useState('');
   const [customItemPrice, setCustomItemPrice] = useState<number>(0);
+
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/menu').then(r => r.json()),
+      fetch('/api/users').then(r => r.json())
+    ]).then(([mRes, uRes]) => {
+      if (mRes.success && mRes.data) setMenuItems(mRes.data);
+      if (uRes.success && uRes.data) {
+        setMembers(uRes.data);
+        if (uRes.data.length > 0) setCustomer(uRes.data[0].name);
+      }
+    }).catch(err => console.warn(err));
+  }, []);
 
   const totalBill = Object.values(cart).reduce((sum, item) => sum + item.price * item.qty, 0);
   const changeToReturn = tenderedCash >= totalBill ? tenderedCash - totalBill : 0;
@@ -113,7 +114,8 @@ export default function PosPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           customerName: customer,
-          customerDepartment: 'Shopify Team',
+          customerDepartment: members.find(m => m.name === customer)?.department || 'Shopify Team',
+          customerEmail: members.find(m => m.name === customer)?.email || '',
           itemsText,
           items: itemsList,
           totalBill,
@@ -127,6 +129,7 @@ export default function PosPage() {
       const json = await res.json();
       if (json.success) {
         setSavedOrder(json.data);
+        handleClearCart();
       } else {
         throw new Error(json.error);
       }
@@ -217,19 +220,29 @@ export default function PosPage() {
               </div>
 
               <div className="flex flex-wrap gap-2 pt-1">
-                {regularCustomers.map((cust) => (
-                  <button
-                    key={cust}
-                    onClick={() => setCustomer(cust)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                      customer === cust
-                        ? 'bg-gradient-to-r from-emerald-600 to-amber-500 text-slate-950 shadow-md ring-2 ring-amber-400'
-                        : 'bg-slate-950 text-slate-300 hover:bg-slate-800 border border-slate-700/80'
-                    }`}
-                  >
-                    {cust}
-                  </button>
-                ))}
+                {members.length > 0 ? (
+                  members.map((m) => (
+                    <button
+                      key={m.id}
+                      onClick={() => setCustomer(m.name)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                        customer === m.name
+                          ? 'bg-gradient-to-r from-emerald-600 to-amber-500 text-slate-950 shadow-md ring-2 ring-amber-400'
+                          : 'bg-slate-950 text-slate-300 hover:bg-slate-800 border border-slate-700/80'
+                      }`}
+                    >
+                      {m.name}
+                    </button>
+                  ))
+                ) : (
+                  <input
+                    type="text"
+                    value={customer}
+                    onChange={e => setCustomer(e.target.value)}
+                    placeholder="Customer Name"
+                    className="px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white"
+                  />
+                )}
               </div>
             </div>
 
@@ -239,30 +252,36 @@ export default function PosPage() {
                 {language === 'bn' ? 'আইটেমে ট্যাপ করে যুক্ত করুন' : 'Tap Food Item to Add to Order'}
               </h3>
               
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {initialMenuItems.map((item) => (
-                  <button
-                    key={item._id || item.name}
-                    onClick={() => handleAddItem(item._id || item.name, item.name, item.price)}
-                    className="p-3 rounded-2xl bg-slate-900 hover:bg-slate-800/80 border border-slate-800 hover:border-emerald-600/80 text-left transition-all active:scale-95 group flex flex-col justify-between h-28 relative overflow-hidden shadow-lg shadow-black/20"
-                  >
-                    <div className="flex items-start justify-between">
-                      <span className="text-xs font-bold text-white group-hover:text-amber-300 leading-snug line-clamp-2">
-                        {language === 'bn' ? item.nameBn : item.name}
-                      </span>
-                    </div>
+              {menuItems.length === 0 ? (
+                <div className="p-8 rounded-2xl bg-slate-900/50 border border-slate-800 text-center text-slate-400 text-xs">
+                  মেনুতে কোনো খাবার নেই। অনুগ্রহ করে প্রথমে মেনু পেজে খাবার যুক্ত করুন।
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {menuItems.map((item) => (
+                    <button
+                      key={item._id || item.name}
+                      onClick={() => handleAddItem(item._id || item.name, item.name, item.price)}
+                      className="p-3 rounded-2xl bg-slate-900 hover:bg-slate-800/80 border border-slate-800 hover:border-emerald-600/80 text-left transition-all active:scale-95 group flex flex-col justify-between h-28 relative overflow-hidden shadow-lg shadow-black/20"
+                    >
+                      <div className="flex items-start justify-between">
+                        <span className="text-xs font-bold text-white group-hover:text-amber-300 leading-snug line-clamp-2">
+                          {language === 'bn' ? item.nameBn : item.name}
+                        </span>
+                      </div>
 
-                    <div className="flex items-center justify-between pt-2 border-t border-slate-800/60">
-                      <span className="text-xs font-mono font-bold text-amber-300">
-                        ৳{item.price}
-                      </span>
-                      <span className="w-6 h-6 rounded-lg bg-emerald-950 text-emerald-400 border border-emerald-700/60 flex items-center justify-center text-xs font-bold group-hover:bg-emerald-600 group-hover:text-slate-950 transition-colors">
-                        +
-                      </span>
-                    </div>
-                  </button>
-                ))}
-              </div>
+                      <div className="flex items-center justify-between pt-2 border-t border-slate-800/60">
+                        <span className="text-xs font-mono font-bold text-amber-300">
+                          ৳{item.price}
+                        </span>
+                        <span className="w-6 h-6 rounded-lg bg-emerald-950 text-emerald-400 border border-emerald-700/60 flex items-center justify-center text-xs font-bold group-hover:bg-emerald-600 group-hover:text-slate-950 transition-colors">
+                          +
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
           </div>
@@ -427,5 +446,13 @@ export default function PosPage() {
         onClose={() => setSavedOrder(null)}
       />
     </div>
+  );
+}
+
+export default function PosPage() {
+  return (
+    <AuthGuard allowedRoles={['super_admin', 'admin', 'staff']}>
+      <PosPageContent />
+    </AuthGuard>
   );
 }

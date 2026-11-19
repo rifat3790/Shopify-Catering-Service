@@ -2,46 +2,42 @@
 
 import React, { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
+import AuthGuard from '@/components/AuthGuard';
 import InvoiceModal from '@/components/InvoiceModal';
 import QuickOrderModal from '@/components/QuickOrderModal';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
-import { OrderData, initialOrders, UserRecord, initialUsers } from '@/lib/types';
+import { OrderData, UserRecord } from '@/lib/types';
 import Link from 'next/link';
 import { 
-  User, 
   Wallet, 
   Download, 
   ShoppingBag, 
-  Clock, 
   CheckCircle2, 
-  Sparkles, 
-  ArrowRight, 
-  PlusCircle,
-  Receipt,
-  UtensilsCrossed,
-  ArrowUpRight
+  Receipt, 
+  UtensilsCrossed, 
+  Plus, 
+  RefreshCw 
 } from 'lucide-react';
 
-export default function UserDashboardPage() {
+function UserDashboardContent() {
   const { user, refreshUser } = useAuth();
   const { language } = useLanguage();
 
-  const [selectedUser, setSelectedUser] = useState<string>(user?.displayName || 'Shamim');
-  const [currentUserData, setCurrentUserData] = useState<UserRecord>(
-    initialUsers.find(u => u.name.toLowerCase() === (user?.displayName || 'Shamim').toLowerCase()) || initialUsers[2]
-  );
-  const [orders, setOrders] = useState<OrderData[]>(initialOrders);
+  const [orders, setOrders] = useState<OrderData[]>([]);
   const [selectedInvoice, setSelectedInvoice] = useState<OrderData | null>(null);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const loadData = async () => {
+  // Admin view switcher (only for super_admin and admin)
+  const isElevated = user?.role === 'super_admin' || user?.role === 'admin';
+  const [elevatedMemberList, setElevatedMemberList] = useState<UserRecord[]>([]);
+  const [inspectedUserName, setInspectedUserName] = useState<string>('');
+
+  const loadUserData = async () => {
+    setLoading(true);
     try {
-      const [ordRes, userRes] = await Promise.all([
-        fetch('/api/orders'),
-        fetch(`/api/users/${encodeURIComponent(selectedUser)}`)
-      ]);
-
+      const ordRes = await fetch('/api/orders');
       if (ordRes.ok) {
         const o = await ordRes.json();
         if (o.success && o.data) {
@@ -49,81 +45,121 @@ export default function UserDashboardPage() {
         }
       }
 
-      if (userRes.ok) {
-        const u = await userRes.json();
-        if (u.success && u.data) {
-          setCurrentUserData(u.data);
+      if (isElevated) {
+        const uRes = await fetch('/api/users');
+        if (uRes.ok) {
+          const u = await uRes.json();
+          if (u.success && u.data) {
+            setElevatedMemberList(u.data);
+          }
         }
       }
     } catch (e) {
-      console.warn('Using cached data');
+      console.warn('Error loading orders:', e);
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadData();
-  }, [selectedUser]);
+    loadUserData();
+  }, [user]);
 
-  const myOrders = orders.filter(
-    o => o.customerName.toLowerCase().includes(selectedUser.toLowerCase())
-  );
+  // Current active name to filter orders
+  const activeDisplayName = inspectedUserName || user?.displayName || user?.email?.split('@')[0] || 'User';
+  const activeEmail = user?.email || '';
+
+  // Filter orders strictly for this user
+  const myOrders = orders.filter(o => {
+    const cust = (o.customerName || '').toLowerCase().trim();
+    const mail = (o.customerEmail || '').toLowerCase().trim();
+    const targetName = activeDisplayName.toLowerCase().trim();
+    const targetMail = activeEmail.toLowerCase().trim();
+
+    return (
+      cust.includes(targetName) || 
+      (mail && targetMail && mail === targetMail) || 
+      (cust && targetMail && targetMail.includes(cust))
+    );
+  });
+
+  const displayBalance = user?.balance ?? 0;
+  const displaySpent = user?.totalSpent ?? 0;
+  const displayDue = user?.currentDue ?? 0;
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col lg:flex-row text-slate-100">
-      {/* Left Sidebar Navigation */}
       <Sidebar onOpenNewOrder={() => setIsOrderModalOpen(true)} />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
         <main className="p-4 sm:p-6 lg:p-10 space-y-8 max-w-[1920px] w-full mx-auto">
           
-          {/* Top Header with Employee Selector */}
+          {/* Top Header */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-emerald-900/40">
             <div className="flex items-center gap-3">
               <img
-                src={currentUserData.avatar}
-                alt={currentUserData.name}
+                src={user?.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.displayName || 'User')}&background=047857&color=fff`}
+                alt={user?.displayName || 'User'}
                 className="w-14 h-14 rounded-2xl object-cover ring-2 ring-emerald-500/50 shadow-lg shrink-0"
               />
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <h1 className="text-2xl sm:text-3xl font-bold font-serif text-white">
-                    {currentUserData.name}&apos;s Catering Hub
+                    {user?.displayName || 'User'}&apos;s Catering Hub
                   </h1>
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                    {currentUserData.department}
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 uppercase">
+                    {user?.department || 'Shopify Member'}
                   </span>
                 </div>
                 <p className="text-xs text-slate-400 mt-0.5">
                   {language === 'bn' 
                     ? 'আপনার ব্যক্তিগত খাবার হিসাব, ওয়ালেট ব্যালেন্স ও রসিদ ডাউনলোড পোর্টাল'
-                    : 'Personal catering account, wallet balance & instant invoice image download'}
+                    : 'Personal catering account, dynamic wallet balance & instant invoice image download'}
                 </p>
               </div>
             </div>
 
-            {/* Quick Select another user to see their balance */}
-            <div className="flex items-center gap-2 self-start md:self-auto">
-              <span className="text-xs text-slate-400 font-medium">
-                {language === 'bn' ? 'ইউজার পরিবর্তন:' : 'Switch User:'}
-              </span>
-              <select
-                value={selectedUser}
-                onChange={e => setSelectedUser(e.target.value)}
-                className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-amber-300 focus:outline-none"
+            <div className="flex items-center gap-2 self-start md:self-auto flex-wrap">
+              {/* Only Super Admin & Admin can inspect other members */}
+              {isElevated && elevatedMemberList.length > 0 && (
+                <div className="flex items-center gap-1.5 mr-2">
+                  <span className="text-[11px] text-slate-400 font-semibold">Inspect Member:</span>
+                  <select
+                    value={inspectedUserName}
+                    onChange={e => setInspectedUserName(e.target.value)}
+                    className="px-2.5 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-amber-300 focus:outline-none"
+                  >
+                    <option value="">My Own Account ({user?.displayName})</option>
+                    {elevatedMemberList.map(m => (
+                      <option key={m.id} value={m.name}>
+                        {m.name} ({m.department})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <button
+                onClick={() => { refreshUser(); loadUserData(); }}
+                className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 transition-colors"
+                title="Refresh"
               >
-                {initialUsers.map(u => (
-                  <option key={u.id} value={u.name}>
-                    {u.name} ({u.department})
-                  </option>
-                ))}
-              </select>
+                <RefreshCw className="w-4 h-4 text-emerald-400" />
+              </button>
+
+              <button
+                onClick={() => setIsOrderModalOpen(true)}
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-md"
+              >
+                + {language === 'bn' ? 'নতুন খাবার অর্ডার' : 'Order Food'}
+              </button>
             </div>
           </div>
 
-          {/* User Balance Master Cards ("sobay tader balance dekhte pabe") */}
+          {/* User Balance Master Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             
-            {/* Main Balance */}
+            {/* Main Dynamic Balance */}
             <div className="relative overflow-hidden p-6 rounded-3xl bg-gradient-to-br from-emerald-950 via-slate-900 to-emerald-950 border border-emerald-500/40 shadow-2xl">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-xs font-bold text-emerald-300 uppercase tracking-wider">
@@ -136,7 +172,7 @@ export default function UserDashboardPage() {
               
               <div className="flex items-baseline gap-2">
                 <h2 className="text-3xl sm:text-4xl font-extrabold font-mono text-emerald-400">
-                  ৳{currentUserData.balance.toFixed(2)}
+                  ৳{displayBalance.toFixed(2)}
                 </h2>
               </div>
               <p className="text-[11px] text-emerald-300/80 mt-2 flex items-center gap-1">
@@ -155,7 +191,7 @@ export default function UserDashboardPage() {
                 </div>
               </div>
               <h2 className="text-2xl sm:text-3xl font-bold font-mono text-amber-300">
-                ৳{currentUserData.totalSpent.toFixed(2)}
+                ৳{displaySpent.toFixed(2)}
               </h2>
               <p className="text-[11px] text-slate-400 mt-2">
                 {myOrders.length} {language === 'bn' ? 'টি সফল অর্ডার সম্পন্ন' : 'Orders completed'}
@@ -173,10 +209,10 @@ export default function UserDashboardPage() {
                 </div>
               </div>
               <h2 className="text-2xl sm:text-3xl font-bold font-mono text-teal-300">
-                ৳{currentUserData.currentDue.toFixed(2)}
+                ৳{displayDue.toFixed(2)}
               </h2>
               <p className="text-[11px] text-teal-400 mt-2">
-                {language === 'bn' ? 'কোনো বকেয়া নেই (Clear)' : 'Zero outstanding dues'}
+                {displayDue > 0 ? `৳${displayDue.toFixed(2)} বকেয়া` : (language === 'bn' ? 'কোনো বকেয়া নেই (Clear)' : 'Zero outstanding dues')}
               </p>
             </div>
 
@@ -207,10 +243,20 @@ export default function UserDashboardPage() {
             </div>
 
             <div className="p-4 sm:p-6 space-y-3">
-              {myOrders.length === 0 ? (
+              {loading ? (
+                <div className="text-center py-12 text-slate-400 text-xs">
+                  লোড হচ্ছে...
+                </div>
+              ) : myOrders.length === 0 ? (
                 <div className="text-center py-12 text-slate-400">
                   <UtensilsCrossed className="w-8 h-8 mx-auto mb-2 text-slate-600" />
                   <p>{language === 'bn' ? 'আপনার কোনো পূর্বের অর্ডার পাওয়া যায়নি।' : 'No previous orders found for this profile.'}</p>
+                  <button
+                    onClick={() => setIsOrderModalOpen(true)}
+                    className="mt-3 px-4 py-2 rounded-xl bg-emerald-600 text-slate-950 font-bold text-xs"
+                  >
+                    + খাবার অর্ডার করুন
+                  </button>
                 </div>
               ) : (
                 myOrders.map(order => (
@@ -280,12 +326,22 @@ export default function UserDashboardPage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               ...data,
-              customerName: selectedUser,
+              customerName: user?.displayName || 'User',
+              customerEmail: user?.email || '',
             }),
           });
-          loadData();
+          refreshUser();
+          loadUserData();
         }}
       />
     </div>
+  );
+}
+
+export default function UserDashboardPage() {
+  return (
+    <AuthGuard>
+      <UserDashboardContent />
+    </AuthGuard>
   );
 }

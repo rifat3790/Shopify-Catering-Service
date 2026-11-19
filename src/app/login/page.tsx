@@ -1,27 +1,25 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
-import { UserRole } from '@/lib/types';
+import { SUPER_ADMIN_EMAIL } from '@/lib/types';
 import Link from 'next/link';
 import { 
   UtensilsCrossed, 
   Sparkles, 
   Mail, 
   Lock, 
-  ArrowRight, 
-  ShieldCheck, 
-  Crown,
-  UserCheck,
   AlertCircle,
-  User
+  Crown,
+  ShieldCheck,
+  UserCheck
 } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { user, signInWithGoogle, signInWithEmail, signUpWithEmail, setDemoUser } = useAuth();
+  const { user, signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth();
   const { language } = useLanguage();
 
   const [isSignUp, setIsSignUp] = useState(false);
@@ -30,6 +28,13 @@ export default function LoginPage() {
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // If already logged in, redirect to dashboard
+  useEffect(() => {
+    if (user) {
+      router.replace('/dashboard');
+    }
+  }, [user, router]);
 
   const handleGoogleLogin = async () => {
     setError('');
@@ -51,9 +56,9 @@ export default function LoginPage() {
     setLoading(true);
     try {
       if (isSignUp) {
-        await signUpWithEmail(email, password, name);
+        await signUpWithEmail(email.trim(), password, name.trim());
       } else {
-        await signInWithEmail(email, password);
+        await signInWithEmail(email.trim(), password);
       }
       router.push('/dashboard');
     } catch (err: any) {
@@ -61,13 +66,6 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleDemo = (role: UserRole, customName?: string) => {
-    setDemoUser(role, customName);
-    if (role === 'super_admin') router.push('/super-admin');
-    else if (role === 'admin') router.push('/admin');
-    else router.push('/user');
   };
 
   return (
@@ -89,8 +87,19 @@ export default function LoginPage() {
           <h1 className="font-serif text-2xl font-bold tracking-tight text-white">
             Shopify Catering Service
           </h1>
-          <p className="text-xs text-emerald-400/90">
-            {language === 'bn' ? 'লাক্সারি ক্যাটারিং পোর্টাল অথেনটিকেশন' : 'Role-Based Catering Portal Access'}
+          <p className="text-xs text-emerald-400/90 font-medium">
+            {language === 'bn' ? 'অফিসিয়াল ক্যাটারিং পোর্টাল লগইন' : 'Official Enterprise Catering Authentication'}
+          </p>
+        </div>
+
+        {/* Super Admin Notice */}
+        <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-950/60 via-slate-950 to-emerald-950/60 border border-amber-500/30 text-xs space-y-1">
+          <div className="flex items-center gap-2 font-bold text-amber-300">
+            <Crown className="w-4 h-4 text-amber-400" />
+            <span>সুপার অ্যাডমিন নির্দেশনা</span>
+          </div>
+          <p className="text-[11px] text-slate-300 leading-relaxed">
+            <strong className="text-amber-200">{SUPER_ADMIN_EMAIL}</strong> দিয়ে লগইন করলে আপনি সরাসরি <strong>সুপার অ্যাডমিন ড্যাশবোর্ড</strong> অ্যাক্সেস পাবেন এবং যেকোনো ইউজারকে যেকোনো রোল দিতে পারবেন।
           </p>
         </div>
 
@@ -101,53 +110,11 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* 1-Click Role Direct Logins for Testing */}
-        <div className="p-4 rounded-2xl bg-slate-950 border border-emerald-900/60 space-y-2.5">
-          <p className="text-[11px] text-center text-slate-400 font-bold uppercase tracking-wider">
-            {language === 'bn' ? '১-ক্লিকে রোল সিলেক্ট করে লগইন করুন' : 'Instant Role Quick-Access'}
-          </p>
-          
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              onClick={() => handleDemo('super_admin')}
-              className="p-2.5 rounded-xl bg-amber-950/60 hover:bg-amber-900 border border-amber-500/40 text-amber-300 text-xs font-bold flex flex-col items-center justify-center gap-1 transition-all hover:scale-105"
-            >
-              <Crown className="w-4 h-4 text-amber-400" />
-              <span>Super Admin</span>
-            </button>
-
-            <button
-              onClick={() => handleDemo('admin')}
-              className="p-2.5 rounded-xl bg-emerald-950/60 hover:bg-emerald-900 border border-emerald-500/40 text-emerald-300 text-xs font-bold flex flex-col items-center justify-center gap-1 transition-all hover:scale-105"
-            >
-              <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              <span>Admin</span>
-            </button>
-
-            <button
-              onClick={() => handleDemo('user', 'Shamim')}
-              className="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 text-xs font-bold flex flex-col items-center justify-center gap-1 transition-all hover:scale-105"
-            >
-              <User className="w-4 h-4 text-sky-400" />
-              <span>User / Client</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Divider */}
-        <div className="flex items-center gap-3">
-          <div className="flex-1 h-px bg-slate-800" />
-          <span className="text-[11px] text-slate-500 uppercase tracking-wider">
-            {language === 'bn' ? 'অথবা ফায়ারবেস লগইন' : 'or Firebase Auth'}
-          </span>
-          <div className="flex-1 h-px bg-slate-800" />
-        </div>
-
-        {/* Google Sign In */}
+        {/* Google Sign In Button */}
         <button
           onClick={handleGoogleLogin}
           disabled={loading}
-          className="w-full py-3 px-4 rounded-2xl bg-slate-950 hover:bg-slate-800 text-white border border-slate-700 font-semibold text-xs flex items-center justify-center gap-3 shadow-md hover:border-slate-600 transition-all hover:scale-[1.01] active:scale-[0.99]"
+          className="w-full py-3 px-4 rounded-2xl bg-slate-950 hover:bg-slate-800 text-white border border-slate-700 font-semibold text-xs flex items-center justify-center gap-3 shadow-md hover:border-emerald-500/50 transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50"
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24">
             <path
@@ -167,22 +134,31 @@ export default function LoginPage() {
               d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
             />
           </svg>
-          <span>{language === 'bn' ? 'Google দিয়ে সাইন ইন' : 'Sign in with Google'}</span>
+          <span>{loading ? 'প্রসেসিং...' : (language === 'bn' ? 'Google অ্যাকাউন্ট দিয়ে লগইন' : 'Continue with Google')}</span>
         </button>
 
+        {/* Divider */}
+        <div className="flex items-center gap-3">
+          <div className="flex-1 h-px bg-slate-800" />
+          <span className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold">
+            {language === 'bn' ? 'অথবা ইমেইল ও পাসওয়ার্ড' : 'or Email & Password'}
+          </span>
+          <div className="flex-1 h-px bg-slate-800" />
+        </div>
+
         {/* Email Password Form */}
-        <form onSubmit={handleEmailAuth} className="space-y-3">
+        <form onSubmit={handleEmailAuth} className="space-y-3.5">
           {isSignUp && (
             <div>
               <label className="block text-[11px] font-semibold text-slate-300 uppercase mb-1">
-                {language === 'bn' ? 'নাম' : 'Full Name'}
+                {language === 'bn' ? 'আপনার নাম' : 'Full Name'}
               </label>
               <input
                 type="text"
                 required
                 value={name}
                 onChange={e => setName(e.target.value)}
-                placeholder="Shamim"
+                placeholder="e.g. Tanvir Hasan"
                 className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-amber-400"
               />
             </div>
@@ -190,38 +166,44 @@ export default function LoginPage() {
 
           <div>
             <label className="block text-[11px] font-semibold text-slate-300 uppercase mb-1">
-              {language === 'bn' ? 'ইমেইল' : 'Email Address'}
+              {language === 'bn' ? 'ইমেইল অ্যাড্রেস' : 'Email Address'}
             </label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="user@shopify.com"
-              className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
-            />
+            <div className="relative">
+              <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="mdrifayethossen@gmail.com"
+                className="w-full pl-10 pr-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 font-mono"
+              />
+            </div>
           </div>
 
           <div>
             <label className="block text-[11px] font-semibold text-slate-300 uppercase mb-1">
               {language === 'bn' ? 'পাসওয়ার্ড' : 'Password'}
             </label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
-            />
+            <div className="relative">
+              <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full pl-10 pr-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
+              />
+            </div>
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-lg transition-all"
+            className="w-full py-3 rounded-2xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-lg transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50"
           >
-            {isSignUp ? (language === 'bn' ? 'রেজিস্ট্রেশন' : 'Sign Up') : (language === 'bn' ? 'লগইন করুন' : 'Sign In')}
+            {loading ? 'প্রসেসিং হচ্ছে...' : (isSignUp ? (language === 'bn' ? 'অ্যাকাউন্ট তৈরি করুন' : 'Sign Up') : (language === 'bn' ? 'লগইন করুন' : 'Sign In'))}
           </button>
         </form>
 
@@ -229,7 +211,7 @@ export default function LoginPage() {
           <button
             type="button"
             onClick={() => setIsSignUp(!isSignUp)}
-            className="text-xs text-amber-300 hover:underline"
+            className="text-xs text-amber-300 hover:underline font-semibold"
           >
             {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
           </button>

@@ -2,28 +2,25 @@
 
 import React, { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
+import AuthGuard from '@/components/AuthGuard';
 import QuickOrderModal from '@/components/QuickOrderModal';
 import { useLanguage } from '@/context/LanguageContext';
-import { UserRecord, initialUsers, OrderData } from '@/lib/types';
+import { UserRecord } from '@/lib/types';
 import { 
   Users, 
   Search, 
   Plus, 
   Wallet, 
-  ShoppingBag, 
+  Building, 
   Utensils, 
-  Sparkles, 
-  CheckCircle2, 
-  Mail, 
-  Building,
-  ArrowRight,
-  TrendingUp,
-  UserCheck
+  TrendingUp, 
+  RefreshCw 
 } from 'lucide-react';
 
-export default function MembersPage() {
+function MembersPageContent() {
   const { language } = useLanguage();
-  const [members, setMembers] = useState<UserRecord[]>(initialUsers);
+  const [members, setMembers] = useState<UserRecord[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('All');
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
@@ -33,9 +30,10 @@ export default function MembersPage() {
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [newDept, setNewDept] = useState('Development');
-  const [newBalance, setNewBalance] = useState<number>(300);
+  const [newBalance, setNewBalance] = useState<number>(0);
 
   const fetchMembers = async () => {
+    setLoading(true);
     try {
       const res = await fetch('/api/users');
       if (res.ok) {
@@ -43,7 +41,9 @@ export default function MembersPage() {
         if (json.success && json.data) setMembers(json.data);
       }
     } catch (e) {
-      console.warn('Using cache');
+      console.warn('Error fetching members:', e);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -53,27 +53,37 @@ export default function MembersPage() {
 
   const handleAddMemberSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newName.trim()) return;
+    if (!newName.trim() || !newEmail.trim()) return;
 
     try {
-      const newMember: UserRecord = {
-        id: `usr-${Date.now()}`,
-        name: newName.trim(),
-        email: newEmail.trim() || `${newName.toLowerCase().replace(/\s+/g, '')}@shopify.com`,
-        department: newDept,
-        role: 'user',
-        balance: Number(newBalance) || 0,
-        currentDue: 0,
-        totalSpent: 0,
-        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(newName)}&background=047857&color=fff`,
-        createdAt: new Date().toISOString()
-      };
+      const res = await fetch('/api/users/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newName.trim(),
+          email: newEmail.trim(),
+        })
+      });
 
-      setMembers(prev => [newMember, ...prev]);
-      setIsAddMemberOpen(false);
-      setNewName('');
-      setNewEmail('');
-      setNewBalance(300);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data && newBalance > 0) {
+          await fetch('/api/users', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: json.data.id,
+              balanceDelta: newBalance,
+              action: 'add'
+            })
+          });
+        }
+        fetchMembers();
+        setIsAddMemberOpen(false);
+        setNewName('');
+        setNewEmail('');
+        setNewBalance(0);
+      }
     } catch (e) {
       console.error(e);
     }
@@ -82,8 +92,8 @@ export default function MembersPage() {
   const departments = ['All', 'Development', 'Marketing', 'Design & UX', 'Engineering', 'Operations', 'Support', 'Logistics'];
 
   const filteredMembers = members.filter(m => {
-    const matchSearch = m.name.toLowerCase().includes(search.toLowerCase()) || m.email.toLowerCase().includes(search.toLowerCase());
-    const matchDept = departmentFilter === 'All' ? true : m.department.toLowerCase().includes(departmentFilter.toLowerCase());
+    const matchSearch = (m.name || '').toLowerCase().includes(search.toLowerCase()) || (m.email || '').toLowerCase().includes(search.toLowerCase());
+    const matchDept = departmentFilter === 'All' ? true : (m.department || '').toLowerCase().includes(departmentFilter.toLowerCase());
     return matchSearch && matchDept;
   });
 
@@ -92,7 +102,7 @@ export default function MembersPage() {
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col lg:flex-row">
-      <Sidebar onOpenNewOrder={() => setSelectedOrderMember('Shamim')} />
+      <Sidebar onOpenNewOrder={() => setSelectedOrderMember('Member')} />
 
       <main className="flex-1 w-full min-w-0 px-4 sm:px-6 lg:px-10 py-8 space-y-6">
         
@@ -122,6 +132,13 @@ export default function MembersPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={fetchMembers}
+              className="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800"
+              title="Refresh"
+            >
+              <RefreshCw className="w-4 h-4 text-emerald-400" />
+            </button>
             <button
               onClick={() => setIsAddMemberOpen(true)}
               className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-md transition-all hover:scale-105"
@@ -157,8 +174,8 @@ export default function MembersPage() {
               <span>{language === 'bn' ? 'ডিপার্টমেন্ট সংখ্যা' : 'Active Teams'}</span>
               <Building className="w-4 h-4 text-sky-400" />
             </div>
-            <p className="text-2xl font-bold text-white">7 Departments</p>
-            <p className="text-[11px] text-slate-400 mt-1">Shopify Office Operations</p>
+            <p className="text-2xl font-bold text-white">Shopify Operations</p>
+            <p className="text-[11px] text-slate-400 mt-1">Real Team Balances</p>
           </div>
         </div>
 
@@ -175,7 +192,6 @@ export default function MembersPage() {
             />
           </div>
 
-          {/* Department Pills */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
             {departments.map(dept => (
               <button
@@ -194,52 +210,62 @@ export default function MembersPage() {
         </div>
 
         {/* Member Grid Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filteredMembers.map(member => (
-            <div
-              key={member.id}
-              className="p-5 rounded-3xl bg-slate-900/90 border border-slate-800 hover:border-emerald-600/70 shadow-xl transition-all duration-300 hover:scale-[1.01] flex flex-col justify-between space-y-4"
-            >
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <img
-                    src={member.avatar}
-                    alt={member.name}
-                    className="w-12 h-12 rounded-2xl object-cover ring-2 ring-emerald-500/30"
-                  />
-                  <div>
-                    <h3 className="font-serif font-bold text-white text-base leading-snug">
-                      {member.name}
-                    </h3>
-                    <span className="inline-block mt-0.5 px-2 py-0.2 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
-                      {member.department}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="p-3 rounded-2xl bg-slate-950 border border-slate-800/80 space-y-1.5 text-xs">
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-400">{language === 'bn' ? 'ব্যালেন্স:' : 'Balance:'}</span>
-                    <span className="font-mono font-bold text-emerald-400 text-sm">৳{member.balance.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-400">{language === 'bn' ? 'মোট খরচ:' : 'Total Spent:'}</span>
-                    <span className="font-mono font-medium text-amber-200">৳{member.totalSpent.toFixed(2)}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Action Button: Quick Order for this Member */}
-              <button
-                onClick={() => setSelectedOrderMember(member.name)}
-                className="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-emerald-600 text-slate-200 hover:text-slate-950 font-bold text-xs transition-all flex items-center justify-center gap-2"
+        {loading ? (
+          <div className="text-center py-16 text-slate-400 text-xs">
+            মেম্বার লোড হচ্ছে...
+          </div>
+        ) : filteredMembers.length === 0 ? (
+          <div className="text-center py-16 text-slate-400 text-xs">
+            কোনো মেম্বার পাওয়া যায়নি।
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {filteredMembers.map(member => (
+              <div
+                key={member.id}
+                className="p-5 rounded-3xl bg-slate-900/90 border border-slate-800 hover:border-emerald-600/70 shadow-xl transition-all duration-300 hover:scale-[1.01] flex flex-col justify-between space-y-4"
               >
-                <Utensils className="w-3.5 h-3.5" />
-                <span>{language === 'bn' ? 'খাবার অর্ডার দিন' : 'Order for Member'}</span>
-              </button>
-            </div>
-          ))}
-        </div>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={member.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.name)}&background=047857&color=fff`}
+                      alt={member.name}
+                      className="w-12 h-12 rounded-2xl object-cover ring-2 ring-emerald-500/30"
+                    />
+                    <div>
+                      <h3 className="font-serif font-bold text-white text-base leading-snug">
+                        {member.name}
+                      </h3>
+                      <span className="inline-block mt-0.5 px-2 py-0.2 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+                        {member.department}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-2xl bg-slate-950 border border-slate-800/80 space-y-1.5 text-xs">
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400">{language === 'bn' ? 'ব্যালেন্স:' : 'Balance:'}</span>
+                      <span className="font-mono font-bold text-emerald-400 text-sm">৳{member.balance.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400">{language === 'bn' ? 'মোট খরচ:' : 'Total Spent:'}</span>
+                      <span className="font-mono font-medium text-amber-200">৳{member.totalSpent.toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick Order for this Member */}
+                <button
+                  onClick={() => setSelectedOrderMember(member.name)}
+                  className="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-emerald-600 text-slate-200 hover:text-slate-950 font-bold text-xs transition-all flex items-center justify-center gap-2"
+                >
+                  <Utensils className="w-3.5 h-3.5" />
+                  <span>{language === 'bn' ? 'খাবার অর্ডার দিন' : 'Order for Member'}</span>
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
 
       </main>
 
@@ -271,10 +297,11 @@ export default function MembersPage() {
 
               <div>
                 <label className="block text-[11px] font-semibold text-slate-400 uppercase mb-1">
-                  ইমেইল অ্যাড্রেস
+                  ইমেইল অ্যাড্রেস *
                 </label>
                 <input
                   type="email"
+                  required
                   value={newEmail}
                   onChange={e => setNewEmail(e.target.value)}
                   placeholder="tanvir@shopify.com"
@@ -308,6 +335,7 @@ export default function MembersPage() {
                   </label>
                   <input
                     type="number"
+                    min="0"
                     value={newBalance}
                     onChange={e => setNewBalance(Number(e.target.value))}
                     className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs font-mono font-bold text-emerald-400 focus:outline-none focus:border-amber-400"
@@ -335,7 +363,7 @@ export default function MembersPage() {
         </div>
       )}
 
-      {/* Quick Order Modal pre-filled for selected member */}
+      {/* Quick Order Modal */}
       {selectedOrderMember && (
         <QuickOrderModal
           isOpen={true}
@@ -358,3 +386,10 @@ export default function MembersPage() {
   );
 }
 
+export default function MembersPage() {
+  return (
+    <AuthGuard allowedRoles={['super_admin', 'admin']}>
+      <MembersPageContent />
+    </AuthGuard>
+  );
+}

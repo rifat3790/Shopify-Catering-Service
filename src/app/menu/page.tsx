@@ -2,36 +2,35 @@
 
 import React, { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
+import AuthGuard from '@/components/AuthGuard';
 import QuickOrderModal from '@/components/QuickOrderModal';
 import InvoiceModal from '@/components/InvoiceModal';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
-import { initialMenuItems, MenuItemData, OrderData } from '@/lib/types';
+import { MenuItemData, OrderData } from '@/lib/types';
 import { 
   MenuSquare, 
   Sparkles, 
   Plus, 
   Flame, 
   ShoppingBag, 
-  Check, 
-  Coffee, 
   Utensils, 
-  ArrowRight,
-  Edit2,
-  Trash2,
-  PlusCircle,
-  Eye,
-  EyeOff
+  Edit2, 
+  Trash2, 
+  Eye, 
+  EyeOff, 
+  RefreshCw 
 } from 'lucide-react';
 
-export default function MenuPage() {
+function MenuPageContent() {
   const { user } = useAuth();
   const { language } = useLanguage();
-  const [menuItems, setMenuItems] = useState<MenuItemData[]>(initialMenuItems);
+  const [menuItems, setMenuItems] = useState<MenuItemData[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [cart, setCart] = useState<Record<string, number>>({});
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<OrderData | null>(null);
+  const [loading, setLoading] = useState(true);
 
   // Admin CRUD Modal state
   const [isDishModalOpen, setIsDishModalOpen] = useState(false);
@@ -46,14 +45,17 @@ export default function MenuPage() {
   const isSuperOrAdmin = user?.role === 'super_admin' || user?.role === 'admin';
 
   const loadMenu = async () => {
+    setLoading(true);
     try {
       const res = await fetch('/api/menu');
       const data = await res.json();
-      if (data.success && data.data && data.data.length > 0) {
+      if (data.success && data.data) {
         setMenuItems(data.data);
       }
     } catch (e) {
-      console.warn('Using default menu');
+      console.warn('Error fetching menu items:', e);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -121,7 +123,6 @@ export default function MenuPage() {
 
     try {
       if (editingItem) {
-        // Edit existing
         const res = await fetch('/api/menu', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -147,7 +148,6 @@ export default function MenuPage() {
           } : m));
         }
       } else {
-        // Add new
         const res = await fetch('/api/menu', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -214,8 +214,8 @@ export default function MenuPage() {
             </h1>
             <p className="text-xs text-slate-400 mt-1">
               {language === 'bn'
-                ? 'সিঙ্গারা, চমচা ও স্পেশাল মসলা চা থেকে শুরু করে এক্সিকিউটিভ খাসির কাচ্চি ও চিকেন রোস্ট'
-                : 'Afternoon refreshments, tea snacks, and executive corporate lunch platters'}
+                ? 'রিয়েল-টাইম মেনু ক্যাটালগ — খাবার অর্ডার করুন এবং সরাসরি আপনার ব্যালেন্স থেকে পরিশোধ করুন'
+                : 'Dynamic catering menu — order items and pay directly via your wallet balance'}
             </p>
           </div>
 
@@ -261,122 +261,150 @@ export default function MenuPage() {
           ))}
         </div>
 
-        {/* Menu Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredItems.map((item) => {
-            const countInCart = cart[item._id || item.name] || 0;
-
-            return (
-              <div
-                key={item._id || item.name}
-                className={`group rounded-3xl bg-slate-900/80 border p-4 flex flex-col justify-between transition-all duration-300 hover:shadow-2xl relative overflow-hidden ${
-                  item.isAvailable === false 
-                    ? 'opacity-60 border-slate-800' 
-                    : 'border-slate-800 hover:border-emerald-700/80 hover:shadow-emerald-950/40'
-                }`}
+        {/* Menu Grid / Empty State */}
+        {loading ? (
+          <div className="text-center py-20 text-slate-400 text-xs">
+            মেনু লোড হচ্ছে...
+          </div>
+        ) : filteredItems.length === 0 ? (
+          <div className="text-center py-20 rounded-3xl bg-slate-900/40 border border-slate-800/80 p-8 max-w-lg mx-auto space-y-4">
+            <div className="w-16 h-16 rounded-3xl bg-slate-900 border border-slate-700 flex items-center justify-center mx-auto text-amber-400">
+              <Utensils className="w-8 h-8" />
+            </div>
+            <div>
+              <h3 className="font-serif font-bold text-white text-lg">মেনুতে কোনো খাবার নেই</h3>
+              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                {isSuperOrAdmin
+                  ? 'মেনু বর্তমানে খালি। নতুন খাবার ও মূল্য নির্ধারণ করতে উপরের "+ নতুন খাবার যুক্ত করুন" বাটনে ক্লিক করুন।'
+                  : 'বর্তমানে কোনো খাবার তালিকায় নেই। কিচেন অ্যাডমিন খাবার যুক্ত করলে এখানে দেখতে পাবেন।'}
+              </p>
+            </div>
+            {isSuperOrAdmin && (
+              <button
+                onClick={handleOpenAddDish}
+                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 text-slate-950 font-bold text-xs shadow-lg"
               >
-                {/* Popular Badge */}
-                {item.popular && (
-                  <div className="absolute top-4 left-4 z-10 px-2.5 py-0.5 rounded-full bg-amber-500 text-slate-950 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 shadow-md">
-                    <Flame className="w-3 h-3 fill-slate-950" />
-                    <span>Popular</span>
-                  </div>
-                )}
+                + প্রথম খাবার যুক্ত করুন
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {filteredItems.map((item) => {
+              const countInCart = cart[item._id || item.name] || 0;
 
-                {/* Admin Management Floating Toolbar */}
-                {isSuperOrAdmin && (
-                  <div className="absolute top-4 right-4 z-10 flex items-center gap-1 bg-slate-950/90 backdrop-blur-md p-1 rounded-xl border border-slate-700 shadow-lg">
-                    <button
-                      onClick={() => handleToggleAvailable(item)}
-                      title={item.isAvailable ? 'Mark Out of Stock' : 'Mark Available'}
-                      className="p-1 rounded text-slate-400 hover:text-white"
-                    >
-                      {item.isAvailable ? <Eye className="w-3.5 h-3.5 text-emerald-400" /> : <EyeOff className="w-3.5 h-3.5 text-rose-400" />}
-                    </button>
-                    <button
-                      onClick={() => handleOpenEditDish(item)}
-                      title="Edit Dish"
-                      className="p-1 rounded text-slate-400 hover:text-amber-300"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteDish(item._id)}
-                      title="Delete Dish"
-                      className="p-1 rounded text-slate-400 hover:text-rose-400"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                )}
+              return (
+                <div
+                  key={item._id || item.name}
+                  className={`group rounded-3xl bg-slate-900/80 border p-4 flex flex-col justify-between transition-all duration-300 hover:shadow-2xl relative overflow-hidden ${
+                    item.isAvailable === false 
+                      ? 'opacity-60 border-slate-800' 
+                      : 'border-slate-800 hover:border-emerald-700/80 hover:shadow-emerald-950/40'
+                  }`}
+                >
+                  {/* Popular Badge */}
+                  {item.popular && (
+                    <div className="absolute top-4 left-4 z-10 px-2.5 py-0.5 rounded-full bg-amber-500 text-slate-950 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 shadow-md">
+                      <Flame className="w-3 h-3 fill-slate-950" />
+                      <span>Popular</span>
+                    </div>
+                  )}
 
-                <div>
-                  {/* Food Image */}
-                  <div className="relative w-full h-44 rounded-2xl overflow-hidden bg-slate-950 mb-3.5">
-                    <img
-                      src={item.imageUrl}
-                      alt={item.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-60" />
-                    <span className="absolute bottom-2.5 right-2.5 px-3 py-1 rounded-xl bg-slate-950/80 backdrop-blur-md border border-amber-500/40 font-mono font-bold text-amber-300 text-sm">
-                      ৳{item.price.toFixed(2)}
-                    </span>
-                  </div>
-
-                  {/* Title & Desc */}
-                  <div>
-                    <h3 className="font-serif font-bold text-white text-base group-hover:text-amber-200 transition-colors">
-                      {language === 'bn' ? item.nameBn : item.name}
-                    </h3>
-                    <p className="text-xs text-slate-400 mt-1 line-clamp-2 leading-relaxed">
-                      {language === 'bn' ? item.descriptionBn : item.description}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Footer action */}
-                <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between">
-                  <span className="text-[11px] text-slate-500 font-mono">
-                    {item.calories ? `${item.calories} kcal` : item.category}
-                  </span>
-
-                  {item.isAvailable === false ? (
-                    <span className="text-[11px] font-bold text-rose-400 px-2 py-0.5 rounded bg-rose-950/40 border border-rose-800">
-                      Out of Stock
-                    </span>
-                  ) : countInCart > 0 ? (
-                    <div className="flex items-center gap-2 bg-emerald-950 border border-emerald-600/60 rounded-xl p-1">
+                  {/* Admin Management Floating Toolbar */}
+                  {isSuperOrAdmin && (
+                    <div className="absolute top-4 right-4 z-10 flex items-center gap-1 bg-slate-950/90 backdrop-blur-md p-1 rounded-xl border border-slate-700 shadow-lg">
                       <button
-                        onClick={() => removeFromCart(item._id || item.name)}
-                        className="w-6 h-6 rounded-lg bg-slate-800 text-slate-200 flex items-center justify-center text-xs font-bold"
+                        onClick={() => handleToggleAvailable(item)}
+                        title={item.isAvailable ? 'Mark Out of Stock' : 'Mark Available'}
+                        className="p-1 rounded text-slate-400 hover:text-white"
                       >
-                        -
+                        {item.isAvailable ? <Eye className="w-3.5 h-3.5 text-emerald-400" /> : <EyeOff className="w-3.5 h-3.5 text-rose-400" />}
                       </button>
-                      <span className="text-xs font-bold text-white px-1">
-                        {countInCart}
-                      </span>
                       <button
-                        onClick={() => addToCart(item._id || item.name)}
-                        className="w-6 h-6 rounded-lg bg-emerald-600 text-slate-950 flex items-center justify-center text-xs font-bold"
+                        onClick={() => handleOpenEditDish(item)}
+                        title="Edit Dish"
+                        className="p-1 rounded text-slate-400 hover:text-amber-300"
                       >
-                        +
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteDish(item._id)}
+                        title="Delete Dish"
+                        className="p-1 rounded text-slate-400 hover:text-rose-400"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
-                  ) : (
-                    <button
-                      onClick={() => addToCart(item._id || item.name)}
-                      className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-emerald-600 text-slate-200 hover:text-slate-950 text-xs font-semibold transition-all"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>{language === 'bn' ? 'অর্ডার কার্টে নিন' : 'Add to Cart'}</span>
-                    </button>
                   )}
+
+                  <div>
+                    {/* Food Image */}
+                    <div className="relative w-full h-44 rounded-2xl overflow-hidden bg-slate-950 mb-3.5">
+                      <img
+                        src={item.imageUrl}
+                        alt={item.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-60" />
+                      <span className="absolute bottom-2.5 right-2.5 px-3 py-1 rounded-xl bg-slate-950/80 backdrop-blur-md border border-amber-500/40 font-mono font-bold text-amber-300 text-sm">
+                        ৳{item.price.toFixed(2)}
+                      </span>
+                    </div>
+
+                    {/* Title & Desc */}
+                    <div>
+                      <h3 className="font-serif font-bold text-white text-base group-hover:text-amber-200 transition-colors">
+                        {language === 'bn' ? item.nameBn : item.name}
+                      </h3>
+                      <p className="text-xs text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                        {language === 'bn' ? item.descriptionBn : item.description}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Footer action */}
+                  <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between">
+                    <span className="text-[11px] text-slate-500 font-mono">
+                      {item.calories ? `${item.calories} kcal` : item.category}
+                    </span>
+
+                    {item.isAvailable === false ? (
+                      <span className="text-[11px] font-bold text-rose-400 px-2 py-0.5 rounded bg-rose-950/40 border border-rose-800">
+                        Out of Stock
+                      </span>
+                    ) : countInCart > 0 ? (
+                      <div className="flex items-center gap-2 bg-emerald-950 border border-emerald-600/60 rounded-xl p-1">
+                        <button
+                          onClick={() => removeFromCart(item._id || item.name)}
+                          className="w-6 h-6 rounded-lg bg-slate-800 text-slate-200 flex items-center justify-center text-xs font-bold"
+                        >
+                          -
+                        </button>
+                        <span className="text-xs font-bold text-white px-1">
+                          {countInCart}
+                        </span>
+                        <button
+                          onClick={() => addToCart(item._id || item.name)}
+                          className="w-6 h-6 rounded-lg bg-emerald-600 text-slate-950 flex items-center justify-center text-xs font-bold"
+                        >
+                          +
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => addToCart(item._id || item.name)}
+                        className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-emerald-600 text-slate-200 hover:text-slate-950 text-xs font-semibold transition-all"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>{language === 'bn' ? 'অর্ডার কার্টে নিন' : 'Add to Cart'}</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
 
       </main>
 
@@ -493,12 +521,24 @@ export default function MenuPage() {
           await fetch('/api/orders', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data),
+            body: JSON.stringify({
+              ...data,
+              customerName: user?.displayName || 'User',
+              customerEmail: user?.email || '',
+            }),
           });
           setCart({});
           alert('অর্ডার সফলভাবে গ্রহণ করা হয়েছে!');
         }}
       />
     </div>
+  );
+}
+
+export default function MenuPage() {
+  return (
+    <AuthGuard>
+      <MenuPageContent />
+    </AuthGuard>
   );
 }

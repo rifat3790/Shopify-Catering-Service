@@ -2,11 +2,13 @@ import { connectToDatabase } from './mongodb';
 import Order from './models/Order';
 import MenuItem from './models/MenuItem';
 import Customer from './models/Customer';
+import User from './models/User';
 import { 
   OrderData, 
   MenuItemData, 
   UserRecord, 
   UserRole,
+  SUPER_ADMIN_EMAIL,
   initialOrders, 
   initialMenuItems,
   initialUsers 
@@ -17,6 +19,7 @@ export {
   type MenuItemData, 
   type UserRecord, 
   type UserRole, 
+  SUPER_ADMIN_EMAIL,
   initialOrders, 
   initialMenuItems,
   initialUsers 
@@ -31,36 +34,152 @@ let usersCache: UserRecord[] = [...initialUsers];
 export async function getAllUsers(): Promise<UserRecord[]> {
   try {
     await connectToDatabase();
-    if (Customer) {
-      const count = await Customer.countDocuments();
-      if (count === 0) {
-        await Customer.insertMany(initialUsers.map(u => ({
-          name: u.name,
-          email: u.email,
-          department: u.department,
-          totalSpent: u.totalSpent,
-          currentDue: u.currentDue,
-          status: 'Active',
-        })));
+    if (User) {
+      // Ensure super admin exists
+      const superAdminCount = await User.countDocuments({ email: SUPER_ADMIN_EMAIL.toLowerCase() });
+      if (superAdminCount === 0) {
+        await User.create({
+          name: "Md Refayet Hossen",
+          email: SUPER_ADMIN_EMAIL.toLowerCase(),
+          role: "super_admin",
+          balance: 0,
+          currentDue: 0,
+          totalSpent: 0,
+          department: "Super Admin & Management",
+          avatar: "https://ui-avatars.com/api/?name=Md+Refayet+Hossen&background=047857&color=fff",
+        });
+      }
+
+      const docs = await User.find().sort({ createdAt: -1 }).lean();
+      if (docs && docs.length > 0) {
+        const mapped = docs.map((d: any) => ({
+          id: d._id.toString(),
+          name: d.name,
+          email: d.email,
+          role: (d.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase() ? 'super_admin' : d.role) as UserRole,
+          balance: Number(d.balance) || 0,
+          currentDue: Number(d.currentDue) || 0,
+          totalSpent: Number(d.totalSpent) || 0,
+          department: d.department || 'Shopify Team',
+          avatar: d.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(d.name || 'User')}&background=047857&color=fff`,
+          phone: d.phone || '',
+          createdAt: d.createdAt?.toISOString?.() || new Date().toISOString()
+        }));
+        usersCache = mapped;
+        return mapped;
       }
     }
   } catch (err) {
-    // using memory store
+    console.warn("MongoDB connection fallback to memory users:", err);
   }
   return usersCache;
 }
 
-export async function getUserById(id: string): Promise<UserRecord | null> {
+export async function getUserById(idOrEmailOrName: string): Promise<UserRecord | null> {
   const users = await getAllUsers();
-  return users.find(u => u.id === id || u.name.toLowerCase() === id.toLowerCase() || u.email.toLowerCase() === id.toLowerCase()) || null;
+  const search = idOrEmailOrName.toLowerCase().trim();
+  return users.find(u => 
+    u.id === idOrEmailOrName || 
+    u.email.toLowerCase() === search || 
+    u.name.toLowerCase() === search
+  ) || null;
+}
+
+export async function syncUser(userData: {
+  uid?: string;
+  name?: string | null;
+  email: string;
+  avatar?: string | null;
+}): Promise<UserRecord> {
+  const emailClean = userData.email.toLowerCase().trim();
+  const isSuper = emailClean === SUPER_ADMIN_EMAIL.toLowerCase();
+
+  try {
+    await connectToDatabase();
+    if (User) {
+      let doc = await User.findOne({ email: emailClean });
+      if (!doc) {
+        // Create new user
+        doc = await User.create({
+          uid: userData.uid || '',
+          name: userData.name || emailClean.split('@')[0],
+          email: emailClean,
+          role: isSuper ? 'super_admin' : 'user',
+          balance: 0,
+          currentDue: 0,
+          totalSpent: 0,
+          department: isSuper ? 'Executive Management' : 'Shopify Member',
+          avatar: userData.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.name || 'User')}&background=047857&color=fff`,
+        });
+      } else {
+        // Enforce super admin role if email matches
+        if (isSuper && doc.role !== 'super_admin') {
+          doc.role = 'super_admin';
+          await doc.save();
+        }
+      }
+
+      const syncedRecord: UserRecord = {
+        id: doc._id.toString(),
+        name: doc.name,
+        email: doc.email,
+        role: (isSuper ? 'super_admin' : doc.role) as UserRole,
+        balance: Number(doc.balance) || 0,
+        currentDue: Number(doc.currentDue) || 0,
+        totalSpent: Number(doc.totalSpent) || 0,
+        department: doc.department || 'Shopify Team',
+        avatar: doc.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(doc.name || 'User')}&background=047857&color=fff`,
+        phone: doc.phone || '',
+        createdAt: doc.createdAt?.toISOString?.() || new Date().toISOString()
+      };
+
+      // Update in memory cache
+      const idx = usersCache.findIndex(u => u.email.toLowerCase() === emailClean);
+      if (idx !== -1) {
+        usersCache[idx] = syncedRecord;
+      } else {
+        usersCache = [syncedRecord, ...usersCache];
+      }
+
+      return syncedRecord;
+    }
+  } catch (err) {
+    console.error("MongoDB user sync failed, fallback to memory:", err);
+  }
+
+  // Memory fallback
+  const existing = usersCache.find(u => u.email.toLowerCase() === emailClean);
+  if (existing) {
+    if (isSuper) existing.role = 'super_admin';
+    return existing;
+  }
+
+  const newRec: UserRecord = {
+    id: `usr-${Date.now()}`,
+    name: userData.name || emailClean.split('@')[0],
+    email: emailClean,
+    role: isSuper ? 'super_admin' : 'user',
+    balance: 0,
+    currentDue: 0,
+    totalSpent: 0,
+    department: isSuper ? 'Executive Management' : 'Shopify Member',
+    avatar: userData.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.name || 'User')}&background=047857&color=fff`,
+    phone: '',
+    createdAt: new Date().toISOString()
+  };
+  usersCache = [newRec, ...usersCache];
+  return newRec;
 }
 
 export async function createUser(data: Partial<UserRecord>): Promise<UserRecord> {
+  const emailClean = (data.email || `${(data.name || 'member').toLowerCase().replace(/\s+/g, '')}@shopify.com`).toLowerCase().trim();
+  const isSuper = emailClean === SUPER_ADMIN_EMAIL.toLowerCase();
+
   const newUser: UserRecord = {
     id: `usr-${Date.now()}`,
     name: data.name || 'New Member',
-    email: data.email || `${(data.name || 'member').toLowerCase().replace(/\s+/g, '')}@shopify.com`,
-    role: data.role || 'user',
+    email: emailClean,
+    role: isSuper ? 'super_admin' : (data.role || 'user'),
     balance: Number(data.balance) || 0,
     currentDue: Number(data.currentDue) || 0,
     totalSpent: 0,
@@ -70,12 +189,67 @@ export async function createUser(data: Partial<UserRecord>): Promise<UserRecord>
     createdAt: new Date().toISOString()
   };
 
+  try {
+    await connectToDatabase();
+    if (User) {
+      const doc = await User.create({
+        name: newUser.name,
+        email: newUser.email,
+        role: newUser.role,
+        balance: newUser.balance,
+        currentDue: newUser.currentDue,
+        totalSpent: newUser.totalSpent,
+        department: newUser.department,
+        avatar: newUser.avatar,
+        phone: newUser.phone,
+      });
+      if (doc) newUser.id = doc._id.toString();
+    }
+  } catch (err) {
+    console.warn("MongoDB create user failed, using cache:", err);
+  }
+
   usersCache = [newUser, ...usersCache];
   return newUser;
 }
 
-export async function updateUserRole(id: string, newRole: UserRole): Promise<UserRecord | null> {
-  const idx = usersCache.findIndex(u => u.id === id || u.name.toLowerCase() === id.toLowerCase() || u.email.toLowerCase() === id.toLowerCase());
+export async function updateUserRole(idOrEmail: string, newRole: UserRole): Promise<UserRecord | null> {
+  const search = idOrEmail.toLowerCase().trim();
+  
+  // Super admin mdrifayethossen@gmail.com cannot be accidentally demoted
+  if (search === SUPER_ADMIN_EMAIL.toLowerCase() && newRole !== 'super_admin') {
+    newRole = 'super_admin';
+  }
+
+  try {
+    await connectToDatabase();
+    if (User) {
+      const isObjectId = idOrEmail.match(/^[0-9a-fA-F]{24}$/);
+      const query = isObjectId ? { _id: idOrEmail } : { $or: [{ email: search }, { name: search }] };
+      const doc = await User.findOneAndUpdate(query, { role: newRole }, { new: true });
+      if (doc) {
+        const updated: UserRecord = {
+          id: doc._id.toString(),
+          name: doc.name,
+          email: doc.email,
+          role: doc.role,
+          balance: Number(doc.balance) || 0,
+          currentDue: Number(doc.currentDue) || 0,
+          totalSpent: Number(doc.totalSpent) || 0,
+          department: doc.department,
+          avatar: doc.avatar,
+          phone: doc.phone,
+          createdAt: doc.createdAt?.toISOString?.() || new Date().toISOString()
+        };
+        usersCache = usersCache.map(u => (u.id === doc._id.toString() || u.email.toLowerCase() === doc.email.toLowerCase()) ? updated : u);
+        return updated;
+      }
+    }
+  } catch (err) {
+    console.warn("MongoDB update role failed, using cache:", err);
+  }
+
+  const idx = usersCache.findIndex(u => u.id === idOrEmail || u.email.toLowerCase() === search || u.name.toLowerCase() === search);
   if (idx !== -1) {
     usersCache[idx].role = newRole;
     return usersCache[idx];
@@ -83,35 +257,65 @@ export async function updateUserRole(id: string, newRole: UserRole): Promise<Use
   return null;
 }
 
-export async function updateUserBalance(id: string, amount: number, action: 'add' | 'deduct' = 'add'): Promise<UserRecord | null> {
-  const idx = usersCache.findIndex(u => u.id === id || u.name.toLowerCase() === id.toLowerCase());
+export async function updateUserBalance(idOrEmail: string, amount: number, action: 'add' | 'deduct' = 'add'): Promise<UserRecord | null> {
+  const search = idOrEmail.toLowerCase().trim();
+  const amt = Number(amount) || 0;
+
+  try {
+    await connectToDatabase();
+    if (User) {
+      const isObjectId = idOrEmail.match(/^[0-9a-fA-F]{24}$/);
+      const query = isObjectId ? { _id: idOrEmail } : { $or: [{ email: search }, { name: search }] };
+      const userDoc = await User.findOne(query);
+      if (userDoc) {
+        if (action === 'add') {
+          userDoc.balance = (userDoc.balance || 0) + amt;
+        } else {
+          userDoc.balance = Math.max(0, (userDoc.balance || 0) - amt);
+          userDoc.totalSpent = (userDoc.totalSpent || 0) + amt;
+        }
+        await userDoc.save();
+        const updated: UserRecord = {
+          id: userDoc._id.toString(),
+          name: userDoc.name,
+          email: userDoc.email,
+          role: userDoc.role,
+          balance: userDoc.balance,
+          currentDue: userDoc.currentDue,
+          totalSpent: userDoc.totalSpent,
+          department: userDoc.department,
+          avatar: userDoc.avatar,
+          phone: userDoc.phone,
+          createdAt: userDoc.createdAt?.toISOString?.() || new Date().toISOString()
+        };
+        usersCache = usersCache.map(u => u.id === updated.id ? updated : u);
+        return updated;
+      }
+    }
+  } catch (err) {
+    console.warn("MongoDB update balance failed, using cache:", err);
+  }
+
+  const idx = usersCache.findIndex(u => u.id === idOrEmail || u.email.toLowerCase() === search || u.name.toLowerCase() === search);
   if (idx !== -1) {
     if (action === 'add') {
-      usersCache[idx].balance += Number(amount);
+      usersCache[idx].balance += amt;
     } else {
-      usersCache[idx].balance = Math.max(0, usersCache[idx].balance - Number(amount));
-      usersCache[idx].totalSpent += Number(amount);
+      usersCache[idx].balance = Math.max(0, usersCache[idx].balance - amt);
+      usersCache[idx].totalSpent += amt;
     }
     return usersCache[idx];
   }
   return null;
 }
 
-// Order Management APIs
+// Order Management APIs (Clean, Dynamic)
 export async function getAllOrders(): Promise<OrderData[]> {
   try {
     await connectToDatabase();
     if (Order) {
-      const count = await Order.countDocuments();
-      if (count === 0) {
-        await Order.insertMany(initialOrders.map(o => ({
-          ...o,
-          _id: undefined,
-          orderDate: new Date(o.orderDate)
-        })));
-      }
       const docs = await Order.find().sort({ createdAt: -1 }).lean();
-      if (docs && docs.length > 0) {
+      if (docs) {
         return docs.map((d: any) => ({
           ...d,
           _id: d._id.toString(),
@@ -147,6 +351,7 @@ export async function createOrder(data: Partial<OrderData>): Promise<OrderData> 
     customerName: data.customerName || "Anonymous Customer",
     customerPhone: data.customerPhone || "",
     customerDepartment: data.customerDepartment || "General",
+    customerEmail: data.customerEmail || "",
     itemsText: data.itemsText || (data.items?.map(i => `${i.quantity} ta ${i.name}`).join(' + ') || "Quick Order"),
     items: data.items || [],
     totalBill,
@@ -175,14 +380,16 @@ export async function createOrder(data: Partial<OrderData>): Promise<OrderData> 
     // cached fallback
   }
 
-  // Update user records if member exists
-  if (data.customerName) {
-    const user = usersCache.find(u => u.name.toLowerCase() === data.customerName!.toLowerCase());
+  // Update user balance/spent dynamically
+  if (data.customerName || data.customerEmail) {
+    const custSearch = (data.customerEmail || data.customerName || '').toLowerCase().trim();
+    const user = usersCache.find(u => u.name.toLowerCase() === custSearch || u.email.toLowerCase() === custSearch);
     if (user) {
       user.totalSpent += totalBill;
       if (data.paymentMethod === 'Wallet') {
         user.balance = Math.max(0, user.balance - totalBill);
       }
+      updateUserBalance(user.id, totalBill, data.paymentMethod === 'Wallet' ? 'deduct' : 'add').catch(() => {});
     }
   }
 
@@ -194,7 +401,9 @@ export async function updateOrder(id: string, updates: Partial<OrderData>): Prom
   try {
     await connectToDatabase();
     if (Order) {
-      const doc = await Order.findByIdAndUpdate(id, updates, { new: true }).lean();
+      const isObjectId = id.match(/^[0-9a-fA-F]{24}$/);
+      const query = isObjectId ? { _id: id } : { orderNumber: id };
+      const doc = await Order.findOneAndUpdate(query, updates, { new: true }).lean();
       if (doc) {
         const formatted: OrderData = {
           ...doc,
@@ -221,7 +430,9 @@ export async function deleteOrder(id: string): Promise<boolean> {
   try {
     await connectToDatabase();
     if (Order) {
-      await Order.findByIdAndDelete(id);
+      const isObjectId = id.match(/^[0-9a-fA-F]{24}$/);
+      const query = isObjectId ? { _id: id } : { orderNumber: id };
+      await Order.findOneAndDelete(query);
     }
   } catch (err) {
     // fallback
@@ -231,17 +442,13 @@ export async function deleteOrder(id: string): Promise<boolean> {
   return true;
 }
 
-// Menu Management APIs (Full CRUD for Admin & Super Admin)
+// Menu Management APIs (Pure Dynamic - Empty initially until added)
 export async function getAllMenuItems(): Promise<MenuItemData[]> {
   try {
     await connectToDatabase();
     if (MenuItem) {
-      const count = await MenuItem.countDocuments();
-      if (count === 0) {
-        await MenuItem.insertMany(initialMenuItems.map(m => ({ ...m, _id: undefined })));
-      }
-      const docs = await MenuItem.find().lean();
-      if (docs && docs.length > 0) {
+      const docs = await MenuItem.find().sort({ createdAt: -1 }).lean();
+      if (docs) {
         return docs.map((d: any) => ({
           ...d,
           _id: d._id.toString()
@@ -260,13 +467,13 @@ export async function createMenuItem(data: Partial<MenuItemData>): Promise<MenuI
     name: data.name || 'New Dish',
     nameBn: data.nameBn || data.name || 'নতুন খাবার',
     category: data.category || 'Refreshments',
-    price: Number(data.price) || 20,
+    price: Number(data.price) || 0,
     description: data.description || '',
     descriptionBn: data.descriptionBn || '',
     imageUrl: data.imageUrl || 'https://images.unsplash.com/photo-1601050690597-df0568f70950?w=600&auto=format&fit=crop&q=80',
     isAvailable: data.isAvailable !== undefined ? data.isAvailable : true,
     popular: !!data.popular,
-    calories: Number(data.calories) || 150,
+    calories: Number(data.calories) || 0,
   };
 
   try {
@@ -287,7 +494,9 @@ export async function updateMenuItem(id: string, updates: Partial<MenuItemData>)
   try {
     await connectToDatabase();
     if (MenuItem) {
-      const doc = await MenuItem.findByIdAndUpdate(id, updates, { new: true }).lean();
+      const isObjectId = id.match(/^[0-9a-fA-F]{24}$/);
+      const query = isObjectId ? { _id: id } : { name: id };
+      const doc = await MenuItem.findOneAndUpdate(query, updates, { new: true }).lean();
       if (doc) {
         const formatted: MenuItemData = {
           ...doc,
@@ -313,7 +522,9 @@ export async function deleteMenuItem(id: string): Promise<boolean> {
   try {
     await connectToDatabase();
     if (MenuItem) {
-      await MenuItem.findByIdAndDelete(id);
+      const isObjectId = id.match(/^[0-9a-fA-F]{24}$/);
+      const query = isObjectId ? { _id: id } : { name: id };
+      await MenuItem.findOneAndDelete(query);
     }
   } catch (err) {
     // fallback

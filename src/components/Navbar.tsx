@@ -14,12 +14,12 @@ import {
   User as UserIcon, 
   PlusCircle, 
   Languages, 
-  Sparkles,
-  ShieldCheck,
-  ChevronDown,
-  Crown,
-  Wallet,
-  LayoutDashboard
+  Sparkles, 
+  ShieldCheck, 
+  ChevronDown, 
+  Crown, 
+  Wallet, 
+  LayoutDashboard 
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -28,15 +28,17 @@ interface NavbarProps {
 
 export default function Navbar({ onOpenNewOrder }: NavbarProps) {
   const pathname = usePathname();
-  const { user, logout, setDemoUser } = useAuth();
+  const { user, logout } = useAuth();
   const { language, toggleLanguage } = useLanguage();
   const [showUserMenu, setShowUserMenu] = useState(false);
 
+  const isSuper = user?.role === 'super_admin';
+  const isAdmin = user?.role === 'admin' || isSuper;
+
   const navLinks = [
-    { href: '/', label: language === 'bn' ? 'হোম' : 'Home', icon: Sparkles },
-    { href: '/tracker', label: language === 'bn' ? 'অর্ডার ট্র্যাকার' : 'Live Tracker', icon: TableProperties },
-    { href: '/menu', label: language === 'bn' ? 'ক্যাটারিং মেনু' : 'Menu', icon: MenuSquare },
-    { href: '/pos', label: language === 'bn' ? 'কাউন্টার পিওএস' : 'Express POS', icon: Calculator },
+    { href: '/menu', label: language === 'bn' ? 'ক্যাটারিং মেনু' : 'Menu', icon: MenuSquare, show: true },
+    { href: '/tracker', label: language === 'bn' ? 'অর্ডার ট্র্যাকার' : 'Live Tracker', icon: TableProperties, show: isAdmin },
+    { href: '/pos', label: language === 'bn' ? 'কাউন্টার পিওএস' : 'Express POS', icon: Calculator, show: isAdmin },
   ];
 
   return (
@@ -68,7 +70,7 @@ export default function Navbar({ onOpenNewOrder }: NavbarProps) {
 
           {/* Desktop Navigation Links */}
           <nav className="hidden md:flex items-center gap-1 lg:gap-2">
-            {navLinks.map((link) => {
+            {navLinks.filter(l => l.show).map((link) => {
               const Icon = link.icon;
               const isActive = pathname === link.href;
               return (
@@ -88,7 +90,7 @@ export default function Navbar({ onOpenNewOrder }: NavbarProps) {
             })}
 
             {/* Role-Specific Direct Navigation */}
-            {user?.role === 'super_admin' && (
+            {isSuper && (
               <Link
                 href="/super-admin"
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
@@ -102,7 +104,7 @@ export default function Navbar({ onOpenNewOrder }: NavbarProps) {
               </Link>
             )}
 
-            {user?.role === 'admin' && (
+            {isAdmin && (
               <Link
                 href="/admin"
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
@@ -116,23 +118,25 @@ export default function Navbar({ onOpenNewOrder }: NavbarProps) {
               </Link>
             )}
 
-            <Link
-              href="/user"
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
-                pathname === '/user'
-                  ? 'bg-slate-800 text-white border border-slate-700'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <LayoutDashboard className="w-3.5 h-3.5 text-amber-400" />
-              <span>{language === 'bn' ? 'ইউজার পোর্টাল' : 'User Hub'}</span>
-            </Link>
+            {user && (
+              <Link
+                href="/user"
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                  pathname === '/user'
+                    ? 'bg-slate-800 text-white border border-slate-700'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <LayoutDashboard className="w-3.5 h-3.5 text-amber-400" />
+                <span>{language === 'bn' ? 'আমার পোর্টাল' : 'My Hub'}</span>
+              </Link>
+            )}
           </nav>
 
           {/* Right Action Buttons */}
           <div className="flex items-center gap-2 sm:gap-3">
             
-            {/* Live User Balance Pill ("sobay tader balance dekhte pabe") */}
+            {/* Live User Balance Pill */}
             {user && (
               <Link
                 href="/user"
@@ -141,7 +145,7 @@ export default function Navbar({ onOpenNewOrder }: NavbarProps) {
               >
                 <Wallet className="w-3.5 h-3.5 text-amber-400" />
                 <span className="text-xs font-mono font-bold text-emerald-300">
-                  ৳{user.balance?.toFixed(0) || '450'}
+                  ৳{(user.balance || 0).toFixed(2)}
                 </span>
               </Link>
             )}
@@ -157,7 +161,7 @@ export default function Navbar({ onOpenNewOrder }: NavbarProps) {
             </button>
 
             {/* Quick Add Order Button */}
-            {onOpenNewOrder && (
+            {user && onOpenNewOrder && (
               <button
                 onClick={onOpenNewOrder}
                 className="hidden sm:flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-md transition-all hover:scale-105"
@@ -192,29 +196,33 @@ export default function Navbar({ onOpenNewOrder }: NavbarProps) {
                           {user.role}
                         </span>
                         <span className="text-xs font-mono font-bold text-amber-300">
-                          ৳{user.balance?.toFixed(2) || '0.00'}
+                          ৳{(user.balance || 0).toFixed(2)}
                         </span>
                       </div>
                     </div>
 
                     {/* Role Dashboards in dropdown */}
-                    <Link
-                      href="/super-admin"
-                      onClick={() => setShowUserMenu(false)}
-                      className="flex items-center gap-2 px-4 py-2 text-xs text-amber-300 hover:bg-slate-800 font-semibold"
-                    >
-                      <Crown className="w-4 h-4 text-amber-400" />
-                      <span>{language === 'bn' ? 'সুপার অ্যাডমিন ড্যাশবোর্ড' : 'Super Admin Dashboard'}</span>
-                    </Link>
+                    {isSuper && (
+                      <Link
+                        href="/super-admin"
+                        onClick={() => setShowUserMenu(false)}
+                        className="flex items-center gap-2 px-4 py-2 text-xs text-amber-300 hover:bg-slate-800 font-semibold"
+                      >
+                        <Crown className="w-4 h-4 text-amber-400" />
+                        <span>{language === 'bn' ? 'সুপার অ্যাডমিন ড্যাশবোর্ড' : 'Super Admin Dashboard'}</span>
+                      </Link>
+                    )}
 
-                    <Link
-                      href="/admin"
-                      onClick={() => setShowUserMenu(false)}
-                      className="flex items-center gap-2 px-4 py-2 text-xs text-emerald-300 hover:bg-slate-800 font-semibold"
-                    >
-                      <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                      <span>{language === 'bn' ? 'অ্যাডমিন ড্যাশবোর্ড' : 'Admin Operations'}</span>
-                    </Link>
+                    {isAdmin && (
+                      <Link
+                        href="/admin"
+                        onClick={() => setShowUserMenu(false)}
+                        className="flex items-center gap-2 px-4 py-2 text-xs text-emerald-300 hover:bg-slate-800 font-semibold"
+                      >
+                        <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                        <span>{language === 'bn' ? 'অ্যাডমিন কিচেন' : 'Admin Operations'}</span>
+                      </Link>
+                    )}
 
                     <Link
                       href="/user"
@@ -222,7 +230,7 @@ export default function Navbar({ onOpenNewOrder }: NavbarProps) {
                       className="flex items-center gap-2 px-4 py-2 text-xs text-slate-300 hover:bg-slate-800 font-semibold"
                     >
                       <LayoutDashboard className="w-4 h-4 text-sky-400" />
-                      <span>{language === 'bn' ? 'ইউজার পোর্টাল ও ব্যালেন্স' : 'My User Dashboard'}</span>
+                      <span>{language === 'bn' ? 'আমার খাবার ও ব্যালেন্স' : 'My User Dashboard'}</span>
                     </Link>
 
                     <div className="border-t border-slate-800 my-1" />
@@ -257,7 +265,7 @@ export default function Navbar({ onOpenNewOrder }: NavbarProps) {
 
       {/* Mobile Sub-Navigation Bar */}
       <div className="md:hidden flex items-center justify-around py-2.5 px-2 bg-slate-900/95 border-t border-slate-800 text-xs">
-        {navLinks.map((link) => {
+        {navLinks.filter(l => l.show).map((link) => {
           const Icon = link.icon;
           const isActive = pathname === link.href;
           return (
@@ -273,15 +281,17 @@ export default function Navbar({ onOpenNewOrder }: NavbarProps) {
             </Link>
           );
         })}
-        <Link
-          href="/user"
-          className={`flex flex-col items-center gap-1 py-1 px-2 rounded-lg font-medium ${
-            pathname === '/user' ? 'text-amber-400 font-bold' : 'text-slate-400'
-          }`}
-        >
-          <Wallet className="w-4 h-4 text-emerald-400" />
-          <span className="text-[10px]">{language === 'bn' ? 'ব্যালেন্স' : 'Balance'}</span>
-        </Link>
+        {user && (
+          <Link
+            href="/user"
+            className={`flex flex-col items-center gap-1 py-1 px-2 rounded-lg font-medium ${
+              pathname === '/user' ? 'text-amber-400 font-bold' : 'text-slate-400'
+            }`}
+          >
+            <Wallet className="w-4 h-4 text-emerald-400" />
+            <span className="text-[10px]">{language === 'bn' ? 'ব্যালেন্স' : 'Balance'}</span>
+          </Link>
+        )}
       </div>
     </header>
   );

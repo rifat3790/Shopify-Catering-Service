@@ -2,27 +2,28 @@
 
 import React, { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
+import AuthGuard from '@/components/AuthGuard';
 import MetricsOverview from '@/components/MetricsOverview';
 import LiveTrackerTable from '@/components/LiveTrackerTable';
 import QuickOrderModal from '@/components/QuickOrderModal';
 import InvoiceModal from '@/components/InvoiceModal';
 import { useLanguage } from '@/context/LanguageContext';
-import { OrderData, initialOrders } from '@/lib/types';
+import { OrderData } from '@/lib/types';
 import { TableProperties, RefreshCw } from 'lucide-react';
 
-export default function TrackerPage() {
+function TrackerContent() {
   const { language } = useLanguage();
-  const [orders, setOrders] = useState<OrderData[]>(initialOrders);
+  const [orders, setOrders] = useState<OrderData[]>([]);
   const [stats, setStats] = useState({
-    ordersCount: 4,
-    completedOrdersCount: 4,
-    totalOrders: 7,
-    totalBill: 130,
-    totalPaid: 450,
-    totalRefundChange: 320,
+    ordersCount: 0,
+    completedOrdersCount: 0,
+    totalOrders: 0,
+    totalBill: 0,
+    totalPaid: 0,
+    totalRefundChange: 0,
     totalDue: 0,
-    collectionRate: "346.2%",
-    rawCollectionRate: 346.2
+    collectionRate: "0.0%",
+    rawCollectionRate: 0
   });
   const [loading, setLoading] = useState(true);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
@@ -49,7 +50,7 @@ export default function TrackerPage() {
         }
       }
     } catch (err) {
-      console.warn("Using cached data");
+      console.warn("Using live data");
     } finally {
       setLoading(false);
     }
@@ -57,7 +58,7 @@ export default function TrackerPage() {
 
   useEffect(() => {
     fetchTrackerData();
-    const interval = setInterval(fetchTrackerData, 8000);
+    const interval = setInterval(fetchTrackerData, 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -106,7 +107,6 @@ export default function TrackerPage() {
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col lg:flex-row text-slate-100">
-      {/* Left Sidebar Navigation */}
       <Sidebar onOpenNewOrder={() => setIsOrderModalOpen(true)} />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
@@ -147,7 +147,7 @@ export default function TrackerPage() {
           {/* Top 5 Metrics */}
           <MetricsOverview stats={stats} isLoading={loading} />
 
-          {/* Google Sheet Style Table */}
+          {/* Live Dynamic Table */}
           <LiveTrackerTable
             orders={orders}
             onOpenNewOrder={() => setIsOrderModalOpen(true)}
@@ -170,5 +170,13 @@ export default function TrackerPage() {
         onClose={() => setSelectedInvoice(null)}
       />
     </div>
+  );
+}
+
+export default function TrackerPage() {
+  return (
+    <AuthGuard allowedRoles={['super_admin', 'admin', 'staff']}>
+      <TrackerContent />
+    </AuthGuard>
   );
 }

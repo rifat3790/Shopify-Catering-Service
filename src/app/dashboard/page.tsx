@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { Sparkles } from 'lucide-react';
 
 export default function DashboardRedirect() {
   const router = useRouter();
@@ -10,9 +11,11 @@ export default function DashboardRedirect() {
 
   useEffect(() => {
     if (!loading) {
-      if (user?.role === 'super_admin') {
+      if (!user) {
+        router.replace('/login');
+      } else if (user.role === 'super_admin') {
         router.replace('/super-admin');
-      } else if (user?.role === 'admin') {
+      } else if (user.role === 'admin') {
         router.replace('/admin');
       } else {
         router.replace('/user');
@@ -22,11 +25,10 @@ export default function DashboardRedirect() {
 
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400">
-      <div className="text-center space-y-2">
-        <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto" />
-        <p className="text-xs">Redirecting to your dashboard...</p>
+      <div className="text-center space-y-3">
+        <div className="w-8 h-8 border-2 border-emerald-500 border-t-amber-400 rounded-full animate-spin mx-auto" />
+        <p className="text-xs">Connecting to authorized catering portal...</p>
       </div>
     </div>
   );
 }
-

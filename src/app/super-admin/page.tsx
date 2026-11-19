@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
+import AuthGuard from '@/components/AuthGuard';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
-import { UserRecord, UserRole, initialUsers } from '@/lib/types';
+import { UserRecord, UserRole, SUPER_ADMIN_EMAIL } from '@/lib/types';
 import Link from 'next/link';
 import { 
   ShieldAlert, 
@@ -12,29 +13,36 @@ import {
   Users, 
   Wallet, 
   Check, 
-  ArrowUpDown, 
   PlusCircle, 
-  Sparkles, 
   Search,
-  Filter,
-  Layers,
   KeyRound,
   TrendingUp,
-  Receipt,
-  ShieldCheck
+  ShieldCheck,
+  RefreshCw,
+  UserPlus
 } from 'lucide-react';
 
-export default function SuperAdminPage() {
+function SuperAdminDashboardContent() {
   const { user } = useAuth();
   const { language } = useLanguage();
-  const [users, setUsers] = useState<UserRecord[]>(initialUsers);
+  const [users, setUsers] = useState<UserRecord[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [balanceModalUser, setBalanceModalUser] = useState<UserRecord | null>(null);
   const [balanceAmount, setBalanceAmount] = useState<number>(500);
 
+  // New user registration modal
+  const [isNewUserModalOpen, setIsNewUserModalOpen] = useState(false);
+  const [newUserName, setNewUserName] = useState('');
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserRole, setNewUserRole] = useState<UserRole>('user');
+  const [newUserDept, setNewUserDept] = useState('Development');
+  const [newUserBalance, setNewUserBalance] = useState<number>(0);
+
   const fetchUsers = async () => {
+    setLoading(true);
     try {
       const res = await fetch('/api/users');
       if (res.ok) {
@@ -44,7 +52,9 @@ export default function SuperAdminPage() {
         }
       }
     } catch (e) {
-      console.warn('Using cached users');
+      console.warn('Error fetching users:', e);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -52,15 +62,15 @@ export default function SuperAdminPage() {
     fetchUsers();
   }, []);
 
-  const handleRoleChange = async (userId: string, newRole: UserRole) => {
-    setUpdatingId(userId);
+  const handleRoleChange = async (targetUser: UserRecord, newRole: UserRole) => {
+    setUpdatingId(targetUser.id);
     try {
-      setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
+      setUsers(prev => prev.map(u => u.id === targetUser.id ? { ...u, role: newRole } : u));
       
       const res = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, role: newRole })
+        body: JSON.stringify({ userId: targetUser.id, role: newRole })
       });
       if (!res.ok) {
         fetchUsers();
@@ -96,8 +106,54 @@ export default function SuperAdminPage() {
     }
   };
 
+  const handleCreateNewUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newUserName.trim() || !newUserEmail.trim()) return;
+
+    try {
+      const res = await fetch('/api/users/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newUserName.trim(),
+          email: newUserEmail.trim(),
+        })
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data) {
+          // If custom role or balance was set, update it
+          if (newUserRole !== 'user') {
+            await fetch('/api/users', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ userId: json.data.id, role: newUserRole })
+            });
+          }
+          if (newUserBalance > 0) {
+            await fetch('/api/users', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ userId: json.data.id, balanceDelta: newUserBalance, action: 'add' })
+            });
+          }
+          fetchUsers();
+          setIsNewUserModalOpen(false);
+          setNewUserName('');
+          setNewUserEmail('');
+          setNewUserRole('user');
+          setNewUserBalance(0);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const filteredUsers = users.filter(u => {
-    const matchQuery = u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase()) || u.department.toLowerCase().includes(search.toLowerCase());
+    const matchQuery = (u.name || '').toLowerCase().includes(search.toLowerCase()) || 
+                       (u.email || '').toLowerCase().includes(search.toLowerCase()) || 
+                       (u.department || '').toLowerCase().includes(search.toLowerCase());
     const matchRole = roleFilter === 'all' ? true : u.role === roleFilter;
     return matchQuery && matchRole;
   });
@@ -107,7 +163,6 @@ export default function SuperAdminPage() {
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col lg:flex-row text-slate-100">
-      {/* Left Sidebar Dashboard Navigation */}
       <Sidebar />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
@@ -127,29 +182,39 @@ export default function SuperAdminPage() {
                     {language === 'bn' ? 'সুপার অ্যাডমিন কমান্ড সেন্টার' : 'Super Admin Command Center'}
                   </h1>
                   <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase">
-                    Executive Root
+                    Root Master: {SUPER_ADMIN_EMAIL}
                   </span>
                 </div>
                 <p className="text-xs text-slate-400 mt-1">
                   {language === 'bn'
-                    ? 'ব্যবহারকারীর ভূমিকা নির্ধারণ (Role Assignment), ব্যালেন্স সমন্বয় এবং প্রাতিষ্ঠানিক নিয়ন্ত্রণ'
-                    : 'Assign user roles (Super Admin, Admin, Staff, User), manage company balances, and root access'}
+                    ? 'যেকোনো ব্যবহারকারীকে Super Admin, Admin, Staff বা সাধারণ ইউজার রোল দিন এবং ব্যালেন্স নিয়ন্ত্রণ করুন'
+                    : 'Assign any role to any user, manage company balances, and oversee all system records'}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 self-start md:self-auto">
+            <div className="flex items-center gap-2 flex-wrap self-start md:self-auto">
+              <button
+                onClick={() => setIsNewUserModalOpen(true)}
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-md transition-all flex items-center gap-1.5"
+              >
+                <UserPlus className="w-4 h-4 text-slate-950" />
+                <span>{language === 'bn' ? '+ নতুন ইউজার' : '+ Add User'}</span>
+              </button>
+
+              <button
+                onClick={fetchUsers}
+                className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs font-semibold transition-colors flex items-center gap-1.5"
+              >
+                <RefreshCw className="w-3.5 h-3.5 text-emerald-400" />
+                <span>রিফ্রেশ</span>
+              </button>
+
               <Link
                 href="/admin"
-                className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-xs font-semibold text-emerald-300 border border-emerald-800/80 transition-colors"
+                className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-xs font-semibold text-emerald-300 border border-emerald-800/80 transition-colors"
               >
-                {language === 'bn' ? 'অ্যাডমিন ড্যাশবোর্ড' : 'Admin Dashboard'}
-              </Link>
-              <Link
-                href="/user"
-                className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-xs font-semibold text-slate-300 border border-slate-800 transition-colors"
-              >
-                {language === 'bn' ? 'ইউজার পোর্টাল' : 'User Portal'}
+                {language === 'bn' ? 'অ্যাডমিন কিচেন' : 'Admin Kitchen'}
               </Link>
             </div>
           </div>
@@ -158,41 +223,41 @@ export default function SuperAdminPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="p-5 rounded-2xl bg-slate-900/80 border border-amber-500/30 shadow-lg">
               <div className="flex items-center justify-between text-xs text-slate-400 mb-2 font-medium">
-                <span>{language === 'bn' ? 'মোট ব্যবহারকারী' : 'Total Employees'}</span>
+                <span>{language === 'bn' ? 'মোট ব্যবহারকারী' : 'Total Registered Users'}</span>
                 <Users className="w-4 h-4 text-amber-400" />
               </div>
               <p className="text-2xl font-bold font-serif text-white">{users.length}</p>
-              <p className="text-[11px] text-amber-400 mt-1 font-mono">Active Catering Accounts</p>
+              <p className="text-[11px] text-amber-400 mt-1 font-mono">Dynamic Database Accounts</p>
             </div>
 
             <div className="p-5 rounded-2xl bg-slate-900/80 border border-emerald-500/30 shadow-lg">
               <div className="flex items-center justify-between text-xs text-slate-400 mb-2 font-medium">
-                <span>{language === 'bn' ? 'মোট সংরক্ষিত ব্যালেন্স' : 'Total Wallet Balances'}</span>
+                <span>{language === 'bn' ? 'মোট সংরক্ষিত ব্যালেন্স' : 'Total Dynamic Balance'}</span>
                 <Wallet className="w-4 h-4 text-emerald-400" />
               </div>
               <p className="text-2xl font-bold font-mono text-emerald-300">৳{totalCompanyBalance.toFixed(2)}</p>
-              <p className="text-[11px] text-emerald-400 mt-1">Available Catering Funds</p>
+              <p className="text-[11px] text-emerald-400 mt-1">Live MongoDB Balances</p>
             </div>
 
             <div className="p-5 rounded-2xl bg-slate-900/80 border border-teal-500/30 shadow-lg">
               <div className="flex items-center justify-between text-xs text-slate-400 mb-2 font-medium">
-                <span>{language === 'bn' ? 'লাইফটাইম ক্যাটারিং সেলস' : 'Lifetime Catering Spent'}</span>
+                <span>{language === 'bn' ? 'মোট খাবার গ্রহণ' : 'Total Food Consumption'}</span>
                 <TrendingUp className="w-4 h-4 text-teal-400" />
               </div>
               <p className="text-2xl font-bold font-mono text-amber-300">৳{totalLifetimeSpent.toFixed(2)}</p>
-              <p className="text-[11px] text-teal-400 mt-1">Total Consumed Meals</p>
+              <p className="text-[11px] text-teal-400 mt-1">Settled Meal Sales</p>
             </div>
 
             <div className="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-lg">
               <div className="flex items-center justify-between text-xs text-slate-400 mb-2 font-medium">
-                <span>{language === 'bn' ? 'সিস্টেম স্ট্যাটাস' : 'System Engine'}</span>
-                <ShieldAlert className="w-4 h-4 text-sky-400" />
+                <span>{language === 'bn' ? 'সিকিউরিটি পলিসি' : 'Role Access Control'}</span>
+                <ShieldCheck className="w-4 h-4 text-emerald-400" />
               </div>
-              <p className="text-base font-bold text-white flex items-center gap-1.5">
+              <p className="text-sm font-bold text-white flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span>Next.js 15 & Vercel Ready</span>
+                <span>Strict RBAC Active</span>
               </p>
-              <p className="text-[11px] text-slate-400 mt-1">RBAC Security Enabled</p>
+              <p className="text-[11px] text-slate-400 mt-1">Only Authorized Views Allowed</p>
             </div>
           </div>
 
@@ -240,7 +305,7 @@ export default function SuperAdminPage() {
               </div>
             </div>
 
-            {/* User Table with Perfect Responsiveness (No Clipping) */}
+            {/* Dynamic User Table */}
             <div className="w-full overflow-x-auto border border-slate-800/50">
               <table className="w-full min-w-[900px] text-left border-collapse text-xs">
                 <thead>
@@ -254,76 +319,98 @@ export default function SuperAdminPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/80">
-                  {filteredUsers.map((u) => {
-                    const isCurrentSuper = u.role === 'super_admin';
-                    const isAdmin = u.role === 'admin';
+                  {loading ? (
+                    <tr>
+                      <td colSpan={6} className="py-12 text-center text-slate-400">
+                        লোড হচ্ছে...
+                      </td>
+                    </tr>
+                  ) : filteredUsers.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-12 text-center text-slate-400">
+                        কোনো ব্যবহারকারী পাওয়া যায়নি। উপরে &quot;+ নতুন ইউজার&quot; ক্লিক করে যুক্ত করুন।
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredUsers.map((u) => {
+                      const isSuperAccount = u.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase();
+                      const isCurrentSuper = u.role === 'super_admin';
+                      const isAdmin = u.role === 'admin';
 
-                    return (
-                      <tr key={u.id} className="hover:bg-slate-800/40 transition-colors">
-                        {/* Name & Avatar */}
-                        <td className="py-3.5 px-4 sm:px-6 whitespace-nowrap">
-                          <div className="flex items-center gap-3">
-                            <img
-                              src={u.avatar}
-                              alt={u.name}
-                              className="w-9 h-9 rounded-xl object-cover ring-1 ring-emerald-500/30"
-                            />
-                            <div>
-                              <p className="font-bold text-white tracking-wide">{u.name}</p>
-                              <p className="text-[11px] text-slate-400">{u.email}</p>
+                      return (
+                        <tr key={u.id} className="hover:bg-slate-800/40 transition-colors">
+                          {/* Name & Avatar */}
+                          <td className="py-3.5 px-4 sm:px-6 whitespace-nowrap">
+                            <div className="flex items-center gap-3">
+                              <img
+                                src={u.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}&background=047857&color=fff`}
+                                alt={u.name}
+                                className="w-9 h-9 rounded-xl object-cover ring-1 ring-emerald-500/30"
+                              />
+                              <div>
+                                <div className="flex items-center gap-1.5">
+                                  <p className="font-bold text-white tracking-wide">{u.name}</p>
+                                  {isSuperAccount && (
+                                    <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                                      Primary Super Admin
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-[11px] text-slate-400 font-mono">{u.email}</p>
+                              </div>
                             </div>
-                          </div>
-                        </td>
+                          </td>
 
-                        {/* Department */}
-                        <td className="py-3.5 px-4 sm:px-6 text-slate-300 font-medium whitespace-nowrap">
-                          {u.department}
-                        </td>
+                          {/* Department */}
+                          <td className="py-3.5 px-4 sm:px-6 text-slate-300 font-medium whitespace-nowrap">
+                            {u.department}
+                          </td>
 
-                        {/* Balance */}
-                        <td className="py-3.5 px-4 sm:px-6 text-right font-mono font-bold text-emerald-400 text-sm whitespace-nowrap">
-                          ৳{u.balance.toFixed(2)}
-                        </td>
+                          {/* Balance */}
+                          <td className="py-3.5 px-4 sm:px-6 text-right font-mono font-bold text-emerald-400 text-sm whitespace-nowrap">
+                            ৳{u.balance.toFixed(2)}
+                          </td>
 
-                        {/* Spent */}
-                        <td className="py-3.5 px-4 sm:px-6 text-right font-mono font-medium text-amber-200 whitespace-nowrap">
-                          ৳{u.totalSpent.toFixed(2)}
-                        </td>
+                          {/* Spent */}
+                          <td className="py-3.5 px-4 sm:px-6 text-right font-mono font-medium text-amber-200 whitespace-nowrap">
+                            ৳{u.totalSpent.toFixed(2)}
+                          </td>
 
-                        {/* Role Selector dropdown */}
-                        <td className="py-3.5 px-4 sm:px-6 text-center whitespace-nowrap">
-                          <select
-                            value={u.role}
-                            disabled={updatingId === u.id}
-                            onChange={(e) => handleRoleChange(u.id, e.target.value as UserRole)}
-                            className={`px-3 py-1.5 rounded-xl font-bold text-xs border outline-none cursor-pointer transition-all ${
-                              isCurrentSuper
-                                ? 'bg-amber-950/80 text-amber-300 border-amber-500/60 shadow-sm'
-                                : isAdmin
-                                ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/60'
-                                : 'bg-slate-950 text-slate-200 border-slate-700'
-                            }`}
-                          >
-                            <option value="super_admin">👑 Super Admin</option>
-                            <option value="admin">🛡️ Admin</option>
-                            <option value="staff">👨‍🍳 Staff</option>
-                            <option value="user">👤 Customer / User</option>
-                          </select>
-                        </td>
+                          {/* Role Selector dropdown */}
+                          <td className="py-3.5 px-4 sm:px-6 text-center whitespace-nowrap">
+                            <select
+                              value={u.role}
+                              disabled={updatingId === u.id || isSuperAccount}
+                              onChange={(e) => handleRoleChange(u, e.target.value as UserRole)}
+                              className={`px-3 py-1.5 rounded-xl font-bold text-xs border outline-none cursor-pointer transition-all ${
+                                isCurrentSuper
+                                  ? 'bg-amber-950/80 text-amber-300 border-amber-500/60 shadow-sm'
+                                  : isAdmin
+                                  ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/60'
+                                  : 'bg-slate-950 text-slate-200 border-slate-700'
+                              } ${isSuperAccount ? 'opacity-90 cursor-not-allowed' : ''}`}
+                            >
+                              <option value="super_admin">👑 Super Admin</option>
+                              <option value="admin">🛡️ Admin</option>
+                              <option value="staff">👨‍🍳 Staff</option>
+                              <option value="user">👤 Customer / User</option>
+                            </select>
+                          </td>
 
-                        {/* Add Balance Action */}
-                        <td className="py-3.5 px-4 sm:px-6 text-right whitespace-nowrap">
-                          <button
-                            onClick={() => setBalanceModalUser(u)}
-                            className="px-3 py-1.5 rounded-lg bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/60 text-xs font-semibold transition-colors inline-flex items-center gap-1.5"
-                          >
-                            <PlusCircle className="w-3.5 h-3.5" />
-                            <span>+ ব্যালেন্স</span>
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                          {/* Add Balance Action */}
+                          <td className="py-3.5 px-4 sm:px-6 text-right whitespace-nowrap">
+                            <button
+                              onClick={() => setBalanceModalUser(u)}
+                              className="px-3 py-1.5 rounded-lg bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/60 text-xs font-semibold transition-colors inline-flex items-center gap-1.5"
+                            >
+                              <PlusCircle className="w-3.5 h-3.5" />
+                              <span>+ ব্যালেন্স</span>
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </div>
@@ -349,7 +436,7 @@ export default function SuperAdminPage() {
             </div>
 
             <p className="text-xs text-slate-300">
-              গ্রাহক: <strong className="text-amber-300">{balanceModalUser.name}</strong> ({balanceModalUser.department})
+              গ্রাহক: <strong className="text-amber-300">{balanceModalUser.name}</strong> ({balanceModalUser.email})
             </p>
 
             <form onSubmit={handleAddBalance} className="space-y-4">
@@ -401,6 +488,110 @@ export default function SuperAdminPage() {
         </div>
       )}
 
+      {/* New User Creation Modal */}
+      {isNewUserModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
+          <div className="w-full max-w-md bg-slate-900 border border-emerald-700/80 rounded-3xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <h3 className="font-bold text-white text-base">
+                {language === 'bn' ? 'নতুন ব্যবহারকারী নিবন্ধন' : 'Register New Team Account'}
+              </h3>
+              <button
+                onClick={() => setIsNewUserModalOpen(false)}
+                className="text-slate-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateNewUser} className="space-y-3.5">
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-400 uppercase mb-1">
+                  নাম (Full Name) *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newUserName}
+                  onChange={e => setNewUserName(e.target.value)}
+                  placeholder="e.g. Tanvir Hasan"
+                  className="w-full px-3.5 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-amber-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-400 uppercase mb-1">
+                  ইমেইল অ্যাড্রেস *
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={newUserEmail}
+                  onChange={e => setNewUserEmail(e.target.value)}
+                  placeholder="tanvir@shopify.com"
+                  className="w-full px-3.5 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-amber-400"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-400 uppercase mb-1">
+                    প্রাথমিক রোল (Role)
+                  </label>
+                  <select
+                    value={newUserRole}
+                    onChange={e => setNewUserRole(e.target.value as UserRole)}
+                    className="w-full px-3.5 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none"
+                  >
+                    <option value="user">👤 User</option>
+                    <option value="staff">👨‍🍳 Staff</option>
+                    <option value="admin">🛡️ Admin</option>
+                    <option value="super_admin">👑 Super Admin</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-400 uppercase mb-1">
+                    প্রাথমিক ব্যালেন্স (৳)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={newUserBalance}
+                    onChange={e => setNewUserBalance(Number(e.target.value))}
+                    className="w-full px-3.5 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs font-mono font-bold text-emerald-400 focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsNewUserModalOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-800 text-xs text-slate-300"
+                >
+                  বাতিল
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 text-slate-950 font-bold text-xs"
+                >
+                  সংরক্ষণ করুন
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
+  );
+}
+
+export default function SuperAdminPage() {
+  return (
+    <AuthGuard allowedRoles={['super_admin']}>
+      <SuperAdminDashboardContent />
+    </AuthGuard>
   );
 }
