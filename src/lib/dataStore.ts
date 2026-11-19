@@ -1,4 +1,5 @@
 import { connectToDatabase } from './mongodb';
+import { getFirebaseUsersList } from './firebaseAdmin';
 import Order from './models/Order';
 import MenuItem from './models/MenuItem';
 import Customer from './models/Customer';
@@ -38,44 +39,150 @@ let usersCache: UserRecord[] = [];
 let messagesCache: ChatMessage[] = [];
 let groupsCache: ChatGroup[] = [];
 
-// User Management - ONLY REAL LOGGED-IN USERS
+// User Management - ALL REGISTERED USERS (FROM FIREBASE AUTH & DATABASE)
 export async function getAllUsers(): Promise<UserRecord[]> {
+  const now = Date.now();
+
+  // 1. Fetch real registered users from Firebase Authentication (past, present & future)
+  let fbUsers: Array<{ uid: string; email: string; displayName?: string; photoURL?: string; createdAt?: string }> = [];
+  try {
+    fbUsers = await getFirebaseUsersList();
+  } catch (err) {
+    console.warn("Could not fetch Firebase Auth users:", err);
+  }
+
+  // 2. Try MongoDB
+  let mongoDocs: any[] = [];
   try {
     await connectToDatabase();
     if (User) {
-      const docs = await User.find().sort({ createdAt: -1 }).lean();
-      if (docs && docs.length > 0) {
-        const now = Date.now();
-        const mapped = docs.map((d: any) => {
-          const lastSeenTime = d.lastSeen ? new Date(d.lastSeen).getTime() : (d.updatedAt ? new Date(d.updatedAt).getTime() : now);
-          // Consider active if heartbeat within last 3 minutes
-          const isRecentlyActive = (now - lastSeenTime) < (3 * 60 * 1000);
-
-          return {
-            id: d._id.toString(),
-            name: d.name,
-            email: d.email,
-            role: (d.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase() ? 'super_admin' : d.role) as UserRole,
-            balance: Number(d.balance) || 0,
-            currentDue: Number(d.currentDue) || 0,
-            totalSpent: Number(d.totalSpent) || 0,
-            department: d.department || 'Shopify Team',
-            avatar: d.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(d.name || 'User')}&background=047857&color=fff`,
-            phone: d.phone || '',
-            lastSeen: d.lastSeen?.toISOString?.() || new Date(lastSeenTime).toISOString(),
-            isOnline: Boolean(d.isOnline || isRecentlyActive),
-            blockedUsers: d.blockedUsers || [],
-            createdAt: d.createdAt?.toISOString?.() || new Date().toISOString()
-          };
-        });
-        usersCache = mapped;
-        return mapped;
+      // Sync any missing Firebase user into MongoDB
+      for (const fb of fbUsers) {
+        if (!fb.email) continue;
+        const emailClean = fb.email.toLowerCase().trim();
+        const exists = await User.findOne({ email: emailClean });
+        if (!exists) {
+          const isSuper = emailClean === SUPER_ADMIN_EMAIL.toLowerCase();
+          await User.create({
+            uid: fb.uid,
+            name: fb.displayName || emailClean.split('@')[0],
+            email: emailClean,
+            role: isSuper ? 'super_admin' : 'user',
+            balance: 0,
+            currentDue: 0,
+            totalSpent: 0,
+            department: isSuper ? 'Executive Management' : 'Shopify Member',
+            avatar: fb.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(fb.displayName || 'Member')}&background=047857&color=fff`,
+            createdAt: fb.createdAt ? new Date(fb.createdAt) : new Date(),
+          });
+        }
       }
+
+      mongoDocs = await User.find().sort({ createdAt: -1 }).lean();
     }
   } catch (err) {
-    console.warn("MongoDB connection fallback to memory users:", err);
+    console.warn("MongoDB connection fallback to Firebase users & memory:", err);
   }
-  return usersCache;
+
+  // 3. If MongoDB has records, map them
+  if (mongoDocs && mongoDocs.length > 0) {
+    const mapped: UserRecord[] = mongoDocs.map((d: any) => {
+      const lastSeenTime = d.lastSeen ? new Date(d.lastSeen).getTime() : (d.updatedAt ? new Date(d.updatedAt).getTime() : now);
+      const isRecentlyActive = (now - lastSeenTime) < (3 * 60 * 1000);
+      const isSuper = d.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase();
+
+      return {
+        id: d.uid || d._id.toString(),
+        name: d.name,
+        email: d.email,
+        role: (isSuper ? 'super_admin' : d.role) as UserRole,
+        balance: Number(d.balance) || 0,
+        currentDue: Number(d.currentDue) || 0,
+        totalSpent: Number(d.totalSpent) || 0,
+        department: d.department || (isSuper ? 'Executive Management' : 'Shopify Team'),
+        avatar: d.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(d.name || 'User')}&background=047857&color=fff`,
+        phone: d.phone || '',
+        lastSeen: d.lastSeen?.toISOString?.() || new Date(lastSeenTime).toISOString(),
+        isOnline: Boolean(d.isOnline || isRecentlyActive),
+        blockedUsers: d.blockedUsers || [],
+        createdAt: d.createdAt?.toISOString?.() || new Date().toISOString()
+      };
+    });
+
+    // Ensure any Firebase user not yet in MongoDB is also included
+    for (const fb of fbUsers) {
+      if (!fb.email) continue;
+      const found = mapped.find(m => m.email.toLowerCase() === fb.email.toLowerCase());
+      if (!found) {
+        const isSuper = fb.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase();
+        mapped.push({
+          id: fb.uid,
+          name: fb.displayName || fb.email.split('@')[0],
+          email: fb.email,
+          role: isSuper ? 'super_admin' : 'user',
+          balance: 0,
+          currentDue: 0,
+          totalSpent: 0,
+          department: isSuper ? 'Executive Management' : 'Shopify Member',
+          avatar: fb.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(fb.displayName || 'Member')}&background=047857&color=fff`,
+          phone: '',
+          lastSeen: new Date().toISOString(),
+          isOnline: false,
+          blockedUsers: [],
+          createdAt: fb.createdAt || new Date().toISOString()
+        });
+      }
+    }
+
+    usersCache = mapped;
+    return mapped;
+  }
+
+  // 4. If MongoDB is down or empty, construct from Firebase Auth + usersCache overlay
+  const combinedList: UserRecord[] = [];
+  for (const fb of fbUsers) {
+    if (!fb.email) continue;
+    const emailClean = fb.email.toLowerCase();
+    const cached = usersCache.find(u => u.email.toLowerCase() === emailClean);
+    const isSuper = emailClean === SUPER_ADMIN_EMAIL.toLowerCase();
+
+    if (cached) {
+      combinedList.push({
+        ...cached,
+        id: fb.uid || cached.id,
+        name: cached.name || fb.displayName || emailClean.split('@')[0],
+        avatar: cached.avatar || fb.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(fb.displayName || 'Member')}&background=047857&color=fff`,
+        role: isSuper ? 'super_admin' : (cached.role || 'user'),
+      });
+    } else {
+      combinedList.push({
+        id: fb.uid,
+        name: fb.displayName || emailClean.split('@')[0],
+        email: fb.email,
+        role: isSuper ? 'super_admin' : 'user',
+        balance: 0,
+        currentDue: 0,
+        totalSpent: 0,
+        department: isSuper ? 'Executive Management' : 'Shopify Member',
+        avatar: fb.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(fb.displayName || 'Member')}&background=047857&color=fff`,
+        phone: '',
+        lastSeen: new Date().toISOString(),
+        isOnline: false,
+        blockedUsers: [],
+        createdAt: fb.createdAt || new Date().toISOString()
+      });
+    }
+  }
+
+  // Also include any manually added users from usersCache
+  for (const c of usersCache) {
+    if (!combinedList.some(u => u.email.toLowerCase() === c.email.toLowerCase())) {
+      combinedList.push(c);
+    }
+  }
+
+  usersCache = combinedList;
+  return combinedList;
 }
 
 // Presence & Heartbeat update

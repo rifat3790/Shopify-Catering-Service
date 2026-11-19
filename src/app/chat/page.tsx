@@ -131,6 +131,11 @@ function ChatHubContent() {
           if (selectedMember) {
             const updated = uJson.data.find((m: UserRecord) => m.id === selectedMember.id);
             if (updated) setSelectedMember(updated);
+          } else if (!selectedGroup && uJson.data.length > 0) {
+            const others = uJson.data.filter((u: UserRecord) => u.email.toLowerCase() !== user?.email?.toLowerCase());
+            if (others.length > 0) {
+              setSelectedMember(others[0]);
+            }
           }
         }
       }
