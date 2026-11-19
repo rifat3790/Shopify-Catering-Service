@@ -27,6 +27,14 @@ const DARK_BG_PRESETS = [
   { label: 'Abyssal Forest', hex: '#020b08' },
 ];
 
+const FONT_PRESETS = [
+  { label: 'Executive Serif', value: "'Playfair Display', Georgia, serif" },
+  { label: 'Cyber Tech Sans', value: "'Space Grotesk', 'Inter', system-ui, sans-serif" },
+  { label: 'Imperial Roman', value: "'Cinzel', 'Playfair Display', Georgia, serif" },
+  { label: 'Clean Modern', value: "'Plus Jakarta Sans', 'Inter', system-ui, sans-serif" },
+  { label: 'Enterprise Sans', value: "'Inter', system-ui, sans-serif" },
+];
+
 export default function ThemeSelectorModal() {
   const { 
     themeId, 
@@ -320,6 +328,30 @@ export default function ThemeSelectorModal() {
                           style={{ backgroundColor: bg.hex }}
                         />
                         <span className="truncate">{bg.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Heading Typography Selector */}
+                <div className="space-y-2 pt-2">
+                  <label className="text-xs font-semibold text-slate-300">
+                    {language === 'bn' ? 'হেডিং ফন্ট ও টাইপোগ্রাফি স্টাইল:' : 'Heading Typography Style:'}
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                    {FONT_PRESETS.map((f) => (
+                      <button
+                        key={f.value}
+                        type="button"
+                        onClick={() => handleCustomColorChange('fontHeading' as any, f.value)}
+                        className={`p-2 rounded-xl text-[11px] font-semibold border flex flex-col items-center justify-center gap-1 transition-all ${
+                          localCustom.fontHeading === f.value
+                            ? 'border-amber-400 text-white bg-slate-900 shadow-md ring-1 ring-amber-400/40'
+                            : 'border-slate-800 text-slate-400 hover:text-white bg-slate-900/50'
+                        }`}
+                      >
+                        <span className="font-bold text-xs" style={{ fontFamily: f.value }}>Aa</span>
+                        <span className="truncate text-[10px] text-center">{f.label}</span>
                       </button>
                     ))}
                   </div>

@@ -55,6 +55,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         accentRgb: '245, 158, 11',
         bgBase: customTheme.bg || '#030712',
         bgCard: customTheme.card || '#0b1120',
+        fontHeading: customTheme.fontHeading || "'Playfair Display', Georgia, serif",
+        fontBody: customTheme.fontBody || "'Inter', system-ui, sans-serif",
         previewGradient: 'from-amber-500 to-emerald-500',
       };
     }
@@ -70,21 +72,27 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     let accent = '#f59e0b';
     let bg = '#030712';
     let card = '#0b1120';
+    let fontHeading = "'Playfair Display', Georgia, serif";
+    let fontBody = "'Inter', system-ui, sans-serif";
 
     if (id === 'custom') {
       primary = custom.primary || '#10b981';
       accent = custom.accent || '#f59e0b';
       bg = custom.bg || '#030712';
       card = custom.card || '#0b1120';
+      fontHeading = custom.fontHeading || "'Playfair Display', Georgia, serif";
+      fontBody = custom.fontBody || "'Inter', system-ui, sans-serif";
     } else {
       const preset = THEME_PRESETS.find(p => p.id === id) || THEME_PRESETS[0];
       primary = preset.primary;
       accent = preset.accent;
       bg = preset.bgBase;
       card = preset.bgCard;
+      fontHeading = preset.fontHeading || "'Playfair Display', Georgia, serif";
+      fontBody = preset.fontBody || "'Inter', system-ui, sans-serif";
     }
 
-    const css = generateThemeCSS(primary, accent, bg, card);
+    const css = generateThemeCSS(primary, accent, bg, card, fontHeading, fontBody);
     let styleTag = document.getElementById('shopify-theme-customizer') as HTMLStyleElement;
     if (!styleTag) {
       styleTag = document.createElement('style');

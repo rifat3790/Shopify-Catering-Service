@@ -51,6 +51,8 @@ export interface CustomThemeConfig {
   accent: string;
   bg?: string;
   card?: string;
+  fontHeading?: string;
+  fontBody?: string;
 }
 
 export interface ThemePreset {
@@ -70,6 +72,8 @@ export interface ThemePreset {
   accentRgb: string;
   bgBase: string;
   bgCard: string;
+  fontHeading?: string;
+  fontBody?: string;
   previewGradient: string;
 }
 

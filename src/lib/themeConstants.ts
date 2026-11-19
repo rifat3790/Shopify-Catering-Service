@@ -16,8 +16,10 @@ export const THEME_PRESETS: ThemePreset[] = [
     accentLight: '#fbbf24',    // amber-400
     accentDark: '#b45309',     // amber-700
     accentRgb: '245, 158, 11',
-    bgBase: '#030712',         // slate-950
-    bgCard: '#0b1120',         // slate-900
+    bgBase: '#030712',         // obsidian slate-950
+    bgCard: '#0b1120',         // midnight slate-900
+    fontHeading: "'Playfair Display', Georgia, serif",
+    fontBody: "'Inter', system-ui, sans-serif",
     previewGradient: 'from-emerald-500 to-amber-500',
   },
   {
@@ -37,6 +39,8 @@ export const THEME_PRESETS: ThemePreset[] = [
     accentRgb: '244, 63, 94',
     bgBase: '#030717',         // deep midnight blue
     bgCard: '#070f2b',         // deep navy
+    fontHeading: "'Space Grotesk', 'Inter', system-ui, sans-serif",
+    fontBody: "'Inter', system-ui, sans-serif",
     previewGradient: 'from-cyan-500 to-rose-500',
   },
   {
@@ -56,6 +60,8 @@ export const THEME_PRESETS: ThemePreset[] = [
     accentRgb: '249, 115, 22',
     bgBase: '#090514',         // deep amethyst black
     bgCard: '#130a28',         // velvet plum
+    fontHeading: "'Cinzel', 'Playfair Display', Georgia, serif",
+    fontBody: "'Inter', system-ui, sans-serif",
     previewGradient: 'from-violet-500 to-orange-500',
   },
   {
@@ -75,6 +81,8 @@ export const THEME_PRESETS: ThemePreset[] = [
     accentRgb: '234, 179, 8',
     bgBase: '#0f0507',         // garnet obsidian
     bgCard: '#1d090f',         // deep ruby slate
+    fontHeading: "'Cinzel', 'Playfair Display', Georgia, serif",
+    fontBody: "'Inter', system-ui, sans-serif",
     previewGradient: 'from-red-500 to-yellow-500',
   },
   {
@@ -94,6 +102,8 @@ export const THEME_PRESETS: ThemePreset[] = [
     accentRgb: '132, 204, 22',
     bgBase: '#020b08',         // abyssal forest
     bgCard: '#051912',         // ocean spruce
+    fontHeading: "'Plus Jakarta Sans', 'Inter', system-ui, sans-serif",
+    fontBody: "'Inter', system-ui, sans-serif",
     previewGradient: 'from-teal-500 to-lime-500',
   },
 ];
@@ -126,10 +136,14 @@ export function generateThemeCSS(
   primaryHex: string,
   accentHex: string,
   bgBaseHex: string = '#030712',
-  bgCardHex: string = '#0b1120'
+  bgCardHex: string = '#0b1120',
+  fontHeading: string = "'Playfair Display', Georgia, serif",
+  fontBody: string = "'Inter', system-ui, sans-serif"
 ): string {
   const primaryRgb = hexToRgb(primaryHex).rgbString;
   const accentRgb = hexToRgb(accentHex).rgbString;
+  const bgBaseRgb = hexToRgb(bgBaseHex).rgbString;
+  const bgCardRgb = hexToRgb(bgCardHex).rgbString;
 
   const primaryLight = adjustBrightness(primaryHex, 20);
   const primaryDark = adjustBrightness(primaryHex, -25);
@@ -151,111 +165,314 @@ export function generateThemeCSS(
   --theme-accent-rgb: ${accentRgb};
 
   --theme-bg-base: ${bgBaseHex};
+  --theme-bg-base-rgb: ${bgBaseRgb};
   --theme-bg-card: ${bgCardHex};
+  --theme-bg-card-rgb: ${bgCardRgb};
+
+  --theme-font-heading: ${fontHeading};
+  --theme-font-body: ${fontBody};
 }
 
-/* Base Body Background & Selection */
+/* ========================================================
+   1. TYPOGRAPHY & EXECUTIVE FONT STYLING
+======================================================== */
+h1, h2, h3, h4, .font-serif, [class*="font-serif"], .font-display, [class*="font-display"] {
+  font-family: var(--theme-font-heading) !important;
+}
+
 body {
+  font-family: var(--theme-font-body);
   background-color: var(--theme-bg-base) !important;
   transition: background-color 0.25s ease-in-out;
 }
+
 ::selection {
   background-color: var(--theme-primary) !important;
   color: #030712 !important;
 }
 
-/* Gradients */
-.from-emerald-600.to-amber-600,
-.from-emerald-500.to-amber-500,
-.from-emerald-700.to-amber-600,
-.from-emerald-800.to-emerald-600,
-.from-emerald-950.via-slate-950.to-slate-950 {
-  background-image: linear-gradient(135deg, var(--theme-primary), var(--theme-accent)) !important;
+/* ========================================================
+   2. PAGE, CARDS, DRAWERS & SECTIONS BACKGROUNDS
+======================================================== */
+/* All page roots and background divs */
+.bg-slate-950,
+main[class*="bg-slate-950"],
+div[class*="bg-slate-950"] {
+  background-color: var(--theme-bg-base) !important;
 }
 
-/* Primary Text Highlights */
+/* All cards, widgets, metrics, sidebars and panels */
+.bg-slate-900,
+.bg-slate-900\/95,
+.bg-slate-900\/90,
+.bg-slate-900\/80,
+.bg-slate-900\/70,
+.bg-slate-900\/60,
+.bg-slate-900\/50,
+[class*="bg-slate-900"] {
+  background-color: var(--theme-bg-card) !important;
+}
+
+/* Recessed card sub-containers & table inner areas */
+.bg-slate-950\/70,
+.bg-slate-950\/80,
+.bg-slate-950\/90,
+.bg-slate-950\/95,
+[class*="bg-slate-950\/"] {
+  background-color: var(--theme-bg-base) !important;
+}
+
+/* Hero Cards with gradients */
+.from-emerald-950.via-slate-900.to-emerald-950,
+.from-emerald-950.via-slate-950.to-emerald-950,
+.from-emerald-950.via-slate-950.to-slate-950 {
+  background-image: linear-gradient(135deg, rgba(var(--theme-primary-rgb), 0.28), var(--theme-bg-card), rgba(var(--theme-accent-rgb), 0.22)) !important;
+}
+
+/* ========================================================
+   3. TAILWIND GRADIENT ENGINE OVERRIDES (ALL BUTTONS & TABS)
+======================================================== */
+[class*="from-emerald-"],
+[class*="from-teal-"] {
+  --tw-gradient-from: var(--theme-primary) var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgba(var(--theme-primary-rgb), 0) var(--tw-gradient-to-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+[class*="from-amber-"],
+[class*="from-gold-"] {
+  --tw-gradient-from: var(--theme-accent) var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgba(var(--theme-accent-rgb), 0) var(--tw-gradient-to-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+[class*="to-amber-"],
+[class*="to-gold-"] {
+  --tw-gradient-to: var(--theme-accent) var(--tw-gradient-to-position) !important;
+}
+
+[class*="to-emerald-"],
+[class*="to-teal-"] {
+  --tw-gradient-to: var(--theme-primary) var(--tw-gradient-to-position) !important;
+}
+
+[class*="via-emerald-"],
+[class*="via-teal-"] {
+  --tw-gradient-stops: var(--tw-gradient-from), var(--theme-primary-light) var(--tw-gradient-via-position), var(--tw-gradient-to) !important;
+}
+
+[class*="via-amber-"] {
+  --tw-gradient-stops: var(--tw-gradient-from), var(--theme-accent-light) var(--tw-gradient-via-position), var(--tw-gradient-to) !important;
+}
+
+/* Deep Card Gradients */
+[class*="from-emerald-950"],
+[class*="from-teal-950"] {
+  --tw-gradient-from: rgba(var(--theme-primary-rgb), 0.28) var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgba(var(--theme-primary-rgb), 0) var(--tw-gradient-to-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+[class*="to-emerald-950"],
+[class*="to-teal-950"] {
+  --tw-gradient-to: rgba(var(--theme-primary-rgb), 0.28) var(--tw-gradient-to-position) !important;
+}
+
+[class*="from-amber-950"] {
+  --tw-gradient-from: rgba(var(--theme-accent-rgb), 0.28) var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgba(var(--theme-accent-rgb), 0) var(--tw-gradient-to-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+[class*="to-amber-950"] {
+  --tw-gradient-to: rgba(var(--theme-accent-rgb), 0.28) var(--tw-gradient-to-position) !important;
+}
+
+/* ========================================================
+   4. SOLID BUTTONS, TAB BUTTONS & PILLS
+======================================================== */
+/* Solid Primary Buttons & Active Tab Buttons (Orders status, Super Admin, Chat, etc.) */
+.bg-emerald-600,
+.bg-emerald-500,
+.bg-teal-600,
+.bg-teal-500,
+button[class*="bg-emerald-600"],
+button[class*="bg-emerald-500"],
+button[class*="bg-teal-600"],
+button[class*="bg-teal-500"] {
+  background-color: var(--theme-primary) !important;
+  color: #030712 !important;
+}
+
+/* Solid Accent Buttons & Active Filter Tabs (Department tabs, Category pills, etc.) */
+.bg-amber-400,
+.bg-amber-500,
+.bg-gold-500,
+.bg-gold-400,
+button[class*="bg-amber-400"],
+button[class*="bg-amber-500"],
+button[class*="bg-gold-400"],
+button[class*="bg-gold-500"] {
+  background-color: var(--theme-accent) !important;
+  color: #030712 !important;
+}
+
+/* Button Hovers */
+.hover\:bg-emerald-500:hover,
+.hover\:bg-emerald-600:hover,
+.hover\:bg-emerald-700:hover,
+button[class*="hover:bg-emerald"]:hover {
+  background-color: var(--theme-primary-hover) !important;
+}
+
+.hover\:bg-amber-300:hover,
+.hover\:bg-amber-400:hover,
+.hover\:bg-amber-500:hover,
+button[class*="hover:bg-amber"]:hover {
+  background-color: var(--theme-accent-hover) !important;
+}
+
+/* Subtle Action Buttons (PNG receipt, icon actions, custom buttons) */
+.bg-emerald-950,
+.bg-emerald-950\/60,
+.bg-emerald-950\/80,
+button[class*="bg-emerald-950"],
+.hover\:bg-emerald-900:hover,
+.hover\:bg-emerald-900\/60:hover {
+  background-color: rgba(var(--theme-primary-rgb), 0.22) !important;
+  color: var(--theme-primary-light) !important;
+}
+
+.bg-amber-950,
+.bg-amber-950\/40,
+.bg-amber-950\/60,
+button[class*="bg-amber-950"],
+.hover\:bg-amber-900\/60:hover {
+  background-color: rgba(var(--theme-accent-rgb), 0.22) !important;
+  color: var(--theme-accent-light) !important;
+}
+
+/* Inactive Tab Hover Subtle Theme Glow */
+.text-slate-400.hover\:text-white:hover,
+.text-slate-400.hover\:text-slate-200:hover {
+  color: var(--theme-primary-light) !important;
+}
+
+/* ========================================================
+   5. ALL HIGHLIGHTED TEXT & DYNAMIC METRICS
+======================================================== */
 .text-emerald-400,
 .text-emerald-300,
 .text-emerald-500,
 .text-teal-400,
-.text-teal-300 {
+.text-teal-300,
+[class*="text-emerald-400"],
+[class*="text-emerald-300"],
+[class*="text-emerald-500"],
+[class*="text-teal-400"],
+[class*="text-teal-300"] {
   color: var(--theme-primary-light) !important;
 }
 
-/* Accent/Gold Text Highlights */
 .text-amber-400,
 .text-amber-300,
 .text-amber-200,
-.text-gold-400 {
+.text-gold-400,
+[class*="text-amber-400"],
+[class*="text-amber-300"],
+[class*="text-amber-200"],
+[class*="text-gold-400"] {
   color: var(--theme-accent-light) !important;
 }
 
-/* Border Highlights */
-.border-emerald-500\\/30,
-.border-emerald-500\\/40,
-.border-emerald-500\\/50,
-.border-emerald-600\\/30,
-.border-emerald-700\\/60,
-.border-emerald-800,
-.border-emerald-900\\/40,
-.border-teal-500\\/30 {
-  border-color: rgba(var(--theme-primary-rgb), 0.35) !important;
+.group:hover .group-hover\:text-amber-300,
+.group:hover .group-hover\:text-amber-400 {
+  color: var(--theme-accent-light) !important;
 }
 
-.border-amber-500\\/30,
-.border-amber-500\\/40,
-.border-amber-500\\/50,
-.border-amber-600\\/30,
-.border-amber-500\\/20 {
-  border-color: rgba(var(--theme-accent-rgb), 0.35) !important;
+.group:hover .group-hover\:text-emerald-300,
+.group:hover .group-hover\:text-emerald-400 {
+  color: var(--theme-primary-light) !important;
 }
 
-/* Soft Tint Backgrounds */
-.bg-emerald-500\\/10,
-.bg-emerald-500\\/20,
-.bg-emerald-950,
-.bg-emerald-950\\/60,
-.bg-emerald-950\\/80,
-.bg-emerald-950\\/90 {
+/* ========================================================
+   6. BORDERS, DIVIDERS & GLOW ACCENTS
+======================================================== */
+[class*="border-emerald-"],
+[class*="border-teal-"] {
+  border-color: rgba(var(--theme-primary-rgb), 0.38) !important;
+}
+
+[class*="border-amber-"],
+[class*="border-gold-"] {
+  border-color: rgba(var(--theme-accent-rgb), 0.38) !important;
+}
+
+.border-slate-800,
+.border-slate-800\/80,
+.border-slate-800\/60,
+.border-slate-700,
+.border-slate-700\/80 {
+  border-color: rgba(var(--theme-primary-rgb), 0.16) !important;
+}
+
+/* ========================================================
+   7. SOFT TINTS, BADGES & STATUS INDICATORS
+======================================================== */
+[class*="bg-emerald-500\/10"],
+[class*="bg-emerald-500\/20"] {
   background-color: rgba(var(--theme-primary-rgb), 0.16) !important;
 }
 
-.bg-amber-500\\/10,
-.bg-amber-500\\/20,
-.bg-amber-950,
-.bg-amber-950\\/40 {
+[class*="bg-amber-500\/10"],
+[class*="bg-amber-500\/20"] {
   background-color: rgba(var(--theme-accent-rgb), 0.16) !important;
 }
 
-/* Solid Buttons & State Toggles */
-.bg-emerald-600,
-.hover\\:bg-emerald-600:hover,
-.hover\\:bg-emerald-500:hover {
-  background-color: var(--theme-primary) !important;
+.bg-emerald-400,
+.bg-teal-400,
+[class*="bg-emerald-400"] {
+  background-color: var(--theme-primary-light) !important;
 }
 
-.bg-amber-400,
-.hover\\:bg-amber-500:hover,
-.hover\\:bg-amber-400:hover {
-  background-color: var(--theme-accent) !important;
+/* ========================================================
+   8. INPUTS, FOCUS STATES & RINGS
+======================================================== */
+input:focus, select:focus, textarea:focus,
+.focus\:border-amber-400:focus,
+.focus\:border-emerald-500:focus,
+.focus\:border-emerald-400:focus {
+  border-color: var(--theme-accent) !important;
+  box-shadow: 0 0 0 1px var(--theme-accent) !important;
 }
 
-/* Rings & Focus States */
-.ring-emerald-500\\/30,
-.ring-emerald-500\\/40,
-.ring-emerald-500 {
-  --tw-ring-color: rgba(var(--theme-primary-rgb), 0.45) !important;
+input, select, textarea {
+  background-color: rgba(var(--theme-bg-base-rgb), 0.85) !important;
+  border-color: rgba(var(--theme-primary-rgb), 0.28) !important;
 }
 
-.focus\\:border-amber-400:focus,
-.focus\\:border-emerald-500:focus {
-  border-color: var(--theme-primary) !important;
+[class*="ring-amber-"],
+[class*="ring-emerald-"] {
+  --tw-ring-color: rgba(var(--theme-accent-rgb), 0.45) !important;
 }
 
-/* Scrollbars */
+.shadow-emerald-950\/40,
+.shadow-emerald-950\/60 {
+  --tw-shadow-color: rgba(var(--theme-primary-rgb), 0.25) !important;
+}
+
+/* ========================================================
+   9. SCROLLBARS & CONTROLS
+======================================================== */
+::-webkit-scrollbar-track {
+  background: var(--theme-bg-base) !important;
+}
+
 ::-webkit-scrollbar-thumb {
   background: rgba(var(--theme-primary-rgb), 0.45) !important;
+  border-color: var(--theme-bg-base) !important;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: var(--theme-primary) !important;
 }
