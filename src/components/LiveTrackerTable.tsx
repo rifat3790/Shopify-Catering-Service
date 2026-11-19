@@ -244,21 +244,17 @@ export default function LiveTrackerTable({
                     {/* Customer Column */}
                     <td className="py-3.5 px-4 sm:px-6">
                       <div className="flex items-center gap-2.5">
-                        {order.customerAvatar ? (
-                          <img
-                            src={order.customerAvatar}
-                            alt={order.customerName}
-                            className="w-8 h-8 rounded-full object-cover ring-2 ring-emerald-500/40 shrink-0"
-                          />
-                        ) : (
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
-                            isIsmail 
-                              ? 'bg-amber-400 text-slate-950 ring-2 ring-amber-400/50' 
-                              : 'bg-emerald-950 text-emerald-300 border border-emerald-700/60'
-                          }`}>
-                            {order.customerName.charAt(0).toUpperCase()}
-                          </div>
-                        )}
+                        <img
+                          src={
+                            order.customerAvatar || 
+                            `https://ui-avatars.com/api/?name=${encodeURIComponent(order.customerName || 'Customer')}&background=047857&color=fff`
+                          }
+                          alt={order.customerName}
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(order.customerName || 'Customer')}&background=047857&color=fff`;
+                          }}
+                          className="w-8 h-8 rounded-full object-cover ring-2 ring-emerald-500/40 shrink-0"
+                        />
                         <div>
                           <p className="font-semibold text-white tracking-wide flex items-center gap-1.5">
                             {order.customerName}

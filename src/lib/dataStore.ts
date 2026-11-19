@@ -329,8 +329,20 @@ export async function syncUser(userData: {
         });
       } else {
         // If super admin email, enforce super_admin role
+        let changed = false;
         if (isSuper && doc.role !== 'super_admin') {
           doc.role = 'super_admin';
+          changed = true;
+        }
+        if (userData.avatar && userData.avatar !== doc.avatar) {
+          doc.avatar = userData.avatar;
+          changed = true;
+        }
+        if (userData.uid && !doc.uid) {
+          doc.uid = userData.uid;
+          changed = true;
+        }
+        if (changed) {
           await doc.save();
         }
       }
@@ -679,12 +691,31 @@ export async function getAllOrders(): Promise<OrderData[]> {
     const db = await connectToDatabase();
     if (db && Order) {
       const docs = await Order.find().sort({ createdAt: -1 }).lean();
-      const mapped = docs.map((d: any) => ({
-        ...d,
-        _id: d._id.toString(),
-        orderDate: d.orderDate?.toISOString?.() || new Date().toISOString(),
-        createdAt: d.createdAt?.toISOString?.() || new Date().toISOString(),
-      })) as unknown as OrderData[];
+      const mapped = docs.map((d: any) => {
+        let avatar = d.customerAvatar;
+        let mail = d.customerEmail;
+        if ((!avatar || !mail) && d.customerName) {
+          const u = usersCache.find(usr => 
+            (d.customerEmail && usr.email.toLowerCase() === d.customerEmail.toLowerCase()) ||
+            usr.name.toLowerCase() === d.customerName.toLowerCase()
+          );
+          if (u) {
+            if (!avatar) avatar = u.avatar;
+            if (!mail) mail = u.email;
+          }
+        }
+        if (!avatar && d.customerName) {
+          avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(d.customerName)}&background=047857&color=fff`;
+        }
+        return {
+          ...d,
+          customerAvatar: avatar,
+          customerEmail: mail || '',
+          _id: d._id.toString(),
+          orderDate: d.orderDate?.toISOString?.() || new Date().toISOString(),
+          createdAt: d.createdAt?.toISOString?.() || new Date().toISOString(),
+        } as unknown as OrderData;
+      });
       ordersCache = mapped;
       mapped.forEach(o => persistentStore.saveOrder(o));
       return mapped;
@@ -703,7 +734,7 @@ export async function createOrder(data: Partial<OrderData>): Promise<OrderData> 
   const changeDue = paidAmount - totalBill;
   
   let status: OrderData['status'] = data.status || 'Pending';
-  if (totalBill > 0 && paidAmount >= totalBill) {
+  if (totalBill > 0 && (paidAmount >= totalBill || data.paymentMethod === 'Wallet')) {
     status = 'Paid';
   } else if (totalBill > 0 && paidAmount > 0 && paidAmount < totalBill) {
     status = 'Partial';
@@ -711,19 +742,59 @@ export async function createOrder(data: Partial<OrderData>): Promise<OrderData> 
     status = 'Due';
   }
 
-  // Auto-populate avatar and user id from known users if not provided
+  // Auto-populate avatar, email, and user id from known users or MongoDB if not provided
   let custAvatar = data.customerAvatar || '';
   let uId = data.userId || '';
-  if (!custAvatar && data.customerName) {
-    const matched = usersCache.find(
-      u => u.name.toLowerCase() === data.customerName?.toLowerCase() ||
-           u.email.toLowerCase() === data.customerEmail?.toLowerCase()
-    );
-    if (matched) {
-      custAvatar = matched.avatar;
-      uId = matched.id;
-    }
+  let custEmail = (data.customerEmail || '').toLowerCase().trim();
+  const custName = (data.customerName || '').toLowerCase().trim();
+
+  // Find user in cache or MongoDB
+  let matchedUser = usersCache.find(
+    u => (custEmail && u.email.toLowerCase() === custEmail) ||
+         (custName && u.name.toLowerCase() === custName)
+  );
+
+  if (!matchedUser) {
+    try {
+      await connectToDatabase();
+      if (User) {
+        const uDoc = await User.findOne({
+          $or: [
+            { email: custEmail || '___none___' },
+            { name: custName || '___none___' }
+          ]
+        });
+        if (uDoc) {
+          matchedUser = {
+            id: uDoc._id.toString(),
+            name: uDoc.name,
+            email: uDoc.email,
+            avatar: uDoc.avatar,
+            role: uDoc.role,
+            balance: Number(uDoc.balance) || 0,
+            currentDue: Number(uDoc.currentDue) || 0,
+            totalSpent: Number(uDoc.totalSpent) || 0,
+            department: uDoc.department,
+            createdAt: uDoc.createdAt?.toISOString?.() || new Date().toISOString()
+          };
+          usersCache = [matchedUser, ...usersCache];
+        }
+      }
+    } catch (e) {}
   }
+
+  if (matchedUser) {
+    custAvatar = custAvatar || matchedUser.avatar;
+    uId = uId || matchedUser.id;
+    custEmail = custEmail || matchedUser.email;
+  }
+
+  if (!custAvatar && data.customerName) {
+    custAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(data.customerName)}&background=047857&color=fff`;
+  }
+
+  // Check if change is to be credited to wallet
+  const shouldDepositChange = Boolean(data.depositChangeToWallet && changeDue > 0);
 
   const newOrder: OrderData = {
     _id: `ord-${Date.now()}`,
@@ -731,7 +802,7 @@ export async function createOrder(data: Partial<OrderData>): Promise<OrderData> 
     customerName: data.customerName || "Customer",
     customerPhone: data.customerPhone || "",
     customerDepartment: data.customerDepartment || "General",
-    customerEmail: data.customerEmail || "",
+    customerEmail: custEmail,
     customerAvatar: custAvatar,
     userId: uId,
     itemsText: data.itemsText || (data.items?.map(i => `${i.quantity} ta ${i.name}`).join(' + ') || "Quick Order"),
@@ -741,31 +812,42 @@ export async function createOrder(data: Partial<OrderData>): Promise<OrderData> 
     changeDue,
     status,
     paymentMethod: data.paymentMethod || 'Cash',
+    depositChangeToWallet: shouldDepositChange,
     notes: data.notes || '',
     orderDate: data.orderDate || new Date().toISOString(),
     createdAt: new Date().toISOString()
   };
 
   // 1. Update user balance/spent dynamically in database and memory
-  if (data.customerName || data.customerEmail) {
-    const custEmail = (data.customerEmail || '').toLowerCase().trim();
-    const custName = (data.customerName || '').toLowerCase().trim();
-    const user = usersCache.find(u => 
-      (custEmail && u.email.toLowerCase() === custEmail) ||
-      (custName && u.name.toLowerCase() === custName)
-    );
-    if (user) {
-      user.totalSpent = (user.totalSpent || 0) + totalBill;
-      if (data.paymentMethod === 'Wallet') {
-        user.balance = Math.max(0, (user.balance || 0) - totalBill);
-        persistentStore.updateUserProfile(user.email, {
-          balance: user.balance,
-          totalSpent: user.totalSpent,
-        });
-        await updateUserBalance(user.id || user.email, totalBill, 'deduct');
-      } else {
-        persistentStore.updateUserProfile(user.email, {
-          totalSpent: user.totalSpent,
+  const userTargetIdOrEmail = matchedUser?.id || custEmail || custName;
+  if (userTargetIdOrEmail) {
+    // If Wallet payment: deduct totalBill from balance
+    if (data.paymentMethod === 'Wallet' && totalBill > 0) {
+      await updateUserBalance(userTargetIdOrEmail, totalBill, 'deduct');
+    }
+
+    // If change is to be credited to wallet: add changeDue to balance
+    if (shouldDepositChange) {
+      await updateUserBalance(userTargetIdOrEmail, changeDue, 'add');
+    }
+
+    // Always increment totalSpent for customer in MongoDB Atlas
+    if (totalBill > 0) {
+      try {
+        await connectToDatabase();
+        if (User) {
+          await User.findOneAndUpdate(
+            { $or: [{ email: custEmail }, { name: custName }] },
+            { $inc: { totalSpent: totalBill } }
+          );
+        }
+      } catch (e) {
+        console.warn("MongoDB totalSpent update error:", e);
+      }
+      if (matchedUser) {
+        matchedUser.totalSpent = (matchedUser.totalSpent || 0) + totalBill;
+        persistentStore.updateUserProfile(matchedUser.email, {
+          totalSpent: matchedUser.totalSpent
         });
       }
     }
@@ -788,7 +870,7 @@ export async function createOrder(data: Partial<OrderData>): Promise<OrderData> 
 
   // 3. Immediately persist to disk & memory
   persistentStore.saveOrder(newOrder);
-  ordersCache.unshift(newOrder);
+  ordersCache = [newOrder, ...ordersCache];
 
   return newOrder;
 }

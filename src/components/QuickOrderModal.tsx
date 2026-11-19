@@ -54,6 +54,8 @@ export default function QuickOrderModal({
   const [showAddCustom, setShowAddCustom] = useState(false);
   const [paidAmount, setPaidAmount] = useState<number>(0);
   const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'bKash' | 'Nagad' | 'Wallet' | 'Card'>('Cash');
+  const [depositChangeToWallet, setDepositChangeToWallet] = useState<boolean>(true);
+  const [liveBalance, setLiveBalance] = useState<number>(user?.balance || 0);
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -65,6 +67,24 @@ export default function QuickOrderModal({
         setCustomerName(user.displayName || user.name || user.email?.split('@')[0] || '');
         setCustomerAvatar(user.photoURL || user.avatar || '');
       }
+
+      setLiveBalance(user?.balance || 0);
+
+      // Fetch fresh balance live
+      fetch('/api/users')
+        .then(r => r.json())
+        .then(res => {
+          if (res.success && Array.isArray(res.data)) {
+            const found = res.data.find((u: any) => 
+              u.email?.toLowerCase() === (user?.email || '').toLowerCase() || 
+              u.id === user?.uid
+            );
+            if (found && found.balance !== undefined) {
+              setLiveBalance(Number(found.balance) || 0);
+            }
+          }
+        })
+        .catch(() => {});
 
       fetch('/api/menu')
         .then(r => r.json())
@@ -178,7 +198,25 @@ export default function QuickOrderModal({
     const finalCust = customerName.trim() || prefillCustomer || user?.displayName || user?.name || user?.email?.split('@')[0] || 'Member';
     const finalAvatar = customerAvatar || user?.photoURL || user?.avatar || '';
 
-    if (itemsList.length === 0 && calculatedBill === 0) {
+    // If user filled in custom dish inputs but didn't click "Add", automatically include it
+    const effectiveItemsList = [...itemsList];
+    let effectiveBill = calculatedBill;
+    const effectiveSummary = [...selectedItemsSummary];
+
+    if (newCustomName.trim() && newCustomPrice > 0) {
+      const extraQty = Math.max(1, Number(newCustomQty) || 1);
+      const extraSub = extraQty * Number(newCustomPrice);
+      effectiveBill += extraSub;
+      effectiveSummary.push(`${extraQty}x ${newCustomName.trim()}`);
+      effectiveItemsList.push({
+        name: newCustomName.trim(),
+        quantity: extraQty,
+        unitPrice: Number(newCustomPrice),
+        subtotal: extraSub,
+      });
+    }
+
+    if (effectiveItemsList.length === 0 && effectiveBill === 0) {
       toast.warning(
         language === 'bn' 
           ? 'দয়া করে অন্তত একটি খাবারের আইটেম বা কাস্টম খাবার যোগ করুন!' 
@@ -188,6 +226,10 @@ export default function QuickOrderModal({
       return;
     }
 
+    const effectivePaid = Number(paidAmount) || (paymentMethod === 'Wallet' ? effectiveBill : 0);
+    const effChange = paymentMethod === 'Wallet' ? 0 : Math.max(0, effectivePaid - effectiveBill);
+    const willDepositChange = Boolean(paymentMethod === 'Cash' && depositChangeToWallet && effChange > 0);
+
     setSubmitting(true);
     try {
       await onSubmit({
@@ -196,20 +238,25 @@ export default function QuickOrderModal({
         customerEmail: user?.email || '',
         userId: user?.uid || '',
         customerDepartment: department,
-        itemsText: selectedItemsSummary.join(' + ') || (language === 'bn' ? 'ক্যাটারিং খাবার অর্ডার' : 'Catering Order'),
-        items: itemsList,
-        totalBill: calculatedBill,
-        paidAmount: Number(paidAmount) || (paymentMethod === 'Wallet' ? calculatedBill : 0),
-        changeDue: paymentMethod === 'Wallet' ? 0 : ((Number(paidAmount) || 0) - calculatedBill),
-        status: calculatedBill > 0 && (paidAmount >= calculatedBill || paymentMethod === 'Wallet') ? 'Paid' : (calculatedBill === 0 ? 'Pending' : 'Due'),
+        itemsText: effectiveSummary.join(' + ') || (language === 'bn' ? 'ক্যাটারিং খাবার অর্ডার' : 'Catering Order'),
+        items: effectiveItemsList,
+        totalBill: effectiveBill,
+        paidAmount: effectivePaid,
+        changeDue: effChange,
+        status: effectiveBill > 0 && (effectivePaid >= effectiveBill || paymentMethod === 'Wallet') ? 'Paid' : (effectiveBill === 0 ? 'Pending' : 'Due'),
         paymentMethod,
+        depositChangeToWallet: willDepositChange,
         notes,
       });
 
+      const changeMsg = willDepositChange
+        ? (language === 'bn' ? ` (বাকি ৳${effChange.toFixed(2)} ওয়ালেট ব্যালেন্সে জমা হয়েছে)` : ` (৳${effChange.toFixed(2)} change deposited to wallet)`)
+        : '';
+
       toast.success(
         language === 'bn' 
-          ? `আপনার খাবার অর্ডার সফলভাবে গ্রহণ করা হয়েছে! মোট বিল: ৳${calculatedBill.toFixed(2)}` 
-          : `Order placed successfully! Total Bill: ৳${calculatedBill.toFixed(2)}`,
+          ? `আপনার খাবার অর্ডার সফলভাবে গ্রহণ করা হয়েছে! মোট বিল: ৳${effectiveBill.toFixed(2)}${changeMsg}` 
+          : `Order placed successfully! Total Bill: ৳${effectiveBill.toFixed(2)}${changeMsg}`,
         'Order Confirmed 🎉'
       );
 
@@ -221,6 +268,8 @@ export default function QuickOrderModal({
       // reset
       setItemQuantities({});
       setCustomItems([]);
+      setNewCustomName('');
+      setNewCustomPrice(0);
       setPaidAmount(0);
       setCustomerName(user?.displayName || user?.name || '');
       onClose();
@@ -275,20 +324,34 @@ export default function QuickOrderModal({
             </div>
 
             {user && (
-              <div className="flex items-center gap-3 p-2.5 rounded-2xl bg-emerald-950/40 border border-emerald-800/60 shadow-inner">
-                <img
-                  src={customerAvatar || user.photoURL || user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(customerName || 'User')}&background=047857&color=fff`}
-                  alt="Profile"
-                  className="w-9 h-9 rounded-full object-cover ring-2 ring-emerald-500/40 shrink-0"
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-bold text-white truncate flex items-center gap-1.5">
-                    <span>{customerName || user.displayName || 'Member'}</span>
-                    <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-mono">
-                      Profile Active
-                    </span>
-                  </p>
-                  <p className="text-[10px] text-slate-400 truncate font-mono">{user.email}</p>
+              <div className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-emerald-950/40 border border-emerald-800/60 shadow-inner">
+                <div className="flex items-center gap-3 min-w-0">
+                  <img
+                    src={customerAvatar || user.photoURL || user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(customerName || 'User')}&background=047857&color=fff`}
+                    alt="Profile"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(customerName || 'User')}&background=047857&color=fff`;
+                    }}
+                    className="w-10 h-10 rounded-full object-cover ring-2 ring-emerald-500/40 shrink-0"
+                  />
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-white truncate flex items-center gap-1.5">
+                      <span>{customerName || user.displayName || 'Member'}</span>
+                      <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-mono">
+                        Profile Active
+                      </span>
+                    </p>
+                    <p className="text-[10px] text-slate-400 truncate font-mono">{user.email}</p>
+                  </div>
+                </div>
+
+                <div className="text-right shrink-0 bg-slate-900/90 px-3 py-1.5 rounded-xl border border-emerald-700/50">
+                  <span className="text-[10px] font-semibold text-emerald-300 uppercase block">
+                    {language === 'bn' ? 'ওয়ালেট ব্যালেন্স' : 'Wallet Balance'}
+                  </span>
+                  <span className="text-sm sm:text-base font-extrabold font-mono text-amber-300">
+                    ৳{(liveBalance ?? user.balance ?? 0).toFixed(2)}
+                  </span>
                 </div>
               </div>
             )}
@@ -553,6 +616,28 @@ export default function QuickOrderModal({
                 </div>
               </div>
             </div>
+
+            {/* Change to Wallet Balance Option */}
+            {paymentMethod === 'Cash' && changeDue > 0 && (
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-2">
+                <label className="flex items-center gap-2.5 cursor-pointer text-xs">
+                  <input
+                    type="checkbox"
+                    checked={depositChangeToWallet}
+                    onChange={(e) => setDepositChangeToWallet(e.target.checked)}
+                    className="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-400 bg-slate-900 border-slate-700 cursor-pointer"
+                  />
+                  <span className="text-amber-200 font-medium">
+                    {language === 'bn' 
+                      ? `অবশিষ্ট ৳${changeDue.toFixed(2)} ক্যাটারিং ব্যালেন্সে জমা করুন` 
+                      : `Credit change ৳${changeDue.toFixed(2)} to Catering Wallet`}
+                  </span>
+                </label>
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shrink-0">
+                  {depositChangeToWallet ? `+৳${changeDue.toFixed(2)} Balance` : (language === 'bn' ? 'নগদ ফেরত' : 'Cash Back')}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Payment Method & Notes */}
@@ -596,19 +681,27 @@ export default function QuickOrderModal({
             </div>
 
             {paymentMethod === 'Wallet' && (
-              <div className="p-3 rounded-xl bg-emerald-950/50 border border-emerald-500/40 flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2">
-                  <Banknote className="w-4 h-4 text-emerald-400" />
-                  <span className="text-slate-300">
-                    {language === 'bn' ? 'বর্তমান ওয়ালেট ব্যালেন্স:' : 'Current Wallet Balance:'}
+              <div className="p-3 rounded-xl bg-emerald-950/50 border border-emerald-500/40 space-y-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Banknote className="w-4 h-4 text-emerald-400" />
+                    <span className="text-slate-300">
+                      {language === 'bn' ? 'বর্তমান ওয়ালেট ব্যালেন্স:' : 'Current Wallet Balance:'}
+                    </span>
+                    <span className="font-mono font-bold text-amber-300">৳{(liveBalance ?? user?.balance ?? 0).toFixed(2)}</span>
+                  </div>
+                  <span className="text-[10px] text-emerald-400 font-medium">
+                    {calculatedBill <= (liveBalance ?? user?.balance ?? 0)
+                      ? (language === 'bn' ? '✓ ব্যালেন্স পর্যাপ্ত' : '✓ Sufficient Balance')
+                      : (language === 'bn' ? '⚠️ নেগেটিভ/ডিউ হবে' : '⚠️ Overdraft / Due')}
                   </span>
-                  <span className="font-mono font-bold text-amber-300">৳{(user?.balance || 0).toFixed(2)}</span>
                 </div>
-                <span className="text-[10px] text-emerald-400 font-medium">
-                  {calculatedBill <= (user?.balance || 0)
-                    ? (language === 'bn' ? '✓ ব্যালেন্স পর্যাপ্ত' : '✓ Sufficient Balance')
-                    : (language === 'bn' ? '⚠️ নেগেটিভ/ডিউ হবে' : '⚠️ Overdraft / Due')}
-                </span>
+                <div className="flex items-center justify-between pt-1 border-t border-emerald-800/40 text-[11px] text-slate-300">
+                  <span>{language === 'bn' ? 'অর্ডার পরবর্তী ব্যালেন্স:' : 'Balance After Order:'}</span>
+                  <span className="font-mono font-bold text-teal-300">
+                    ৳{Math.max(0, (liveBalance ?? user?.balance ?? 0) - calculatedBill).toFixed(2)}
+                  </span>
+                </div>
               </div>
             )}
           </div>

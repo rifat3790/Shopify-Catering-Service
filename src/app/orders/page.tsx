@@ -472,6 +472,9 @@ function OrdersPageContent() {
                             <img
                               src={order.customerAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(order.customerName || 'User')}&background=047857&color=fff`}
                               alt={order.customerName}
+                              onError={(e) => {
+                                (e.currentTarget as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(order.customerName || 'User')}&background=047857&color=fff`;
+                              }}
                               className="w-8 h-8 rounded-full object-cover ring-1 ring-emerald-500/40 shrink-0"
                             />
                             <div>

@@ -196,8 +196,11 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">
                 <img
-                  src={user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || 'User')}&background=047857&color=fff`}
+                  src={user.photoURL || user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || 'User')}&background=047857&color=fff`}
                   alt="Profile"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || 'User')}&background=047857&color=fff`;
+                  }}
                   className="w-8 h-8 rounded-full object-cover ring-2 ring-emerald-500/40 shrink-0"
                 />
                 <div className="min-w-0">

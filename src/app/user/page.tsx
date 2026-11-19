@@ -162,8 +162,11 @@ function UserDashboardContent() {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-emerald-900/40">
             <div className="flex items-center gap-3">
               <img
-                src={user?.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.displayName || 'User')}&background=047857&color=fff`}
-                alt={user?.displayName || 'User'}
+                src={activeUserRecord?.avatar || user?.photoURL || user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(activeDisplayName || 'User')}&background=047857&color=fff`}
+                alt={activeDisplayName || 'User'}
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(activeDisplayName || 'User')}&background=047857&color=fff`;
+                }}
                 className="w-14 h-14 rounded-2xl object-cover ring-2 ring-emerald-500/50 shadow-lg shrink-0"
               />
               <div>

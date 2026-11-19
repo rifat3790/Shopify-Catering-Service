@@ -13,13 +13,17 @@ export interface IOrder extends Document {
   customerName: string;
   customerPhone?: string;
   customerDepartment?: string;
+  customerEmail?: string;
+  customerAvatar?: string;
+  userId?: string;
   itemsText: string;
   items: IOrderItem[];
   totalBill: number;
   paidAmount: number;
   changeDue: number;
   status: 'Paid' | 'Pending' | 'Due' | 'Partial' | 'Cancelled';
-  paymentMethod: 'Cash' | 'bKash' | 'Nagad' | 'Card' | 'Credit';
+  paymentMethod: 'Cash' | 'bKash' | 'Nagad' | 'Card' | 'Credit' | 'Wallet';
+  depositChangeToWallet?: boolean;
   notes?: string;
   orderDate: Date;
   dateString: string;
@@ -41,6 +45,9 @@ const OrderSchema = new Schema<IOrder>(
     customerName: { type: String, required: true },
     customerPhone: { type: String },
     customerDepartment: { type: String },
+    customerEmail: { type: String, default: '' },
+    customerAvatar: { type: String, default: '' },
+    userId: { type: String, default: '' },
     itemsText: { type: String, default: '' },
     items: [OrderItemSchema],
     totalBill: { type: Number, required: true, default: 0 },
@@ -53,9 +60,10 @@ const OrderSchema = new Schema<IOrder>(
     },
     paymentMethod: {
       type: String,
-      enum: ['Cash', 'bKash', 'Nagad', 'Card', 'Credit'],
+      enum: ['Cash', 'bKash', 'Nagad', 'Card', 'Credit', 'Wallet'],
       default: 'Cash',
     },
+    depositChangeToWallet: { type: Boolean, default: false },
     notes: { type: String },
     orderDate: { type: Date, default: Date.now },
     dateString: { type: String, default: () => new Date().toISOString().split('T')[0] },

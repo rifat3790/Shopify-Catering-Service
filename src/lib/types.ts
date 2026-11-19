@@ -21,6 +21,7 @@ export interface OrderData {
   changeDue: number;
   status: 'Paid' | 'Pending' | 'Due' | 'Partial' | 'Cancelled' | 'Cooking' | 'Delivered';
   paymentMethod: 'Cash' | 'bKash' | 'Nagad' | 'Card' | 'Credit' | 'Wallet';
+  depositChangeToWallet?: boolean;
   notes?: string;
   orderDate: string;
   createdAt?: string;
