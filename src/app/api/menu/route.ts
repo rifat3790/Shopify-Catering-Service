@@ -4,7 +4,10 @@ import { getAllMenuItems, createMenuItem, updateMenuItem, deleteMenuItem } from 
 export async function GET() {
   try {
     const items = await getAllMenuItems();
-    return NextResponse.json({ success: true, data: items });
+    return NextResponse.json(
+      { success: true, data: items },
+      { headers: { 'Cache-Control': 'public, s-maxage=1, stale-while-revalidate=30' } }
+    );
   } catch (error: any) {
     return NextResponse.json(
       { success: false, error: error.message || 'Failed to fetch menu items' },

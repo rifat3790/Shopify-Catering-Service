@@ -12,6 +12,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/context/ToastContext';
 import { OrderData, UserRecord } from '@/lib/types';
+import { getClientCache, setClientCache } from '@/lib/clientCache';
 import { filterOrdersByDate, DateFilterType } from '@/lib/dateFilterUtils';
 import Link from 'next/link';
 import { 
@@ -33,16 +34,24 @@ function UserDashboardContent() {
   const { language } = useLanguage();
   const { toast } = useToast();
 
-  const [orders, setOrders] = useState<OrderData[]>([]);
+  // Instant 0ms cache initialize
+  const [orders, setOrders] = useState<OrderData[]>(() => {
+    return getClientCache<OrderData[]>('orders_list') || [];
+  });
   const [selectedInvoice, setSelectedInvoice] = useState<OrderData | null>(null);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [dateFilter, setDateFilter] = useState<DateFilterType>('today');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(() => {
+    const cached = getClientCache<OrderData[]>('orders_list');
+    return !cached || cached.length === 0;
+  });
 
   // Admin view switcher (only for super_admin and admin)
   const isElevated = user?.role === 'super_admin' || user?.role === 'admin';
-  const [elevatedMemberList, setElevatedMemberList] = useState<UserRecord[]>([]);
+  const [elevatedMemberList, setElevatedMemberList] = useState<UserRecord[]>(() => {
+    return getClientCache<UserRecord[]>('members_list') || [];
+  });
   const [inspectedUserName, setInspectedUserName] = useState<string>('');
 
   // Balance Quick Edit / Recharge Modal
@@ -51,8 +60,10 @@ function UserDashboardContent() {
   const [balanceAction, setBalanceAction] = useState<'add' | 'deduct' | 'set'>('add');
   const [isUpdatingBalance, setIsUpdatingBalance] = useState(false);
 
-  const loadUserData = async () => {
-    setLoading(true);
+  const loadUserData = async (silent = false) => {
+    if (!silent && (!orders || orders.length === 0)) {
+      setLoading(true);
+    }
     try {
       const [ordRes, uRes] = await Promise.all([
         fetch('/api/orders').then(r => r.ok ? r.json() : null).catch(() => null),
@@ -61,10 +72,12 @@ function UserDashboardContent() {
 
       if (ordRes && ordRes.success && Array.isArray(ordRes.data)) {
         setOrders(ordRes.data);
+        setClientCache('orders_list', ordRes.data);
       }
 
       if (uRes && uRes.success && Array.isArray(uRes.data)) {
         setElevatedMemberList(uRes.data);
+        setClientCache('members_list', uRes.data);
         const me = uRes.data.find((u: UserRecord) => 
           (user?.email && u.email.toLowerCase() === user.email.toLowerCase()) || 
           (user?.uid && u.id === user.uid)
@@ -90,7 +103,7 @@ function UserDashboardContent() {
   };
 
   useEffect(() => {
-    loadUserData();
+    loadUserData(true);
   }, [user?.uid, user?.email]);
 
   // Target User determination: either inspected member or current logged in user

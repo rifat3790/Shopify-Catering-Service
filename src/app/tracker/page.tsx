@@ -11,16 +11,26 @@ import DateFilterPills from '@/components/DateFilterPills';
 import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/context/ToastContext';
 import { OrderData } from '@/lib/types';
+import { getClientCache, setClientCache } from '@/lib/clientCache';
 import { filterOrdersByDate, calculateStatsFromOrders, DateFilterType } from '@/lib/dateFilterUtils';
 import { TableProperties, RefreshCw } from 'lucide-react';
 
 function TrackerContent() {
   const { language } = useLanguage();
   const { toast } = useToast();
-  const [orders, setOrders] = useState<OrderData[]>([]);
-  const [totalBalance, setTotalBalance] = useState<number>(0);
+  
+  // Instant 0ms cache initialize
+  const [orders, setOrders] = useState<OrderData[]>(() => {
+    return getClientCache<OrderData[]>('orders_list') || [];
+  });
+  const [totalBalance, setTotalBalance] = useState<number>(() => {
+    return getClientCache<number>('total_balance') || 0;
+  });
   const [dateFilter, setDateFilter] = useState<DateFilterType>('today');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(() => {
+    const cached = getClientCache<OrderData[]>('orders_list');
+    return !cached || cached.length === 0;
+  });
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<OrderData | null>(null);
 
@@ -34,6 +44,7 @@ function TrackerContent() {
         const oData = await ordersRes.json();
         if (oData.success && oData.data) {
           setOrders(oData.data);
+          setClientCache('orders_list', oData.data);
         }
       }
       if (usersRes.ok) {
@@ -41,6 +52,7 @@ function TrackerContent() {
         if (uData.success && Array.isArray(uData.data)) {
           const sum = uData.data.reduce((acc: number, curr: any) => acc + (Number(curr.balance) || 0), 0);
           setTotalBalance(sum);
+          setClientCache('total_balance', sum);
         }
       }
     } catch (err) {

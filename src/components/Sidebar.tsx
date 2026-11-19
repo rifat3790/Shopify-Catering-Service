@@ -203,7 +203,7 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
       
       {/* Brand Header */}
       <div className="p-6 border-b border-emerald-900/40">
-        <Link href="/" className="flex items-center gap-3 group">
+        <Link href="/" prefetch={true} className="flex items-center gap-3 group">
           <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-emerald-800 to-emerald-600 p-[2px] shadow-lg shadow-emerald-950/50 group-hover:scale-105 transition-transform duration-300">
             <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center border border-amber-500/30">
               <UtensilsCrossed className="w-5 h-5 text-amber-400 group-hover:rotate-12 transition-transform duration-300" />
@@ -333,6 +333,7 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
             <Link
               key={item.href}
               href={item.href}
+              prefetch={true}
               onClick={() => setMobileOpen(false)}
               className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
                 isActive
@@ -376,6 +377,7 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
                 <Link
                   key={item.href}
                   href={item.href}
+                  prefetch={true}
                   onClick={() => setMobileOpen(false)}
                   className={`flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all ${
                     isActive
@@ -416,6 +418,7 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
           ) : (
             <Link
               href="/login"
+              prefetch={true}
               className="text-xs font-bold text-amber-300 hover:underline"
             >
               লগইন

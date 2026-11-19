@@ -46,6 +46,11 @@ const UserSchema = new Schema<IUser>(
   }
 );
 
+UserSchema.index({ uid: 1 });
+UserSchema.index({ role: 1 });
+UserSchema.index({ createdAt: -1 });
+UserSchema.index({ isOnline: 1 });
+
 export default (typeof mongoose !== 'undefined' && mongoose.models && mongoose.models.User)
   ? (mongoose.models.User as mongoose.Model<IUser>)
   : (typeof mongoose !== 'undefined' && mongoose.model)

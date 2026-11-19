@@ -13,21 +13,22 @@ import DateFilterPills from '@/components/DateFilterPills';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { OrderData, MenuItemData, UserRecord, PasswordResetRequest } from '@/lib/types';
+import { getClientCache, setClientCache } from '@/lib/clientCache';
 import { filterOrdersByDate, calculateStatsFromOrders, DateFilterType } from '@/lib/dateFilterUtils';
 import Link from 'next/link';
-import { 
-  ShieldCheck, 
-  ChefHat, 
-  Utensils, 
-  Plus, 
-  RefreshCw, 
-  PlusCircle, 
-  MinusCircle, 
-  Edit3, 
-  Trash2, 
-  Wallet, 
-  Users, 
-  Coins, 
+import {
+  ShieldCheck,
+  ChefHat,
+  Utensils,
+  Plus,
+  RefreshCw,
+  PlusCircle,
+  MinusCircle,
+  Edit3,
+  Trash2,
+  Wallet,
+  Users,
+  Coins,
   Search,
   KeyRound,
   Copy,
@@ -38,9 +39,17 @@ import {
 function AdminPageContent() {
   const { user } = useAuth();
   const { language } = useLanguage();
-  const [orders, setOrders] = useState<OrderData[]>([]);
-  const [menuItems, setMenuItems] = useState<MenuItemData[]>([]);
-  const [members, setMembers] = useState<UserRecord[]>([]);
+  
+  // Instant 0ms cache initialize
+  const [orders, setOrders] = useState<OrderData[]>(() => {
+    return getClientCache<OrderData[]>('orders_list') || [];
+  });
+  const [menuItems, setMenuItems] = useState<MenuItemData[]>(() => {
+    return getClientCache<MenuItemData[]>('menu_items') || [];
+  });
+  const [members, setMembers] = useState<UserRecord[]>(() => {
+    return getClientCache<UserRecord[]>('members_list') || [];
+  });
   const [memberSearch, setMemberSearch] = useState('');
   const [stats, setStats] = useState({
     ordersCount: 0,
@@ -53,7 +62,10 @@ function AdminPageContent() {
     collectionRate: "0.0%",
     rawCollectionRate: 0
   });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(() => {
+    const cached = getClientCache<OrderData[]>('orders_list');
+    return !cached || cached.length === 0;
+  });
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<OrderData | null>(null);
   const [activeTab, setActiveTab] = useState<'orders' | 'menu' | 'balance' | 'resets' | 'timing'>('orders');
@@ -115,7 +127,10 @@ function AdminPageContent() {
 
       if (ordRes.ok) {
         const o = await ordRes.json();
-        if (o.success && o.data) setOrders(o.data);
+        if (o.success && o.data) {
+          setOrders(o.data);
+          setClientCache('orders_list', o.data);
+        }
       }
       if (statRes.ok) {
         const s = await statRes.json();
@@ -123,11 +138,17 @@ function AdminPageContent() {
       }
       if (menuRes.ok) {
         const m = await menuRes.json();
-        if (m.success && m.data) setMenuItems(m.data);
+        if (m.success && m.data) {
+          setMenuItems(m.data);
+          setClientCache('menu_items', m.data);
+        }
       }
       if (userRes.ok) {
         const u = await userRes.json();
-        if (u.success && u.data) setMembers(u.data);
+        if (u.success && u.data) {
+          setMembers(u.data);
+          setClientCache('members_list', u.data);
+        }
       }
       if (resetRes.ok) {
         const r = await resetRes.json();
@@ -267,7 +288,7 @@ function AdminPageContent() {
     }
   };
 
-  const filteredMembers = members.filter(m => 
+  const filteredMembers = members.filter(m =>
     (m.name || '').toLowerCase().includes(memberSearch.toLowerCase()) ||
     (m.email || '').toLowerCase().includes(memberSearch.toLowerCase()) ||
     (m.department || '').toLowerCase().includes(memberSearch.toLowerCase())
@@ -279,7 +300,7 @@ function AdminPageContent() {
 
       <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
         <main className="p-4 sm:p-6 lg:p-10 space-y-6 max-w-[1920px] w-full mx-auto">
-          
+
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-emerald-900/40">
             <div className="flex items-center gap-3">
@@ -325,33 +346,29 @@ function AdminPageContent() {
           <div className="flex flex-wrap items-center gap-2 p-1 bg-slate-900 rounded-2xl w-fit border border-slate-800">
             <button
               onClick={() => setActiveTab('orders')}
-              className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                activeTab === 'orders' ? 'bg-emerald-700 text-white shadow' : 'text-slate-400 hover:text-white'
-              }`}
+              className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === 'orders' ? 'bg-emerald-700 text-white shadow' : 'text-slate-400 hover:text-white'
+                }`}
             >
               📋 {language === 'bn' ? 'অর্ডার ও পেমেন্ট ট্র্যাকার' : 'Orders & Ledger'}
             </button>
             <button
               onClick={() => setActiveTab('menu')}
-              className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                activeTab === 'menu' ? 'bg-emerald-700 text-white shadow' : 'text-slate-400 hover:text-white'
-              }`}
+              className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === 'menu' ? 'bg-emerald-700 text-white shadow' : 'text-slate-400 hover:text-white'
+                }`}
             >
               🍲 {language === 'bn' ? 'মেনু ক্যাটালগ কন্ট্রোল' : 'Menu Management'}
             </button>
             <button
               onClick={() => setActiveTab('balance')}
-              className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                activeTab === 'balance' ? 'bg-amber-500 text-slate-950 shadow' : 'text-slate-400 hover:text-white'
-              }`}
+              className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === 'balance' ? 'bg-amber-500 text-slate-950 shadow' : 'text-slate-400 hover:text-white'
+                }`}
             >
               💳 {language === 'bn' ? 'মেম্বার ব্যালেন্স কন্ট্রোল' : 'Member Balances'}
             </button>
             <button
               onClick={() => setActiveTab('resets')}
-              className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                activeTab === 'resets' ? 'bg-amber-400 text-slate-950 shadow' : 'text-slate-400 hover:text-white'
-              }`}
+              className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${activeTab === 'resets' ? 'bg-amber-400 text-slate-950 shadow' : 'text-slate-400 hover:text-white'
+                }`}
             >
               <KeyRound className="w-3.5 h-3.5" />
               <span>Reset Codes (OTP)</span>
@@ -363,9 +380,8 @@ function AdminPageContent() {
             </button>
             <button
               onClick={() => setActiveTab('timing')}
-              className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                activeTab === 'timing' ? 'bg-amber-400 text-slate-950 shadow' : 'text-slate-400 hover:text-white'
-              }`}
+              className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${activeTab === 'timing' ? 'bg-amber-400 text-slate-950 shadow' : 'text-slate-400 hover:text-white'
+                }`}
             >
               <Clock className="w-3.5 h-3.5" />
               <span>{language === 'bn' ? 'অর্ডার কাট-অফ ও টাইমিং' : 'Order Cutoff & Timing'}</span>
@@ -383,7 +399,7 @@ function AdminPageContent() {
               </div>
 
               <MetricsOverview stats={dynamicStats} isLoading={loading} />
-              
+
               <LiveTrackerTable
                 orders={filteredByDateOrders}
                 onOpenNewOrder={() => setIsOrderModalOpen(true)}
@@ -469,7 +485,7 @@ function AdminPageContent() {
                     <span>Member Catering Balances (Add, Deduct, Edit)</span>
                   </h3>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    {language === 'bn' 
+                    {language === 'bn'
                       ? 'অ্যাডমিন হিসেবে যেকোনো মেম্বারের অ্যাকাউন্টে ব্যালেন্স যোগ করতে, কাটতে বা সরাসরি এডিট করতে পারবেন'
                       : 'As an admin, you can add funds, deduct spent balances, or set exact amounts for any member.'}
                   </p>
@@ -491,7 +507,7 @@ function AdminPageContent() {
                 <LuxuryLoader message="Loading member balances..." subMessage="Fetching dynamic ledger" />
               ) : filteredMembers.length === 0 ? (
                 <div className="text-center py-12 text-slate-400 text-xs">
-                  {language === 'bn' 
+                  {language === 'bn'
                     ? 'কোনো মেম্বার অ্যাকাউন্ট পাওয়া যায়নি। মেম্বাররা লগইন করলে তাদের লাইভ ব্যালেন্স এখানে দেখা যাবে।'
                     : 'No real members found yet. Real users appear dynamically upon Google/Email sign-in.'}
                 </div>
@@ -799,11 +815,10 @@ function AdminPageContent() {
               <button
                 type="button"
                 onClick={() => setBalanceAction('add')}
-                className={`py-2 text-xs font-bold rounded-xl transition-all ${
-                  balanceAction === 'add'
-                    ? 'bg-emerald-600 text-slate-950 shadow-md'
-                    : 'text-slate-400 hover:text-white'
-                }`}
+                className={`py-2 text-xs font-bold rounded-xl transition-all ${balanceAction === 'add'
+                  ? 'bg-emerald-600 text-slate-950 shadow-md'
+                  : 'text-slate-400 hover:text-white'
+                  }`}
               >
                 + যোগ (Add)
               </button>
@@ -811,11 +826,10 @@ function AdminPageContent() {
               <button
                 type="button"
                 onClick={() => setBalanceAction('deduct')}
-                className={`py-2 text-xs font-bold rounded-xl transition-all ${
-                  balanceAction === 'deduct'
-                    ? 'bg-rose-600 text-white shadow-md'
-                    : 'text-slate-400 hover:text-white'
-                }`}
+                className={`py-2 text-xs font-bold rounded-xl transition-all ${balanceAction === 'deduct'
+                  ? 'bg-rose-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-white'
+                  }`}
               >
                 - কর্তন (Deduct)
               </button>
@@ -826,11 +840,10 @@ function AdminPageContent() {
                   setBalanceAction('set');
                   setBalanceAmount(balanceModalUser.balance);
                 }}
-                className={`py-2 text-xs font-bold rounded-xl transition-all ${
-                  balanceAction === 'set'
-                    ? 'bg-amber-400 text-slate-950 shadow-md'
-                    : 'text-slate-400 hover:text-white'
-                }`}
+                className={`py-2 text-xs font-bold rounded-xl transition-all ${balanceAction === 'set'
+                  ? 'bg-amber-400 text-slate-950 shadow-md'
+                  : 'text-slate-400 hover:text-white'
+                  }`}
               >
                 ✏️ এডিট (Set)
               </button>
@@ -839,8 +852,8 @@ function AdminPageContent() {
             <form onSubmit={handleBalanceSubmit} className="space-y-4">
               <div>
                 <label className="block text-[11px] font-semibold text-slate-400 uppercase mb-1">
-                  {balanceAction === 'add' 
-                    ? 'কত টাকা যোগ করতে চান? (BDT ৳)' 
+                  {balanceAction === 'add'
+                    ? 'কত টাকা যোগ করতে চান? (BDT ৳)'
                     : (balanceAction === 'deduct' ? 'কত টাকা কর্তন করতে চান? (BDT ৳)' : 'নতুন মোট ব্যালেন্স কত নির্ধারণ করতে চান? (BDT ৳)')}
                 </label>
 
@@ -851,9 +864,8 @@ function AdminPageContent() {
                         type="button"
                         key={amt}
                         onClick={() => setBalanceAmount(amt)}
-                        className={`py-1 text-xs font-bold rounded-lg ${
-                          balanceAmount === amt ? 'bg-amber-400 text-slate-950' : 'bg-slate-800 text-slate-300'
-                        }`}
+                        className={`py-1 text-xs font-bold rounded-lg ${balanceAmount === amt ? 'bg-amber-400 text-slate-950' : 'bg-slate-800 text-slate-300'
+                          }`}
                       >
                         ৳{amt}
                       </button>
@@ -874,11 +886,11 @@ function AdminPageContent() {
               <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-between text-xs">
                 <span className="text-slate-400">নতুন ব্যালেন্স দাঁড়াবে:</span>
                 <span className="font-mono font-bold text-amber-300 text-sm">
-                  ৳{balanceAction === 'add' 
+                  ৳{balanceAction === 'add'
                     ? (balanceModalUser.balance + Number(balanceAmount)).toFixed(2)
-                    : (balanceAction === 'deduct' 
-                        ? Math.max(0, balanceModalUser.balance - Number(balanceAmount)).toFixed(2)
-                        : Number(balanceAmount).toFixed(2))}
+                    : (balanceAction === 'deduct'
+                      ? Math.max(0, balanceModalUser.balance - Number(balanceAmount)).toFixed(2)
+                      : Number(balanceAmount).toFixed(2))}
                 </span>
               </div>
 
@@ -892,11 +904,10 @@ function AdminPageContent() {
                 </button>
                 <button
                   type="submit"
-                  className={`px-5 py-2 rounded-xl font-bold text-xs shadow-lg ${
-                    balanceAction === 'deduct'
-                      ? 'bg-rose-600 text-white hover:bg-rose-500'
-                      : 'bg-gradient-to-r from-emerald-600 to-amber-600 text-slate-950'
-                  }`}
+                  className={`px-5 py-2 rounded-xl font-bold text-xs shadow-lg ${balanceAction === 'deduct'
+                    ? 'bg-rose-600 text-white hover:bg-rose-500'
+                    : 'bg-gradient-to-r from-emerald-600 to-amber-600 text-slate-950'
+                    }`}
                 >
                   {balanceAction === 'add' ? 'ব্যালেন্স যোগ করুন' : (balanceAction === 'deduct' ? 'ব্যালেন্স কর্তন করুন' : 'ব্যালেন্স পরিবর্তন করুন')}
                 </button>

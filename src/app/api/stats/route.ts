@@ -15,11 +15,17 @@ export async function GET(request: Request) {
       const filtered = filterOrdersByDate(allOrders, dateFilter);
       const totalMemberBalance = allUsers.reduce((acc, curr) => acc + (Number(curr.balance) || 0), 0);
       const stats = calculateStatsFromOrders(filtered, totalMemberBalance);
-      return NextResponse.json({ success: true, data: stats });
+      return NextResponse.json(
+        { success: true, data: stats },
+        { headers: { 'Cache-Control': 'public, s-maxage=1, stale-while-revalidate=15' } }
+      );
     }
 
     const stats = await getStatsSummary();
-    return NextResponse.json({ success: true, data: stats });
+    return NextResponse.json(
+      { success: true, data: stats },
+      { headers: { 'Cache-Control': 'public, s-maxage=1, stale-while-revalidate=15' } }
+    );
   } catch (error: any) {
     console.error('API /stats error:', error);
     return NextResponse.json(

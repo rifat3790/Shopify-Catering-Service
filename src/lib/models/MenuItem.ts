@@ -42,6 +42,10 @@ const MenuItemSchema = new Schema<IMenuItem>(
   }
 );
 
+MenuItemSchema.index({ category: 1 });
+MenuItemSchema.index({ isAvailable: 1 });
+MenuItemSchema.index({ createdAt: -1 });
+
 export default (typeof mongoose !== 'undefined' && mongoose.models && mongoose.models.MenuItem)
   ? (mongoose.models.MenuItem as mongoose.Model<IMenuItem>)
   : (typeof mongoose !== 'undefined' && mongoose.model)

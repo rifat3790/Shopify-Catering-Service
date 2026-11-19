@@ -9,14 +9,15 @@ import QuickOrderModal from '@/components/QuickOrderModal';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { UserRecord, SUPER_ADMIN_EMAIL } from '@/lib/types';
-import { 
-  Users, 
-  Search, 
-  Plus, 
-  Wallet, 
-  Building, 
-  Utensils, 
-  TrendingUp, 
+import { getClientCache, setClientCache } from '@/lib/clientCache';
+import {
+  Users,
+  Search,
+  Plus,
+  Wallet,
+  Building,
+  Utensils,
+  TrendingUp,
   RefreshCw,
   PlusCircle,
   MinusCircle,
@@ -31,8 +32,15 @@ import {
 function MembersPageContent() {
   const { user } = useAuth();
   const { language } = useLanguage();
-  const [members, setMembers] = useState<UserRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  
+  // Instant 0ms cache initialize
+  const [members, setMembers] = useState<UserRecord[]>(() => {
+    return getClientCache<UserRecord[]>('members_list') || [];
+  });
+  const [loading, setLoading] = useState<boolean>(() => {
+    const cached = getClientCache<UserRecord[]>('members_list');
+    return !cached || cached.length === 0;
+  });
   const [search, setSearch] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('All');
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
@@ -56,13 +64,18 @@ function MembersPageContent() {
   const [newDept, setNewDept] = useState('Development');
   const [newBalance, setNewBalance] = useState<number>(0);
 
-  const fetchMembers = async () => {
-    setLoading(true);
+  const fetchMembers = async (silent = false) => {
+    if (!silent && (!members || members.length === 0)) {
+      setLoading(true);
+    }
     try {
       const res = await fetch('/api/users');
       if (res.ok) {
         const json = await res.json();
-        if (json.success && json.data) setMembers(json.data);
+        if (json.success && json.data) {
+          setMembers(json.data);
+          setClientCache('members_list', json.data);
+        }
       }
     } catch (e) {
       console.warn('Error fetching members:', e);
@@ -72,7 +85,7 @@ function MembersPageContent() {
   };
 
   useEffect(() => {
-    fetchMembers();
+    fetchMembers(true);
   }, []);
 
   const handleAddMemberSubmit = async (e: React.FormEvent) => {
@@ -137,7 +150,11 @@ function MembersPageContent() {
       if (res.ok) {
         const json = await res.json();
         if (json.success && json.data) {
-          setMembers(prev => prev.map(m => m.id === balanceModalUser.id ? json.data : m));
+          setMembers(prev => {
+            const next = prev.map(m => m.id === balanceModalUser.id ? json.data : m);
+            setClientCache('members_list', next);
+            return next;
+          });
         } else {
           fetchMembers();
         }
@@ -158,7 +175,11 @@ function MembersPageContent() {
       });
       const json = await res.json();
       if (json.success) {
-        setMembers(prev => prev.filter(m => m.id !== deleteModalUser.id && m.email !== deleteModalUser.email));
+        setMembers(prev => {
+          const next = prev.filter(m => m.id !== deleteModalUser.id && m.email !== deleteModalUser.email);
+          setClientCache('members_list', next);
+          return next;
+        });
         setDeleteModalUser(null);
         fetchMembers();
       } else {
@@ -174,8 +195,8 @@ function MembersPageContent() {
   const departments = ['All', 'Development', 'Marketing', 'Design & UX', 'Engineering', 'Operations', 'Support', 'Logistics'];
 
   const filteredMembers = members.filter(m => {
-    const matchSearch = 
-      (m.name || '').toLowerCase().includes(search.toLowerCase()) || 
+    const matchSearch =
+      (m.name || '').toLowerCase().includes(search.toLowerCase()) ||
       (m.username || '').toLowerCase().includes(search.toLowerCase()) ||
       (m.email || '').toLowerCase().includes(search.toLowerCase());
     const matchDept = departmentFilter === 'All' ? true : (m.department || '').toLowerCase().includes(departmentFilter.toLowerCase());
@@ -190,7 +211,7 @@ function MembersPageContent() {
       <Sidebar onOpenNewOrder={() => setSelectedOrderMember('Member')} />
 
       <main className="flex-1 w-full min-w-0 px-4 sm:px-6 lg:px-10 py-8 space-y-6">
-        
+
         {/* Top Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-emerald-900/40">
           <div className="flex items-center gap-3">
@@ -209,8 +230,8 @@ function MembersPageContent() {
                 </span>
               </div>
               <p className="text-xs text-slate-400">
-                {language === 'bn' 
-                  ? 'সকল মেম্বারের রিয়েল-টাইম ব্যালেন্স, যোগ/কর্তন/এডিট এবং সরাসরি খাবারের অর্ডার' 
+                {language === 'bn'
+                  ? 'সকল মেম্বারের রিয়েল-টাইম ব্যালেন্স, যোগ/কর্তন/এডিট এবং সরাসরি খাবারের অর্ডার'
                   : 'Manage all team members, individual meal balances (add, deduct, edit), and orders'}
               </p>
             </div>
@@ -218,7 +239,7 @@ function MembersPageContent() {
 
           <div className="flex items-center gap-2">
             <button
-              onClick={fetchMembers}
+              onClick={() => fetchMembers()}
               className="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800"
               title="Refresh"
             >
@@ -282,11 +303,10 @@ function MembersPageContent() {
               <button
                 key={dept}
                 onClick={() => setDepartmentFilter(dept)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
-                  departmentFilter === dept
-                    ? 'bg-amber-400 text-slate-950 font-bold'
-                    : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
-                }`}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${departmentFilter === dept
+                  ? 'bg-amber-400 text-slate-950 font-bold'
+                  : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
+                  }`}
               >
                 {dept}
               </button>
@@ -299,7 +319,7 @@ function MembersPageContent() {
           <LuxuryLoader message="Loading team members..." subMessage="Fetching dynamic balances & profiles" />
         ) : filteredMembers.length === 0 ? (
           <div className="text-center py-16 text-slate-400 text-xs">
-            {language === 'bn' 
+            {language === 'bn'
               ? 'কোনো মেম্বার অ্যাকাউন্ট পাওয়া যায়নি। মেম্বাররা লগইন করলে বা উপরে "+ Add Member" বাটনে ক্লিক করলে দেখতে পাবেন।'
               : 'Zero dummy accounts. Real users appear automatically upon login or via "+ Add Member" above.'}
           </div>
@@ -309,113 +329,113 @@ function MembersPageContent() {
               const isMemberRootSuper = member.email?.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase();
 
               return (
-              <div
-                key={member.id}
-                className="p-5 rounded-3xl bg-slate-900/90 border border-slate-800 hover:border-emerald-600/70 shadow-xl transition-all duration-300 hover:scale-[1.01] flex flex-col justify-between space-y-4"
-              >
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <img
-                        src={member.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.name)}&background=047857&color=fff`}
-                        alt={member.name}
-                        className="w-12 h-12 rounded-2xl object-cover ring-2 ring-emerald-500/30"
-                      />
-                      <div className="min-w-0">
-                        <h3 className="font-serif font-bold text-white text-base leading-snug truncate">
-                          {member.name}
-                        </h3>
-                        <p className="text-[11px] text-amber-300 font-mono font-semibold truncate">
-                          {member.username || `@${member.email.split('@')[0]}`}
-                        </p>
-                        <span className="inline-block mt-0.5 px-2 py-0.2 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
-                          {member.department}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Super Admin Delete Button */}
-                    {isSuper && (
-                      <div>
-                        {isMemberRootSuper ? (
-                          <span title="Root Super Admin is protected" className="p-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 inline-flex items-center">
-                            <ShieldCheck className="w-3.5 h-3.5" />
+                <div
+                  key={member.id}
+                  className="p-5 rounded-3xl bg-slate-900/90 border border-slate-800 hover:border-emerald-600/70 shadow-xl transition-all duration-300 hover:scale-[1.01] flex flex-col justify-between space-y-4"
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <img
+                          src={member.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.name)}&background=047857&color=fff`}
+                          alt={member.name}
+                          className="w-12 h-12 rounded-2xl object-cover ring-2 ring-emerald-500/30"
+                        />
+                        <div className="min-w-0">
+                          <h3 className="font-serif font-bold text-white text-base leading-snug truncate">
+                            {member.name}
+                          </h3>
+                          <p className="text-[11px] text-amber-300 font-mono font-semibold truncate">
+                            {member.username || `@${member.email.split('@')[0]}`}
+                          </p>
+                          <span className="inline-block mt-0.5 px-2 py-0.2 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+                            {member.department}
                           </span>
-                        ) : (
-                          <button
-                            onClick={() => {
-                              setDeleteError('');
-                              setDeleteModalUser(member);
-                            }}
-                            title="Delete Member (Permanent DB removal)"
-                            className="p-2 rounded-xl bg-slate-950 hover:bg-rose-950 text-slate-500 hover:text-rose-400 border border-slate-800 hover:border-rose-800/80 transition-all hover:scale-105"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
+                        </div>
                       </div>
-                    )}
+
+                      {/* Super Admin Delete Button */}
+                      {isSuper && (
+                        <div>
+                          {isMemberRootSuper ? (
+                            <span title="Root Super Admin is protected" className="p-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 inline-flex items-center">
+                              <ShieldCheck className="w-3.5 h-3.5" />
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                setDeleteError('');
+                                setDeleteModalUser(member);
+                              }}
+                              title="Delete Member (Permanent DB removal)"
+                              className="p-2 rounded-xl bg-slate-950 hover:bg-rose-950 text-slate-500 hover:text-rose-400 border border-slate-800 hover:border-rose-800/80 transition-all hover:scale-105"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="p-3 rounded-2xl bg-slate-950 border border-slate-800/80 space-y-1.5 text-xs">
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-400">{language === 'bn' ? 'ব্যালেন্স:' : 'Balance:'}</span>
+                        <span className="font-mono font-bold text-emerald-400 text-sm">৳{member.balance.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-400">{language === 'bn' ? 'মোট খরচ:' : 'Total Spent:'}</span>
+                        <span className="font-mono font-medium text-amber-200">৳{member.totalSpent.toFixed(2)}</span>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="p-3 rounded-2xl bg-slate-950 border border-slate-800/80 space-y-1.5 text-xs">
-                    <div className="flex justify-between items-center">
-                      <span className="text-slate-400">{language === 'bn' ? 'ব্যালেন্স:' : 'Balance:'}</span>
-                      <span className="font-mono font-bold text-emerald-400 text-sm">৳{member.balance.toFixed(2)}</span>
+                  <div className="space-y-2">
+                    {/* Balance Manage Buttons */}
+                    <div className="grid grid-cols-3 gap-1">
+                      <button
+                        onClick={() => openBalanceModal(member, 'add')}
+                        className="py-1.5 px-1 rounded-lg bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/60 font-semibold text-[11px] flex items-center justify-center gap-0.5"
+                      >
+                        <PlusCircle className="w-3 h-3" />
+                        <span>Add</span>
+                      </button>
+                      <button
+                        onClick={() => openBalanceModal(member, 'deduct')}
+                        className="py-1.5 px-1 rounded-lg bg-rose-950/60 hover:bg-rose-900 text-rose-300 border border-rose-800/60 font-semibold text-[11px] flex items-center justify-center gap-0.5"
+                      >
+                        <MinusCircle className="w-3 h-3" />
+                        <span>Deduct</span>
+                      </button>
+                      <button
+                        onClick={() => openBalanceModal(member, 'set')}
+                        className="py-1.5 px-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 font-semibold text-[11px] flex items-center justify-center gap-0.5"
+                      >
+                        <Edit3 className="w-3 h-3" />
+                        <span>Edit</span>
+                      </button>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-slate-400">{language === 'bn' ? 'মোট খরচ:' : 'Total Spent:'}</span>
-                      <span className="font-mono font-medium text-amber-200">৳{member.totalSpent.toFixed(2)}</span>
+
+                    {/* Member Actions: Order & Chat/Call */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => setSelectedOrderMember(member.name)}
+                        className="py-2 px-2.5 rounded-xl bg-slate-800 hover:bg-emerald-600 text-slate-200 hover:text-slate-950 font-bold text-xs transition-all flex items-center justify-center gap-1.5"
+                      >
+                        <Utensils className="w-3.5 h-3.5" />
+                        <span>{language === 'bn' ? 'অর্ডার দিন' : 'Order Food'}</span>
+                      </button>
+                      <Link
+                        href={`/chat?memberId=${encodeURIComponent(member.id)}`}
+                        className="py-2 px-2.5 rounded-xl bg-slate-900 hover:bg-amber-500 text-amber-300 hover:text-slate-950 font-bold text-xs border border-amber-500/30 transition-all flex items-center justify-center gap-1.5"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5" />
+                        <span>{language === 'bn' ? 'মেসেজ ও কল' : 'Chat & Call'}</span>
+                      </Link>
                     </div>
                   </div>
                 </div>
-
-                <div className="space-y-2">
-                  {/* Balance Manage Buttons */}
-                  <div className="grid grid-cols-3 gap-1">
-                    <button
-                      onClick={() => openBalanceModal(member, 'add')}
-                      className="py-1.5 px-1 rounded-lg bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/60 font-semibold text-[11px] flex items-center justify-center gap-0.5"
-                    >
-                      <PlusCircle className="w-3 h-3" />
-                      <span>Add</span>
-                    </button>
-                    <button
-                      onClick={() => openBalanceModal(member, 'deduct')}
-                      className="py-1.5 px-1 rounded-lg bg-rose-950/60 hover:bg-rose-900 text-rose-300 border border-rose-800/60 font-semibold text-[11px] flex items-center justify-center gap-0.5"
-                    >
-                      <MinusCircle className="w-3 h-3" />
-                      <span>Deduct</span>
-                    </button>
-                    <button
-                      onClick={() => openBalanceModal(member, 'set')}
-                      className="py-1.5 px-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 font-semibold text-[11px] flex items-center justify-center gap-0.5"
-                    >
-                      <Edit3 className="w-3 h-3" />
-                      <span>Edit</span>
-                    </button>
-                  </div>
-
-                  {/* Member Actions: Order & Chat/Call */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => setSelectedOrderMember(member.name)}
-                      className="py-2 px-2.5 rounded-xl bg-slate-800 hover:bg-emerald-600 text-slate-200 hover:text-slate-950 font-bold text-xs transition-all flex items-center justify-center gap-1.5"
-                    >
-                      <Utensils className="w-3.5 h-3.5" />
-                      <span>{language === 'bn' ? 'অর্ডার দিন' : 'Order Food'}</span>
-                    </button>
-                    <Link
-                      href={`/chat?memberId=${encodeURIComponent(member.id)}`}
-                      className="py-2 px-2.5 rounded-xl bg-slate-900 hover:bg-amber-500 text-amber-300 hover:text-slate-950 font-bold text-xs border border-amber-500/30 transition-all flex items-center justify-center gap-1.5"
-                    >
-                      <MessageSquare className="w-3.5 h-3.5" />
-                      <span>{language === 'bn' ? 'মেসেজ ও কল' : 'Chat & Call'}</span>
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
           </div>
         )}
 
@@ -453,11 +473,10 @@ function MembersPageContent() {
               <button
                 type="button"
                 onClick={() => setBalanceAction('add')}
-                className={`py-2 text-xs font-bold rounded-xl transition-all ${
-                  balanceAction === 'add'
-                    ? 'bg-emerald-600 text-slate-950 shadow-md'
-                    : 'text-slate-400 hover:text-white'
-                }`}
+                className={`py-2 text-xs font-bold rounded-xl transition-all ${balanceAction === 'add'
+                  ? 'bg-emerald-600 text-slate-950 shadow-md'
+                  : 'text-slate-400 hover:text-white'
+                  }`}
               >
                 + যোগ (Add)
               </button>
@@ -465,11 +484,10 @@ function MembersPageContent() {
               <button
                 type="button"
                 onClick={() => setBalanceAction('deduct')}
-                className={`py-2 text-xs font-bold rounded-xl transition-all ${
-                  balanceAction === 'deduct'
-                    ? 'bg-rose-600 text-white shadow-md'
-                    : 'text-slate-400 hover:text-white'
-                }`}
+                className={`py-2 text-xs font-bold rounded-xl transition-all ${balanceAction === 'deduct'
+                  ? 'bg-rose-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-white'
+                  }`}
               >
                 - কর্তন (Deduct)
               </button>
@@ -480,11 +498,10 @@ function MembersPageContent() {
                   setBalanceAction('set');
                   setBalanceAmount(balanceModalUser.balance);
                 }}
-                className={`py-2 text-xs font-bold rounded-xl transition-all ${
-                  balanceAction === 'set'
-                    ? 'bg-amber-400 text-slate-950 shadow-md'
-                    : 'text-slate-400 hover:text-white'
-                }`}
+                className={`py-2 text-xs font-bold rounded-xl transition-all ${balanceAction === 'set'
+                  ? 'bg-amber-400 text-slate-950 shadow-md'
+                  : 'text-slate-400 hover:text-white'
+                  }`}
               >
                 ✏️ এডিট (Set)
               </button>
@@ -493,8 +510,8 @@ function MembersPageContent() {
             <form onSubmit={handleBalanceSubmit} className="space-y-4">
               <div>
                 <label className="block text-[11px] font-semibold text-slate-400 uppercase mb-1">
-                  {balanceAction === 'add' 
-                    ? 'কত টাকা যোগ করতে চান? (BDT ৳)' 
+                  {balanceAction === 'add'
+                    ? 'কত টাকা যোগ করতে চান? (BDT ৳)'
                     : (balanceAction === 'deduct' ? 'কত টাকা কর্তন করতে চান? (BDT ৳)' : 'নতুন মোট ব্যালেন্স কত নির্ধারণ করতে চান? (BDT ৳)')}
                 </label>
 
@@ -505,9 +522,8 @@ function MembersPageContent() {
                         type="button"
                         key={amt}
                         onClick={() => setBalanceAmount(amt)}
-                        className={`py-1 text-xs font-bold rounded-lg ${
-                          balanceAmount === amt ? 'bg-amber-400 text-slate-950' : 'bg-slate-800 text-slate-300'
-                        }`}
+                        className={`py-1 text-xs font-bold rounded-lg ${balanceAmount === amt ? 'bg-amber-400 text-slate-950' : 'bg-slate-800 text-slate-300'
+                          }`}
                       >
                         ৳{amt}
                       </button>
@@ -528,11 +544,11 @@ function MembersPageContent() {
               <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-between text-xs">
                 <span className="text-slate-400">নতুন ব্যালেন্স দাঁড়াবে:</span>
                 <span className="font-mono font-bold text-amber-300 text-sm">
-                  ৳{balanceAction === 'add' 
+                  ৳{balanceAction === 'add'
                     ? (balanceModalUser.balance + Number(balanceAmount)).toFixed(2)
-                    : (balanceAction === 'deduct' 
-                        ? Math.max(0, balanceModalUser.balance - Number(balanceAmount)).toFixed(2)
-                        : Number(balanceAmount).toFixed(2))}
+                    : (balanceAction === 'deduct'
+                      ? Math.max(0, balanceModalUser.balance - Number(balanceAmount)).toFixed(2)
+                      : Number(balanceAmount).toFixed(2))}
                 </span>
               </div>
 
@@ -546,11 +562,10 @@ function MembersPageContent() {
                 </button>
                 <button
                   type="submit"
-                  className={`px-5 py-2 rounded-xl font-bold text-xs shadow-lg ${
-                    balanceAction === 'deduct'
-                      ? 'bg-rose-600 text-white hover:bg-rose-500'
-                      : 'bg-gradient-to-r from-emerald-600 to-amber-600 text-slate-950'
-                  }`}
+                  className={`px-5 py-2 rounded-xl font-bold text-xs shadow-lg ${balanceAction === 'deduct'
+                    ? 'bg-rose-600 text-white hover:bg-rose-500'
+                    : 'bg-gradient-to-r from-emerald-600 to-amber-600 text-slate-950'
+                    }`}
                 >
                   {balanceAction === 'add' ? 'ব্যালেন্স যোগ করুন' : (balanceAction === 'deduct' ? 'ব্যালেন্স কর্তন করুন' : 'ব্যালেন্স পরিবর্তন করুন')}
                 </button>
@@ -678,7 +693,7 @@ function MembersPageContent() {
       {deleteModalUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
           <div className="w-full max-w-md bg-slate-900 border border-rose-600/50 rounded-3xl p-6 shadow-2xl space-y-4">
-            
+
             {/* Modal Header */}
             <div className="text-center space-y-2">
               <div className="w-12 h-12 rounded-2xl bg-rose-950/80 border border-rose-700/60 flex items-center justify-center mx-auto text-rose-400">

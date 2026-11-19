@@ -10,6 +10,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/context/ToastContext';
 import { UserRecord, UserRole, SUPER_ADMIN_EMAIL, PasswordResetRequest, RoutePermissions, DEFAULT_ROUTE_PERMISSIONS } from '@/lib/types';
+import { getClientCache, setClientCache } from '@/lib/clientCache';
 import Link from 'next/link';
 import { 
   Crown, 
@@ -41,8 +42,15 @@ function SuperAdminDashboardContent() {
   const { user } = useAuth();
   const { language } = useLanguage();
   const { toast } = useToast();
-  const [users, setUsers] = useState<UserRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  
+  // Instant 0ms cache initialize
+  const [users, setUsers] = useState<UserRecord[]>(() => {
+    return getClientCache<UserRecord[]>('members_list') || [];
+  });
+  const [loading, setLoading] = useState<boolean>(() => {
+    const cached = getClientCache<UserRecord[]>('members_list');
+    return !cached || cached.length === 0;
+  });
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [superTab, setSuperTab] = useState<'users' | 'storage' | 'permissions'>('users');
@@ -75,8 +83,10 @@ function SuperAdminDashboardContent() {
   const [resetRequests, setResetRequests] = useState<PasswordResetRequest[]>([]);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  const fetchUsers = async () => {
-    setLoading(true);
+  const fetchUsers = async (silent = false) => {
+    if (!silent && (!users || users.length === 0)) {
+      setLoading(true);
+    }
     try {
       const [uRes, rRes, pRes] = await Promise.all([
         fetch('/api/users'),
@@ -88,6 +98,7 @@ function SuperAdminDashboardContent() {
         const json = await uRes.json();
         if (json.success && json.data) {
           setUsers(json.data);
+          setClientCache('members_list', json.data);
         }
       }
 
@@ -172,7 +183,7 @@ function SuperAdminDashboardContent() {
   };
 
   useEffect(() => {
-    fetchUsers();
+    fetchUsers(true);
   }, []);
 
   const handleRoleChange = async (targetUser: UserRecord, newRole: UserRole) => {
@@ -379,7 +390,7 @@ function SuperAdminDashboardContent() {
               </button>
 
               <button
-                onClick={fetchUsers}
+                onClick={() => fetchUsers()}
                 className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs font-semibold transition-colors flex items-center gap-1.5"
               >
                 <RefreshCw className="w-3.5 h-3.5 text-emerald-400" />
@@ -459,7 +470,7 @@ function SuperAdminDashboardContent() {
                 </div>
 
                 <button
-                  onClick={fetchUsers}
+                  onClick={() => fetchUsers()}
                   className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 flex items-center gap-1.5 self-start sm:self-auto"
                 >
                   <RefreshCw className="w-3.5 h-3.5 text-amber-400" />

@@ -9,7 +9,10 @@ export async function GET(request: Request) {
     if (role && role !== 'all') {
       users = users.filter(u => u.role === role);
     }
-    return NextResponse.json({ success: true, data: users });
+    return NextResponse.json(
+      { success: true, data: users },
+      { headers: { 'Cache-Control': 'public, s-maxage=1, stale-while-revalidate=15' } }
+    );
   } catch (error: any) {
     return NextResponse.json(
       { success: false, error: error.message || 'Failed to fetch users' },

@@ -37,6 +37,10 @@ const CustomerSchema = new Schema<ICustomer>(
   }
 );
 
+CustomerSchema.index({ email: 1 });
+CustomerSchema.index({ phone: 1 });
+CustomerSchema.index({ createdAt: -1 });
+
 export default (typeof mongoose !== 'undefined' && mongoose.models && mongoose.models.Customer)
   ? (mongoose.models.Customer as mongoose.Model<ICustomer>)
   : (typeof mongoose !== 'undefined' && mongoose.model)

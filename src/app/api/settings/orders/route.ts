@@ -100,6 +100,8 @@ export async function GET() {
         evaluation,
         isOrderAllowedNow: evaluation.allowed,
       }
+    }, {
+      headers: { 'Cache-Control': 'public, s-maxage=1, stale-while-revalidate=15' }
     });
   } catch (error: any) {
     console.error('API /settings/orders GET error:', error);

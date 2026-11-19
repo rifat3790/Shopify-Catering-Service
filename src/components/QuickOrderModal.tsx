@@ -5,14 +5,15 @@ import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/context/ToastContext';
 import { OrderData, MenuItemData } from '@/lib/types';
-import { 
-  X, 
-  Plus, 
-  Minus, 
-  Banknote, 
-  Check, 
-  Sparkles, 
-  User, 
+import { getClientCache, setClientCache } from '@/lib/clientCache';
+import {
+  X,
+  Plus,
+  Minus,
+  Banknote,
+  Check,
+  Sparkles,
+  User,
   PlusSquare,
   Trash2,
   Lock,
@@ -47,8 +48,12 @@ export default function QuickOrderModal({
   const [customerName, setCustomerName] = useState(prefillCustomer || user?.displayName || user?.name || '');
   const [customerAvatar, setCustomerAvatar] = useState(user?.photoURL || user?.avatar || '');
   const [department, setDepartment] = useState('Shopify Team');
-  const [allMembers, setAllMembers] = useState<any[]>([]);
-  const [menuItems, setMenuItems] = useState<MenuItemData[]>([]);
+  const [allMembers, setAllMembers] = useState<any[]>(() => {
+    return getClientCache<any[]>('members_list') || [];
+  });
+  const [menuItems, setMenuItems] = useState<MenuItemData[]>(() => {
+    return getClientCache<MenuItemData[]>('menu_items') || [];
+  });
   const [itemQuantities, setItemQuantities] = useState<Record<string, number>>({});
   const [customItems, setCustomItems] = useState<CustomItem[]>([]);
   const [newCustomName, setNewCustomName] = useState('');
@@ -89,10 +94,11 @@ export default function QuickOrderModal({
         .then(res => {
           if (res.success && Array.isArray(res.data)) {
             setAllMembers(res.data);
+            setClientCache('members_list', res.data);
             if (prefillCustomer) {
-              const target = res.data.find((u: any) => 
-                u.name?.toLowerCase() === prefillCustomer.toLowerCase() || 
-                u.id === prefillCustomer || 
+              const target = res.data.find((u: any) =>
+                u.name?.toLowerCase() === prefillCustomer.toLowerCase() ||
+                u.id === prefillCustomer ||
                 u.email?.toLowerCase() === prefillCustomer.toLowerCase()
               );
               if (target) {
@@ -102,8 +108,8 @@ export default function QuickOrderModal({
                 if (target.balance !== undefined) setLiveBalance(Number(target.balance) || 0);
               }
             } else {
-              const found = res.data.find((u: any) => 
-                u.email?.toLowerCase() === (user?.email || '').toLowerCase() || 
+              const found = res.data.find((u: any) =>
+                u.email?.toLowerCase() === (user?.email || '').toLowerCase() ||
                 u.id === user?.uid
               );
               if (found) {
@@ -114,16 +120,17 @@ export default function QuickOrderModal({
             }
           }
         })
-        .catch(() => {});
+        .catch(() => { });
 
       fetch('/api/menu')
         .then(r => r.json())
         .then(data => {
           if (data.success && data.data && data.data.length > 0) {
             setMenuItems(data.data);
+            setClientCache('menu_items', data.data);
           }
         })
-        .catch(() => {});
+        .catch(() => { });
 
       // Fetch order control status & cutoff timing
       fetch('/api/settings/orders')
@@ -133,7 +140,7 @@ export default function QuickOrderModal({
             setOrderControl(res.data);
           }
         })
-        .catch(() => {});
+        .catch(() => { });
     }
   }, [isOpen, prefillCustomer, user]);
 
@@ -267,8 +274,8 @@ export default function QuickOrderModal({
 
     if (effectiveItemsList.length === 0 && effectiveBill === 0) {
       toast.warning(
-        language === 'bn' 
-          ? 'দয়া করে অন্তত একটি খাবারের আইটেম বা কাস্টম খাবার যোগ করুন!' 
+        language === 'bn'
+          ? 'দয়া করে অন্তত একটি খাবারের আইটেম বা কাস্টম খাবার যোগ করুন!'
           : 'Please select at least one menu item or add a custom dish!',
         language === 'bn' ? 'খাবার নির্বাচন করুন' : 'Item Required'
       );
@@ -303,15 +310,15 @@ export default function QuickOrderModal({
         : '';
 
       toast.success(
-        language === 'bn' 
-          ? `আপনার খাবার অর্ডার সফলভাবে গ্রহণ করা হয়েছে! মোট বিল: ৳${effectiveBill.toFixed(2)}${changeMsg}` 
+        language === 'bn'
+          ? `আপনার খাবার অর্ডার সফলভাবে গ্রহণ করা হয়েছে! মোট বিল: ৳${effectiveBill.toFixed(2)}${changeMsg}`
           : `Order placed successfully! Total Bill: ৳${effectiveBill.toFixed(2)}${changeMsg}`,
         'Order Confirmed 🎉'
       );
 
       // Refresh live user balance across app
       if (refreshUser) {
-        refreshUser().catch(() => {});
+        refreshUser().catch(() => { });
       }
 
       // reset
@@ -332,7 +339,7 @@ export default function QuickOrderModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
       <div className="relative w-full max-w-2xl bg-slate-900 border border-emerald-800/80 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
-        
+
         {/* Modal Header */}
         <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-emerald-950 px-6 py-4 border-b border-emerald-800/80 flex items-center justify-between text-white">
           <div className="flex items-center gap-2.5">
@@ -358,7 +365,7 @@ export default function QuickOrderModal({
 
         {/* Modal Form Body */}
         <form onSubmit={handleSubmit} className="p-5 sm:p-6 overflow-y-auto space-y-5">
-          
+
           {/* Order Cutoff Status Banner */}
           {!isOrderAllowedForMe && orderControl && (
             <div className="p-3.5 rounded-2xl bg-rose-950/60 border border-rose-500/50 text-rose-200 text-xs flex items-center gap-2.5">
@@ -376,13 +383,13 @@ export default function QuickOrderModal({
             <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
               <span>
-                {language === 'bn' 
+                {language === 'bn'
                   ? '⚡ অ্যাডমিন ওভাররাইড: সাধারণ ইউজারদের অর্ডার বন্ধ থাকলেও আপনি অ্যাডমিন হিসেবে অর্ডার করতে পারবেন।'
                   : '⚡ Admin Override: You can place orders as an administrator.'}
               </span>
             </div>
           )}
-          
+
           {/* Customer Selection */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -428,7 +435,7 @@ export default function QuickOrderModal({
                 </div>
               </div>
             )}
-            
+
             <div className="relative">
               <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
@@ -465,7 +472,7 @@ export default function QuickOrderModal({
               <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
                 {language === 'bn' ? 'খাবারের আইটেম নির্বাচন (Menu Items)' : 'Select Food Items'}
               </label>
-              
+
               {/* Button to toggle Dynamic Custom Item Form */}
               <button
                 type="button"
@@ -584,11 +591,10 @@ export default function QuickOrderModal({
                   return (
                     <div
                       key={item._id || item.name}
-                      className={`flex items-center justify-between p-2.5 rounded-xl border transition-all ${
-                        count > 0
-                          ? 'bg-emerald-950/40 border-emerald-500/60 shadow-sm'
-                          : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
-                      }`}
+                      className={`flex items-center justify-between p-2.5 rounded-xl border transition-all ${count > 0
+                        ? 'bg-emerald-950/40 border-emerald-500/60 shadow-sm'
+                        : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
+                        }`}
                     >
                       <div className="min-w-0 flex-1 pr-2">
                         <p className="text-xs font-semibold text-white truncate">{item.name}</p>
@@ -657,11 +663,10 @@ export default function QuickOrderModal({
                     type="button"
                     key={preset}
                     onClick={() => setPaidAmount(preset)}
-                    className={`px-3 py-1 rounded-lg font-mono text-xs font-semibold transition-all ${
-                      paidAmount === preset
-                        ? 'bg-emerald-500 text-slate-950 ring-2 ring-emerald-300'
-                        : 'bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700'
-                    }`}
+                    className={`px-3 py-1 rounded-lg font-mono text-xs font-semibold transition-all ${paidAmount === preset
+                      ? 'bg-emerald-500 text-slate-950 ring-2 ring-emerald-300'
+                      : 'bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700'
+                      }`}
                   >
                     ৳{preset}
                   </button>
@@ -697,11 +702,10 @@ export default function QuickOrderModal({
                 <label className="block text-[11px] text-slate-400 mb-1">
                   {language === 'bn' ? 'ফেরতযোগ্য বাকি (Change ৳)' : 'Change to Return (৳)'}
                 </label>
-                <div className={`px-3 py-2 rounded-xl text-sm font-mono font-bold border ${
-                  changeDue >= 0
-                    ? 'bg-emerald-950/40 text-emerald-400 border-emerald-800'
-                    : 'bg-rose-950/40 text-rose-400 border-rose-800'
-                }`}>
+                <div className={`px-3 py-2 rounded-xl text-sm font-mono font-bold border ${changeDue >= 0
+                  ? 'bg-emerald-950/40 text-emerald-400 border-emerald-800'
+                  : 'bg-rose-950/40 text-rose-400 border-rose-800'
+                  }`}>
                   ৳{changeDue.toFixed(2)}
                 </div>
               </div>
@@ -718,8 +722,8 @@ export default function QuickOrderModal({
                     className="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-400 bg-slate-900 border-slate-700 cursor-pointer"
                   />
                   <span className="text-amber-200 font-medium">
-                    {language === 'bn' 
-                      ? `অবশিষ্ট ৳${changeDue.toFixed(2)} ক্যাটারিং ব্যালেন্সে জমা করুন` 
+                    {language === 'bn'
+                      ? `অবশিষ্ট ৳${changeDue.toFixed(2)} ক্যাটারিং ব্যালেন্সে জমা করুন`
                       : `Credit change ৳${changeDue.toFixed(2)} to Catering Wallet`}
                   </span>
                 </label>
@@ -808,11 +812,10 @@ export default function QuickOrderModal({
             <button
               type="submit"
               disabled={submitting || !isOrderAllowedForMe}
-              className={`px-6 py-2.5 rounded-xl font-bold text-xs shadow-lg transition-all flex items-center gap-2 ${
-                isOrderAllowedForMe
-                  ? 'bg-gradient-to-r from-emerald-600 via-emerald-500 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-slate-950 shadow-emerald-950/50 hover:scale-[1.02] active:scale-[0.98]'
-                  : 'bg-slate-800 border border-rose-500/50 text-rose-300 opacity-60 cursor-not-allowed'
-              }`}
+              className={`px-6 py-2.5 rounded-xl font-bold text-xs shadow-lg transition-all flex items-center gap-2 ${isOrderAllowedForMe
+                ? 'bg-gradient-to-r from-emerald-600 via-emerald-500 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-slate-950 shadow-emerald-950/50 hover:scale-[1.02] active:scale-[0.98]'
+                : 'bg-slate-800 border border-rose-500/50 text-rose-300 opacity-60 cursor-not-allowed'
+                }`}
             >
               {submitting ? (
                 <>

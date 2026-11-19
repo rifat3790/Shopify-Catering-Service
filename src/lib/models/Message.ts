@@ -25,6 +25,10 @@ const MessageSchema = new Schema<IMessage>(
   }
 );
 
+MessageSchema.index({ senderId: 1, receiverId: 1, createdAt: 1 });
+MessageSchema.index({ groupId: 1, createdAt: 1 });
+MessageSchema.index({ createdAt: -1 });
+
 export default (typeof mongoose !== 'undefined' && mongoose.models && mongoose.models.Message)
   ? (mongoose.models.Message as mongoose.Model<IMessage>)
   : (typeof mongoose !== 'undefined' && mongoose.model)

@@ -41,7 +41,10 @@ export async function GET(request: Request) {
       orders = filterOrdersByDate(orders, dateFilter);
     }
 
-    return NextResponse.json({ success: true, data: orders });
+    return NextResponse.json(
+      { success: true, data: orders },
+      { headers: { 'Cache-Control': 'public, s-maxage=1, stale-while-revalidate=15' } }
+    );
   } catch (error: any) {
     console.error('API /orders error:', error);
     return NextResponse.json(

@@ -10,30 +10,38 @@ import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/context/ToastContext';
 import { MenuItemData, OrderData } from '@/lib/types';
-import { 
-  MenuSquare, 
-  Sparkles, 
-  Plus, 
-  Flame, 
-  ShoppingBag, 
-  Utensils, 
-  Edit2, 
-  Trash2, 
-  Eye, 
-  EyeOff, 
-  RefreshCw 
+import { getClientCache, setClientCache } from '@/lib/clientCache';
+import {
+  MenuSquare,
+  Sparkles,
+  Plus,
+  Flame,
+  ShoppingBag,
+  Utensils,
+  Edit2,
+  Trash2,
+  Eye,
+  EyeOff,
+  RefreshCw
 } from 'lucide-react';
 
 function MenuPageContent() {
   const { user } = useAuth();
   const { language } = useLanguage();
   const { toast } = useToast();
-  const [menuItems, setMenuItems] = useState<MenuItemData[]>([]);
+  
+  // Instant 0ms cache initialize
+  const [menuItems, setMenuItems] = useState<MenuItemData[]>(() => {
+    return getClientCache<MenuItemData[]>('menu_items') || [];
+  });
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [cart, setCart] = useState<Record<string, number>>({});
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<OrderData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(() => {
+    const cached = getClientCache<MenuItemData[]>('menu_items');
+    return !cached || cached.length === 0;
+  });
 
   // Admin CRUD Modal state
   const [isDishModalOpen, setIsDishModalOpen] = useState(false);
@@ -47,13 +55,16 @@ function MenuPageContent() {
 
   const isSuperOrAdmin = user?.role === 'super_admin' || user?.role === 'admin';
 
-  const loadMenu = async () => {
-    setLoading(true);
+  const loadMenu = async (silent = false) => {
+    if (!silent && (!menuItems || menuItems.length === 0)) {
+      setLoading(true);
+    }
     try {
       const res = await fetch('/api/menu');
       const data = await res.json();
       if (data.success && data.data) {
         setMenuItems(data.data);
+        setClientCache('menu_items', data.data);
       }
     } catch (e) {
       console.warn('Error fetching menu items:', e);
@@ -63,7 +74,7 @@ function MenuPageContent() {
   };
 
   useEffect(() => {
-    loadMenu();
+    loadMenu(true);
   }, []);
 
   const categories = React.useMemo(() => {
@@ -144,15 +155,19 @@ function MenuPageContent() {
           }),
         });
         if (res.ok) {
-          setMenuItems(prev => prev.map(m => m._id === editingItem._id ? {
-            ...m,
-            name: dishName,
-            nameBn: dishNameBn || dishName,
-            price: Number(dishPrice),
-            category: dishCategory,
-            imageUrl: dishImageUrl,
-            description: dishDescription,
-          } : m));
+          setMenuItems(prev => {
+            const next = prev.map(m => m._id === editingItem._id ? {
+              ...m,
+              name: dishName,
+              nameBn: dishNameBn || dishName,
+              price: Number(dishPrice),
+              category: dishCategory,
+              imageUrl: dishImageUrl,
+              description: dishDescription,
+            } : m);
+            setClientCache('menu_items', next);
+            return next;
+          });
         }
       } else {
         const res = await fetch('/api/menu', {
@@ -170,7 +185,13 @@ function MenuPageContent() {
         });
         if (res.ok) {
           const json = await res.json();
-          if (json.data) setMenuItems(prev => [json.data, ...prev]);
+          if (json.data) {
+            setMenuItems(prev => {
+              const next = [json.data, ...prev];
+              setClientCache('menu_items', next);
+              return next;
+            });
+          }
         }
       }
       setIsDishModalOpen(false);
@@ -184,7 +205,11 @@ function MenuPageContent() {
     try {
       const res = await fetch(`/api/menu?id=${id}`, { method: 'DELETE' });
       if (res.ok) {
-        setMenuItems(prev => prev.filter(m => m._id !== id));
+        setMenuItems(prev => {
+          const next = prev.filter(m => m._id !== id);
+          setClientCache('menu_items', next);
+          return next;
+        });
         toast.success(
           language === 'bn' ? 'মেনু আইটেমটি সফলভাবে মুছে ফেলা হয়েছে!' : 'Dish removed from menu successfully!',
           'Dish Removed'
@@ -197,7 +222,11 @@ function MenuPageContent() {
 
   const handleToggleAvailable = async (item: MenuItemData) => {
     const nextState = !item.isAvailable;
-    setMenuItems(prev => prev.map(m => m._id === item._id ? { ...m, isAvailable: nextState } : m));
+    setMenuItems(prev => {
+      const next = prev.map(m => m._id === item._id ? { ...m, isAvailable: nextState } : m);
+      setClientCache('menu_items', next);
+      return next;
+    });
     try {
       await fetch('/api/menu', {
         method: 'PUT',
@@ -214,7 +243,7 @@ function MenuPageContent() {
       <Sidebar onOpenNewOrder={() => setIsOrderModalOpen(true)} />
 
       <main className="flex-1 w-full min-w-0 px-4 sm:px-6 lg:px-10 py-8 space-y-6">
-        
+
         {/* Top Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-emerald-900/40">
           <div>
@@ -263,11 +292,10 @@ function MenuPageContent() {
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
-              className={`px-4 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
-                selectedCategory === cat
-                  ? 'bg-amber-400 text-slate-950 font-bold shadow-md'
-                  : 'bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800'
-              }`}
+              className={`px-4 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${selectedCategory === cat
+                ? 'bg-amber-400 text-slate-950 font-bold shadow-md'
+                : 'bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800'
+                }`}
             >
               {cat === 'All' ? (language === 'bn' ? 'সকল মেনু' : 'All Items') : cat}
             </button>
@@ -289,11 +317,11 @@ function MenuPageContent() {
               <p className="text-xs text-slate-400 mt-1 leading-relaxed">
                 {isSuperOrAdmin
                   ? (language === 'bn'
-                      ? 'মেনু বর্তমানে খালি। নতুন খাবার ও মূল্য নির্ধারণ করতে উপরের "+ নতুন খাবার যুক্ত করুন" বাটনে ক্লিক করুন।'
-                      : 'The menu is currently empty. Click "+ Add Dish" above to create dishes and set prices.')
+                    ? 'মেনু বর্তমানে খালি। নতুন খাবার ও মূল্য নির্ধারণ করতে উপরের "+ নতুন খাবার যুক্ত করুন" বাটনে ক্লিক করুন।'
+                    : 'The menu is currently empty. Click "+ Add Dish" above to create dishes and set prices.')
                   : (language === 'bn'
-                      ? 'বর্তমানে কোনো খাবার তালিকায় নেই। কিচেন অ্যাডমিন খাবার যুক্ত করলে এখানে দেখতে পাবেন।'
-                      : 'No dishes are listed right now. Check back shortly once the kitchen updates the menu.')}
+                    ? 'বর্তমানে কোনো খাবার তালিকায় নেই। কিচেন অ্যাডমিন খাবার যুক্ত করলে এখানে দেখতে পাবেন।'
+                    : 'No dishes are listed right now. Check back shortly once the kitchen updates the menu.')}
               </p>
             </div>
             {isSuperOrAdmin && (
@@ -313,11 +341,10 @@ function MenuPageContent() {
               return (
                 <div
                   key={item._id || item.name}
-                  className={`group rounded-3xl bg-slate-900/80 border p-4 flex flex-col justify-between transition-all duration-300 hover:shadow-2xl relative overflow-hidden ${
-                    item.isAvailable === false 
-                      ? 'opacity-60 border-slate-800' 
-                      : 'border-slate-800 hover:border-emerald-700/80 hover:shadow-emerald-950/40'
-                  }`}
+                  className={`group rounded-3xl bg-slate-900/80 border p-4 flex flex-col justify-between transition-all duration-300 hover:shadow-2xl relative overflow-hidden ${item.isAvailable === false
+                    ? 'opacity-60 border-slate-800'
+                    : 'border-slate-800 hover:border-emerald-700/80 hover:shadow-emerald-950/40'
+                    }`}
                 >
                   {/* Popular Badge */}
                   {item.popular && (

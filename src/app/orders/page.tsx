@@ -11,6 +11,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/context/ToastContext';
 import { OrderData } from '@/lib/types';
+import { getClientCache, setClientCache } from '@/lib/clientCache';
 import { filterOrdersByDate, DateFilterType } from '@/lib/dateFilterUtils';
 import { 
   ClipboardList, 
@@ -187,9 +188,16 @@ function OrdersPageContent() {
   const { user } = useAuth();
   const { language } = useLanguage();
   const { toast } = useToast();
-  const [orders, setOrders] = useState<OrderData[]>([]);
+  
+  // Instant 0ms cache initialize
+  const [orders, setOrders] = useState<OrderData[]>(() => {
+    return getClientCache<OrderData[]>('orders_list') || [];
+  });
   const [dateFilter, setDateFilter] = useState<DateFilterType>('today');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(() => {
+    const cached = getClientCache<OrderData[]>('orders_list');
+    return !cached || cached.length === 0;
+  });
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [selectedInvoice, setSelectedInvoice] = useState<OrderData | null>(null);
@@ -205,14 +213,17 @@ function OrdersPageContent() {
 
   const isSuperOrAdmin = user?.role === 'super_admin' || user?.role === 'admin';
 
-  const fetchOrders = async () => {
-    setLoading(true);
+  const fetchOrders = async (silent = false) => {
+    if (!silent && (!orders || orders.length === 0)) {
+      setLoading(true);
+    }
     try {
       const res = await fetch('/api/orders');
       if (res.ok) {
         const json = await res.json();
         if (json.success && json.data) {
           setOrders(json.data);
+          setClientCache('orders_list', json.data);
         }
       }
     } catch (err) {
@@ -223,7 +234,7 @@ function OrdersPageContent() {
   };
 
   useEffect(() => {
-    fetchOrders();
+    fetchOrders(true);
   }, []);
 
   const handleOpenEdit = (order: OrderData) => {
@@ -256,7 +267,11 @@ function OrdersPageContent() {
       if (res.ok) {
         const json = await res.json();
         if (json.success && json.data) {
-          setOrders(prev => prev.map(o => (o._id === json.data._id || o.orderNumber === json.data.orderNumber) ? json.data : o));
+          setOrders(prev => {
+            const next = prev.map(o => (o._id === json.data._id || o.orderNumber === json.data.orderNumber) ? json.data : o);
+            setClientCache('orders_list', next);
+            return next;
+          });
           setEditOrder(null);
           toast.success('Order details updated successfully!', 'Order Updated');
         }
@@ -277,7 +292,11 @@ function OrdersPageContent() {
         method: 'DELETE',
       });
       if (res.ok) {
-        setOrders(prev => prev.filter(o => o._id !== targetId && o.orderNumber !== targetId));
+        setOrders(prev => {
+          const next = prev.filter(o => o._id !== targetId && o.orderNumber !== targetId);
+          setClientCache('orders_list', next);
+          return next;
+        });
         toast.success(`Order ${order.orderNumber} deleted successfully.`, 'Order Deleted');
       } else {
         toast.error('Failed to delete order', 'Delete Failed');
@@ -347,7 +366,7 @@ function OrdersPageContent() {
 
           <div className="flex items-center gap-2.5 flex-wrap">
             <button
-              onClick={fetchOrders}
+              onClick={() => fetchOrders()}
               className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs font-semibold transition-colors flex items-center gap-1.5"
             >
               <RefreshCw className="w-3.5 h-3.5 text-emerald-400" />

@@ -73,6 +73,13 @@ const OrderSchema = new Schema<IOrder>(
   }
 );
 
+OrderSchema.index({ createdAt: -1 });
+OrderSchema.index({ orderDate: -1 });
+OrderSchema.index({ customerEmail: 1 });
+OrderSchema.index({ userId: 1 });
+OrderSchema.index({ status: 1 });
+OrderSchema.index({ dateString: -1 });
+
 export default (typeof mongoose !== 'undefined' && mongoose.models && mongoose.models.Order)
   ? (mongoose.models.Order as mongoose.Model<IOrder>)
   : (typeof mongoose !== 'undefined' && mongoose.model)

@@ -7,13 +7,14 @@ import InvoiceModal from '@/components/InvoiceModal';
 import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/context/ToastContext';
 import { MenuItemData, OrderData, UserRecord } from '@/lib/types';
-import { 
-  Calculator, 
-  Trash2, 
-  Check, 
-  User, 
-  Banknote, 
-  Coins, 
+import { getClientCache, setClientCache } from '@/lib/clientCache';
+import {
+  Calculator,
+  Trash2,
+  Check,
+  User,
+  Banknote,
+  Coins,
   ShoppingBag,
   RotateCcw,
   PlusSquare
@@ -25,8 +26,12 @@ function PosPageContent() {
   const { language } = useLanguage();
   const { toast } = useToast();
   const [customer, setCustomer] = useState('Customer');
-  const [members, setMembers] = useState<UserRecord[]>([]);
-  const [menuItems, setMenuItems] = useState<MenuItemData[]>([]);
+  const [members, setMembers] = useState<UserRecord[]>(() => {
+    return getClientCache<UserRecord[]>('members_list') || [];
+  });
+  const [menuItems, setMenuItems] = useState<MenuItemData[]>(() => {
+    return getClientCache<MenuItemData[]>('menu_items') || [];
+  });
   const [cart, setCart] = useState<{ [id: string]: { name: string; price: number; qty: number } }>({});
   const [tenderedCash, setTenderedCash] = useState<number>(0);
   const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'bKash' | 'Nagad' | 'Wallet'>('Cash');
@@ -43,10 +48,14 @@ function PosPageContent() {
       fetch('/api/menu').then(r => r.json()),
       fetch('/api/users').then(r => r.json())
     ]).then(([mRes, uRes]) => {
-      if (mRes.success && mRes.data) setMenuItems(mRes.data);
+      if (mRes.success && mRes.data) {
+        setMenuItems(mRes.data);
+        setClientCache('menu_items', mRes.data);
+      }
       if (uRes.success && uRes.data) {
         setMembers(uRes.data);
-        if (uRes.data.length > 0) setCustomer(uRes.data[0].name);
+        setClientCache('members_list', uRes.data);
+        if (uRes.data.length > 0 && customer === 'Customer') setCustomer(uRes.data[0].name);
       }
     }).catch(err => console.warn(err));
   }, []);
@@ -105,8 +114,8 @@ function PosPageContent() {
       const selectedMember = members.find(m => m.name === customer);
       if (selectedMember && selectedMember.balance < totalBill) {
         toast.error(
-          language === 'bn' 
-            ? `অপর্যাপ্ত ওয়ালেট ব্যালেন্স! বর্তমান ব্যালেন্স: ৳${selectedMember.balance.toFixed(2)}` 
+          language === 'bn'
+            ? `অপর্যাপ্ত ওয়ালেট ব্যালেন্স! বর্তমান ব্যালেন্স: ৳${selectedMember.balance.toFixed(2)}`
             : `Insufficient wallet balance! Current balance: ৳${selectedMember.balance.toFixed(2)}`,
           'Wallet Error'
         );
@@ -151,8 +160,8 @@ function PosPageContent() {
         setSavedOrder(json.data);
         handleClearCart();
         toast.success(
-          language === 'bn' 
-            ? `অর্ডার #${json.data.orderNumber} সফলভাবে গ্রহণ করা হয়েছে!` 
+          language === 'bn'
+            ? `অর্ডার #${json.data.orderNumber} সফলভাবে গ্রহণ করা হয়েছে!`
             : `Order #${json.data.orderNumber} created successfully!`,
           'Order Completed 🎉'
         );
@@ -231,10 +240,10 @@ function PosPageContent() {
 
         {/* POS Grid: Left Items / Right Register */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          
+
           {/* Left Column: Customer & Item Tap Grid (7 cols) */}
           <div className="lg:col-span-7 space-y-5">
-            
+
             {/* Customer Pill Selectors */}
             <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-2">
               <div className="flex items-center justify-between text-xs font-semibold text-slate-300 uppercase tracking-wider">
@@ -251,11 +260,10 @@ function PosPageContent() {
                     <button
                       key={m.id}
                       onClick={() => setCustomer(m.name)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                        customer === m.name
-                          ? 'bg-gradient-to-r from-emerald-600 to-amber-500 text-slate-950 shadow-md ring-2 ring-amber-400'
-                          : 'bg-slate-950 text-slate-300 hover:bg-slate-800 border border-slate-700/80'
-                      }`}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${customer === m.name
+                        ? 'bg-gradient-to-r from-emerald-600 to-amber-500 text-slate-950 shadow-md ring-2 ring-amber-400'
+                        : 'bg-slate-950 text-slate-300 hover:bg-slate-800 border border-slate-700/80'
+                        }`}
                     >
                       {m.name}
                     </button>
@@ -277,7 +285,7 @@ function PosPageContent() {
               <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
                 {language === 'bn' ? 'আইটেমে ট্যাপ করে যুক্ত করুন' : 'Tap Food Item to Add to Order'}
               </h3>
-              
+
               {menuItems.length === 0 ? (
                 <div className="p-8 rounded-2xl bg-slate-900/50 border border-slate-800 text-center text-slate-400 text-xs">
                   মেনুতে কোনো খাবার নেই। অনুগ্রহ করে প্রথমে মেনু পেজে খাবার যুক্ত করুন।
@@ -314,9 +322,9 @@ function PosPageContent() {
 
           {/* Right Column: Register Bill, Cash Presets & Change Return (5 cols) */}
           <div className="lg:col-span-5 space-y-4">
-            
+
             <div className="rounded-3xl bg-slate-900/90 border border-emerald-800/80 p-5 shadow-2xl backdrop-blur-xl space-y-4">
-              
+
               {/* Register Header */}
               <div className="flex items-center justify-between pb-3 border-b border-slate-800">
                 <div className="flex items-center gap-2">
@@ -377,7 +385,7 @@ function PosPageContent() {
 
               {/* Bill & Cash Presets */}
               <div className="p-4 rounded-2xl bg-slate-950 border border-emerald-950 space-y-3">
-                
+
                 {/* Total Bill Row */}
                 <div className="flex items-baseline justify-between">
                   <span className="text-xs uppercase tracking-wider font-semibold text-slate-400">
@@ -394,17 +402,16 @@ function PosPageContent() {
                     <Banknote className="w-3.5 h-3.5 text-emerald-400" />
                     {language === 'bn' ? 'গ্রাহক কত টাকার নোট দিয়েছেন?' : 'Cash Handed by Customer:'}
                   </p>
-                  
+
                   <div className="grid grid-cols-4 gap-1.5">
                     {cashPresets.map((preset) => (
                       <button
                         key={preset}
                         onClick={() => setTenderedCash(preset)}
-                        className={`py-1.5 rounded-xl font-mono text-xs font-bold transition-all ${
-                          tenderedCash === preset
-                            ? 'bg-amber-400 text-slate-950 ring-2 ring-amber-300 scale-105'
-                            : 'bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800'
-                        }`}
+                        className={`py-1.5 rounded-xl font-mono text-xs font-bold transition-all ${tenderedCash === preset
+                          ? 'bg-amber-400 text-slate-950 ring-2 ring-amber-300 scale-105'
+                          : 'bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800'
+                          }`}
                       >
                         ৳{preset}
                       </button>
@@ -430,11 +437,10 @@ function PosPageContent() {
                 </div>
 
                 {/* Change or Due Result Box */}
-                <div className={`p-3 rounded-xl border flex items-center justify-between ${
-                  dueAmount > 0 
-                    ? 'bg-rose-950/40 border-rose-800 text-rose-300' 
-                    : 'bg-emerald-950/60 border-emerald-500/60 text-emerald-300'
-                }`}>
+                <div className={`p-3 rounded-xl border flex items-center justify-between ${dueAmount > 0
+                  ? 'bg-rose-950/40 border-rose-800 text-rose-300'
+                  : 'bg-emerald-950/60 border-emerald-500/60 text-emerald-300'
+                  }`}>
                   <div className="flex items-center gap-2">
                     <Coins className="w-5 h-5 text-amber-400" />
                     <span className="text-xs font-semibold">
