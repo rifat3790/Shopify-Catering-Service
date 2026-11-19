@@ -306,3 +306,4 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
     </>
   );
 }
+
