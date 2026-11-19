@@ -225,15 +225,18 @@ function PosPageContent() {
               placeholder="Dish Name (e.g. Special Beef Curry)"
               className="flex-1 min-w-[180px] px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white"
             />
-            <input
-              type="number"
-              required
-              min="1"
-              value={customItemPrice || ''}
-              onChange={e => setCustomItemPrice(Number(e.target.value))}
-              placeholder="Price ৳"
-              className="w-24 px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs font-mono font-bold text-amber-300"
-            />
+            <div className="relative flex items-center">
+              <span className="absolute left-2.5 text-xs text-amber-400 font-bold font-mono select-none">৳</span>
+              <input
+                type="number"
+                required
+                min="1"
+                value={customItemPrice || ''}
+                onChange={e => setCustomItemPrice(Number(e.target.value))}
+                placeholder="Price"
+                className="w-24 pl-6 pr-2.5 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs font-mono font-bold text-amber-300 focus:outline-none focus:border-amber-400"
+              />
+            </div>
             <button type="submit" className="px-4 py-1.5 rounded-xl bg-amber-500 text-slate-950 font-bold text-xs">
               Add to Register
             </button>

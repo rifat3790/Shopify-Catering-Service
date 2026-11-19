@@ -14,6 +14,7 @@ import { useToast } from '@/context/ToastContext';
 import { OrderData, UserRecord } from '@/lib/types';
 import { getClientCache, setClientCache } from '@/lib/clientCache';
 import { filterOrdersByDate, DateFilterType } from '@/lib/dateFilterUtils';
+import { downloadReceiptPng, downloadOrdersAsZip } from '@/lib/receiptGenerator';
 import Link from 'next/link';
 import { 
   Wallet, 
@@ -59,6 +60,37 @@ function UserDashboardContent() {
   const [balanceAmount, setBalanceAmount] = useState<number>(500);
   const [balanceAction, setBalanceAction] = useState<'add' | 'deduct' | 'set'>('add');
   const [isUpdatingBalance, setIsUpdatingBalance] = useState(false);
+  const [isDownloadingBulk, setIsDownloadingBulk] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(0);
+
+  const handleDownloadAllInTab = async () => {
+    if (myOrders.length === 0) {
+      toast.warning(
+        language === 'bn' ? 'বর্তমান ট্যাবে কোনো অর্ডার নেই!' : 'No orders found in current period!',
+        'No Invoices'
+      );
+      return;
+    }
+
+    setIsDownloadingBulk(true);
+    setDownloadProgress(0);
+    try {
+      const tabName = `Personal_${dateFilter}_${effectiveName}`.replace(/[^a-zA-Z0-9_-]/g, '_');
+      await downloadOrdersAsZip(myOrders, tabName, (completed) => {
+        setDownloadProgress(completed);
+      });
+      toast.success(
+        language === 'bn'
+          ? `${myOrders.length} টি ইনভয়েস সফলভাবে জিপ ফাইল হিসেবে ডাউনলোড হয়েছে!`
+          : `Downloaded ${myOrders.length} invoices as ZIP!`,
+        'Invoices Downloaded 📦'
+      );
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to download invoices', 'Download Error');
+    } finally {
+      setIsDownloadingBulk(false);
+    }
+  };
 
   const loadUserData = async (silent = false) => {
     if (!silent && (!orders || orders.length === 0)) {
@@ -444,12 +476,33 @@ function UserDashboardContent() {
                 </p>
               </div>
 
-              <button
-                onClick={() => setIsOrderModalOpen(true)}
-                className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-md self-start sm:self-auto"
-              >
-                + {language === 'bn' ? 'নতুন খাবার অর্ডার' : 'Order Food Now'}
-              </button>
+              <div className="flex items-center gap-2.5 self-start sm:self-auto flex-wrap">
+                {/* Download All Invoices in Current Tab as ZIP */}
+                <button
+                  onClick={handleDownloadAllInTab}
+                  disabled={myOrders.length === 0 || isDownloadingBulk}
+                  className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-300 border border-amber-500/40 hover:border-amber-400 text-xs font-semibold transition-all flex items-center gap-1.5 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-[0.98]"
+                  title={language === 'bn' ? 'বর্তমান ট্যাবের সকল রসিদ একসাথে ZIP আকারে ডাউনলোড' : 'Download all receipts in current tab as ZIP'}
+                >
+                  {isDownloadingBulk ? (
+                    <div className="w-3.5 h-3.5 rounded-full border-2 border-amber-400 border-t-transparent animate-spin" />
+                  ) : (
+                    <Download className="w-3.5 h-3.5 text-amber-400" />
+                  )}
+                  <span>
+                    {isDownloadingBulk
+                      ? `${language === 'bn' ? 'প্রস্তুত হচ্ছে...' : 'Generating...'} ${downloadProgress}/${myOrders.length}`
+                      : (language === 'bn' ? `সব ইনভয়েস ডাউনলোড (${myOrders.length})` : `Download All (${myOrders.length})`)}
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => setIsOrderModalOpen(true)}
+                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-md"
+                >
+                  + {language === 'bn' ? 'নতুন খাবার অর্ডার' : 'Order Food Now'}
+                </button>
+              </div>
             </div>
 
             <div className="p-4 sm:p-6 space-y-4">

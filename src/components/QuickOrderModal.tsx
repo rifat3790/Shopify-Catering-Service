@@ -500,32 +500,56 @@ export default function QuickOrderModal({
                     value={newCustomName}
                     onChange={e => setNewCustomName(e.target.value)}
                     placeholder={language === 'bn' ? 'খাবারের নাম' : 'Item name'}
-                    className="flex-1 min-w-[120px] px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white"
+                    className="flex-1 min-w-[130px] px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-amber-400"
                   />
-                  <input
-                    type="number"
-                    min="1"
-                    value={newCustomPrice || ''}
-                    onChange={e => setNewCustomPrice(Number(e.target.value))}
-                    placeholder="৳ Price"
-                    className="w-20 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs font-mono font-bold text-amber-300"
-                  />
-                  <div className="flex items-center gap-1 bg-slate-900 border border-slate-700 px-2 py-1 rounded-lg">
-                    <span className="text-[10px] text-slate-400">Qty:</span>
+                  
+                  {/* Clean Price Box with Currency Prefix */}
+                  <div className="relative flex items-center">
+                    <span className="absolute left-2.5 text-xs text-amber-400 font-bold font-mono select-none">৳</span>
                     <input
                       type="number"
                       min="1"
-                      value={newCustomQty}
-                      onChange={e => setNewCustomQty(Math.max(1, parseInt(e.target.value) || 1))}
-                      className="w-12 bg-transparent text-center text-xs font-mono font-bold text-white outline-none"
+                      value={newCustomPrice || ''}
+                      onChange={e => setNewCustomPrice(Number(e.target.value))}
+                      placeholder={language === 'bn' ? 'মূল্য' : 'Price'}
+                      className="w-24 pl-6 pr-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs font-mono font-bold text-amber-300 focus:outline-none focus:border-amber-400"
                     />
                   </div>
+
+                  {/* Clean Quantity Stepper */}
+                  <div className="flex items-center bg-slate-900 border border-slate-700 rounded-lg overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setNewCustomQty(prev => Math.max(1, prev - 1))}
+                      className="w-7 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 text-xs font-bold transition-colors select-none"
+                    >
+                      −
+                    </button>
+                    <div className="flex items-center px-1">
+                      <span className="text-[10px] text-slate-400 mr-1 select-none">Qty:</span>
+                      <input
+                        type="number"
+                        min="1"
+                        value={newCustomQty}
+                        onChange={e => setNewCustomQty(Math.max(1, parseInt(e.target.value) || 1))}
+                        className="w-8 bg-transparent text-center text-xs font-mono font-bold text-white outline-none"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setNewCustomQty(prev => prev + 1)}
+                      className="w-7 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 text-xs font-bold transition-colors select-none"
+                    >
+                      +
+                    </button>
+                  </div>
+
                   <button
                     type="button"
                     onClick={handleAddCustomItem}
-                    className="px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-bold text-xs"
+                    className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-sm transition-all"
                   >
-                    যোগ করুন
+                    {language === 'bn' ? 'যোগ করুন' : 'Add'}
                   </button>
                 </div>
               </div>
@@ -688,18 +712,21 @@ export default function QuickOrderModal({
             {/* Custom Paid Input & Change */}
             <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-800">
               <div>
-                <label className="block text-[11px] text-slate-400 mb-1">
+                <label className="block text-[11px] text-slate-400 mb-1 font-semibold">
                   {language === 'bn' ? 'পরিশোধিত টাকা (Paid ৳)' : 'Paid Amount (৳)'}
                 </label>
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={paidAmount || ''}
-                  onChange={(e) => setPaidAmount(Number(e.target.value))}
-                  placeholder="0.00"
-                  className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-sm font-mono text-teal-300 font-bold focus:outline-none focus:border-amber-400"
-                />
+                <div className="relative flex items-center">
+                  <span className="absolute left-3 text-sm font-bold text-teal-400 font-mono select-none">৳</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    value={paidAmount || ''}
+                    onChange={(e) => setPaidAmount(Number(e.target.value))}
+                    placeholder="0.00"
+                    className="w-full pl-8 pr-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-sm font-mono text-teal-300 font-bold focus:outline-none focus:border-amber-400 transition-colors"
+                  />
+                </div>
               </div>
 
               <div>
