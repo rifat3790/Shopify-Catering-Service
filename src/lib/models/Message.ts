@@ -30,3 +30,4 @@ export default (typeof mongoose !== 'undefined' && mongoose.models && mongoose.m
   : (typeof mongoose !== 'undefined' && mongoose.model)
   ? mongoose.model<IMessage>('Message', MessageSchema)
   : (null as any);
+

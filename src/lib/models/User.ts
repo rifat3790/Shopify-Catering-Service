@@ -14,6 +14,7 @@ export interface IUser extends Document {
   phone?: string;
   lastSeen?: Date;
   isOnline?: boolean;
+  blockedUsers?: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -36,6 +37,7 @@ const UserSchema = new Schema<IUser>(
     phone: { type: String, default: '' },
     lastSeen: { type: Date, default: Date.now },
     isOnline: { type: Boolean, default: false },
+    blockedUsers: [{ type: String }],
   },
   {
     timestamps: true,

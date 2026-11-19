@@ -7,7 +7,7 @@ import LuxuryLoader from '@/components/LuxuryLoader';
 import AudioCallModal from '@/components/AudioCallModal';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
-import { UserRecord, ChatMessage, ChatGroup } from '@/lib/types';
+import { UserRecord, ChatMessage, ChatGroup, SUPER_ADMIN_EMAIL } from '@/lib/types';
 import { 
   MessageSquare, 
   Users, 
@@ -16,21 +16,37 @@ import {
   Plus, 
   Search, 
   Sparkles, 
-  Circle, 
-  CheckCheck, 
-  Smile, 
   Radio, 
   Clock, 
   ShieldCheck, 
   UserPlus, 
   X,
-  Volume2
+  Volume2,
+  Settings,
+  MoreVertical,
+  Crown,
+  Shield,
+  UserMinus,
+  UserCheck,
+  Trash2,
+  Edit2,
+  Check,
+  ArrowLeft,
+  Ban,
+  AlertCircle,
+  CheckCheck,
+  UserX,
+  LogOut
 } from 'lucide-react';
 
 function ChatHubContent() {
   const { user } = useAuth();
   const { language } = useLanguage();
 
+  // Mobile navigation state
+  const [mobileView, setMobileView] = useState<'list' | 'chat'>('list');
+
+  // Directory state
   const [activeTab, setActiveTab] = useState<'members' | 'groups'>('members');
   const [members, setMembers] = useState<UserRecord[]>([]);
   const [groups, setGroups] = useState<ChatGroup[]>([]);
@@ -45,7 +61,8 @@ function ChatHubContent() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [sending, setSending] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const chatScrollContainerRef = useRef<HTMLDivElement | null>(null);
 
   // Audio Call Modal state
   const [isAudioCallOpen, setIsAudioCallOpen] = useState(false);
@@ -56,6 +73,22 @@ function ChatHubContent() {
   const [newGroupDesc, setNewGroupDesc] = useState('');
   const [selectedGroupMemberIds, setSelectedGroupMemberIds] = useState<string[]>([]);
   const [creatingGroup, setCreatingGroup] = useState(false);
+
+  // Group Details & Settings Drawer/Modal state
+  const [isGroupSettingsOpen, setIsGroupSettingsOpen] = useState(false);
+  const [isEditingGroup, setIsEditingGroup] = useState(false);
+  const [editGroupName, setEditGroupName] = useState('');
+  const [editGroupDesc, setEditGroupDesc] = useState('');
+  const [savingGroupSettings, setSavingGroupSettings] = useState(false);
+  const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
+  const [newMembersToAdd, setNewMembersToAdd] = useState<string[]>([]);
+  const [addingMembers, setAddingMembers] = useState(false);
+  const [isDeleteGroupConfirmOpen, setIsDeleteGroupConfirmOpen] = useState(false);
+  const [deletingGroup, setDeletingGroup] = useState(false);
+
+  // User Actions dropdown state
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [togglingBlock, setTogglingBlock] = useState(false);
 
   // Send periodic presence heartbeat
   useEffect(() => {
@@ -94,12 +127,10 @@ function ChatHubContent() {
         const uJson = await uRes.json();
         if (uJson.success && uJson.data) {
           setMembers(uJson.data);
-          // Auto select first member if none selected
-          if (!selectedMember && !selectedGroup && uJson.data.length > 0) {
-            const others = uJson.data.filter((u: UserRecord) => u.email.toLowerCase() !== user?.email?.toLowerCase());
-            if (others.length > 0) {
-              setSelectedMember(others[0]);
-            }
+          // If a member is currently selected, update its record
+          if (selectedMember) {
+            const updated = uJson.data.find((m: UserRecord) => m.id === selectedMember.id);
+            if (updated) setSelectedMember(updated);
           }
         }
       }
@@ -108,6 +139,11 @@ function ChatHubContent() {
         const gJson = await gRes.json();
         if (gJson.success && gJson.data) {
           setGroups(gJson.data);
+          // If a group is currently selected, update its state
+          if (selectedGroup) {
+            const updated = gJson.data.find((g: ChatGroup) => g.id === selectedGroup.id);
+            if (updated) setSelectedGroup(updated);
+          }
         }
       }
     } catch (err) {
@@ -119,7 +155,7 @@ function ChatHubContent() {
 
   useEffect(() => {
     loadDirectory();
-    const interval = setInterval(loadDirectory, 12000);
+    const interval = setInterval(loadDirectory, 10000);
     return () => clearInterval(interval);
   }, [user]);
 
@@ -155,19 +191,54 @@ function ChatHubContent() {
     return () => clearInterval(msgInterval);
   }, [selectedMember, selectedGroup, user]);
 
-  // Scroll to bottom on new message
+  // Contained auto-scroll to bottom inside message container without window scrolling
+  const scrollToBottom = () => {
+    if (chatScrollContainerRef.current) {
+      chatScrollContainerRef.current.scrollTop = chatScrollContainerRef.current.scrollHeight;
+    }
+  };
+
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    scrollToBottom();
+  }, [messages, selectedMember, selectedGroup]);
+
+  // Current user's DB record for blockedUsers checking
+  const currentDbUser = members.find(
+    m => m.id === user?.uid || m.email.toLowerCase() === user?.email?.toLowerCase()
+  );
+
+  const isCurrentMemberBlocked = Boolean(
+    selectedMember && currentDbUser?.blockedUsers?.includes(selectedMember.id)
+  );
+  const amIBlockedByMember = Boolean(
+    selectedMember && selectedMember.blockedUsers?.includes(user?.uid || '')
+  );
+
+  // Group permission helpers
+  const isSuperAdmin = user?.email?.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase();
+  const isGroupOwner = Boolean(
+    selectedGroup && (selectedGroup.createdBy === user?.uid || isSuperAdmin)
+  );
+  const isGroupAdmin = Boolean(
+    selectedGroup && (selectedGroup.admins?.includes(user?.uid || '') || isGroupOwner)
+  );
+  const isGroupMember = Boolean(
+    selectedGroup && selectedGroup.members?.includes(user?.uid || '')
+  );
 
   // Send message
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputMessage.trim() || !user || sending) return;
+    if (isCurrentMemberBlocked || amIBlockedByMember) {
+      setSendError("Conversation is blocked. Unblock to continue chatting.");
+      return;
+    }
 
     const textToSend = inputMessage.trim();
     setInputMessage('');
     setSending(true);
+    setSendError(null);
 
     const optimisticMsg: ChatMessage = {
       id: `temp-${Date.now()}`,
@@ -183,7 +254,7 @@ function ChatHubContent() {
     setMessages(prev => [...prev, optimisticMsg]);
 
     try {
-      await fetch('/api/chat/messages', {
+      const res = await fetch('/api/chat/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -195,9 +266,15 @@ function ChatHubContent() {
           text: textToSend,
         }),
       });
-      fetchMessages();
-    } catch (err) {
-      console.error(err);
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        setSendError(json.error || 'Failed to send message');
+      } else {
+        fetchMessages();
+      }
+    } catch (err: any) {
+      setSendError(err.message || 'Network error');
     } finally {
       setSending(false);
     }
@@ -232,12 +309,200 @@ function ChatHubContent() {
           setNewGroupName('');
           setNewGroupDesc('');
           setSelectedGroupMemberIds([]);
+          setMobileView('chat');
         }
       }
     } catch (err) {
       console.error(err);
     } finally {
       setCreatingGroup(false);
+    }
+  };
+
+  // Save Group Settings (Name, Description)
+  const handleSaveGroupSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedGroup || !user || !editGroupName.trim()) return;
+    setSavingGroupSettings(true);
+
+    try {
+      const res = await fetch(`/api/chat/groups/${selectedGroup.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update_settings',
+          requesterId: user.uid,
+          name: editGroupName.trim(),
+          description: editGroupDesc.trim(),
+        }),
+      });
+
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setSelectedGroup(json.data);
+        setGroups(prev => prev.map(g => g.id === json.data.id ? json.data : g));
+        setIsEditingGroup(false);
+      } else {
+        alert(json.error || 'Failed to update group settings');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Error updating settings');
+    } finally {
+      setSavingGroupSettings(false);
+    }
+  };
+
+  // Add Selected Members to Group
+  const handleAddMembersToGroup = async () => {
+    if (!selectedGroup || !user || newMembersToAdd.length === 0) return;
+    setAddingMembers(true);
+
+    try {
+      const res = await fetch(`/api/chat/groups/${selectedGroup.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'add_members',
+          requesterId: user.uid,
+          memberIds: newMembersToAdd,
+        }),
+      });
+
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setSelectedGroup(json.data);
+        setGroups(prev => prev.map(g => g.id === json.data.id ? json.data : g));
+        setIsAddMemberOpen(false);
+        setNewMembersToAdd([]);
+      } else {
+        alert(json.error || 'Failed to add members');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Error adding members');
+    } finally {
+      setAddingMembers(false);
+    }
+  };
+
+  // Remove / Kick Member from Group or Leave Group
+  const handleRemoveMember = async (targetUserId: string) => {
+    if (!selectedGroup || !user) return;
+    const isSelf = targetUserId === user.uid;
+    const confirmMsg = isSelf
+      ? 'Are you sure you want to leave this group?'
+      : 'Are you sure you want to remove this member from the group?';
+
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      const res = await fetch(`/api/chat/groups/${selectedGroup.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'remove_member',
+          requesterId: user.uid,
+          targetUserId,
+        }),
+      });
+
+      const json = await res.json();
+      if (res.ok && json.success) {
+        if (isSelf) {
+          // If left self, unselect group
+          setGroups(prev => prev.filter(g => g.id !== selectedGroup.id));
+          setSelectedGroup(null);
+          setIsGroupSettingsOpen(false);
+        } else {
+          setSelectedGroup(json.data);
+          setGroups(prev => prev.map(g => g.id === json.data.id ? json.data : g));
+        }
+      } else {
+        alert(json.error || 'Failed to remove member');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Error removing member');
+    }
+  };
+
+  // Toggle Admin Status for a Member
+  const handleToggleAdmin = async (targetUserId: string) => {
+    if (!selectedGroup || !user) return;
+
+    try {
+      const res = await fetch(`/api/chat/groups/${selectedGroup.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'toggle_admin',
+          requesterId: user.uid,
+          targetUserId,
+        }),
+      });
+
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setSelectedGroup(json.data);
+        setGroups(prev => prev.map(g => g.id === json.data.id ? json.data : g));
+      } else {
+        alert(json.error || 'Failed to update admin role');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Error updating role');
+    }
+  };
+
+  // Delete Group Permanently
+  const handleDeleteGroup = async () => {
+    if (!selectedGroup || !user) return;
+    setDeletingGroup(true);
+
+    try {
+      const res = await fetch(`/api/chat/groups/${selectedGroup.id}?requesterId=${user.uid}`, {
+        method: 'DELETE',
+      });
+
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setGroups(prev => prev.filter(g => g.id !== selectedGroup.id));
+        setSelectedGroup(null);
+        setIsDeleteGroupConfirmOpen(false);
+        setIsGroupSettingsOpen(false);
+      } else {
+        alert(json.error || 'Failed to delete group');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Error deleting group');
+    } finally {
+      setDeletingGroup(false);
+    }
+  };
+
+  // Toggle Block / Unblock User
+  const handleToggleBlock = async () => {
+    if (!selectedMember || !user || togglingBlock) return;
+    setTogglingBlock(true);
+
+    try {
+      const res = await fetch('/api/users/block', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentUserId: user.uid,
+          targetUserId: selectedMember.id,
+        }),
+      });
+
+      const json = await res.json();
+      if (res.ok && json.success) {
+        await loadDirectory();
+        setIsUserMenuOpen(false);
+      } else {
+        alert(json.error || 'Failed to change block status');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Error toggling block');
+    } finally {
+      setTogglingBlock(false);
     }
   };
 
@@ -259,7 +524,7 @@ function ChatHubContent() {
     return `Active ${diffDay}d ago`;
   };
 
-  // Filtered members list
+  // Filtered members list (ALL registered users except current user)
   const otherMembers = members.filter(m => m.email.toLowerCase() !== user?.email?.toLowerCase());
   const filteredMembers = otherMembers.filter(m => 
     m.name.toLowerCase().includes(search.toLowerCase()) || 
@@ -272,35 +537,47 @@ function ChatHubContent() {
     (g.description || '').toLowerCase().includes(search.toLowerCase())
   );
 
+  // Group members details
+  const groupMemberList = selectedGroup
+    ? members.filter(m => selectedGroup.members?.includes(m.id))
+    : [];
+
+  const nonGroupMembers = selectedGroup
+    ? members.filter(m => !selectedGroup.members?.includes(m.id))
+    : [];
+
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col lg:flex-row text-slate-100">
+    <div className="fixed inset-0 h-screen max-h-screen bg-slate-950 flex flex-col lg:flex-row text-slate-100 overflow-hidden select-none">
       <Sidebar />
 
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+      {/* Main Workspace Frame */}
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         
-        {/* Main Content Split: Chat Directory (Left) + Active Chat Room (Right) */}
-        <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+        {/* Telegram-style Split: Directory Column (Left) + Chat Window (Right) */}
+        <div className="flex-1 flex overflow-hidden relative">
           
           {/* Left Column: Directory & Channels */}
-          <div className="w-full md:w-80 lg:w-96 bg-slate-950 border-r border-emerald-900/40 flex flex-col shrink-0 h-full">
+          <div className={`w-full md:w-80 lg:w-96 bg-slate-950 border-r border-emerald-900/40 flex flex-col shrink-0 h-full transition-all duration-200 z-10 ${
+            mobileView === 'chat' ? 'hidden md:flex' : 'flex'
+          }`}>
             
-            {/* Directory Header */}
-            <div className="p-4 border-b border-slate-800/80 space-y-3">
+            {/* Telegram Header */}
+            <div className="p-3.5 border-b border-slate-800/80 space-y-3 bg-slate-950">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-600 to-amber-500 flex items-center justify-center text-slate-950 font-bold shadow-md">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-600 to-amber-500 flex items-center justify-center text-slate-950 font-bold shadow-md shadow-emerald-950/50">
                     <MessageSquare className="w-4 h-4" />
                   </div>
                   <div>
-                    <h2 className="font-serif font-bold text-white text-base">Team Connect</h2>
-                    <p className="text-[10px] text-emerald-400 font-medium">Real-Time Team & Voice</p>
+                    <h2 className="font-serif font-bold text-white text-base tracking-tight">Team Connect</h2>
+                    <p className="text-[10px] text-emerald-400 font-medium">Real-Time Messaging & Voice</p>
                   </div>
                 </div>
 
                 <button
                   onClick={() => setIsCreateGroupOpen(true)}
                   title="Create New Team Group"
-                  className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-300 border border-amber-500/40 text-xs font-semibold flex items-center gap-1 transition-all hover:scale-105"
+                  className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-300 border border-amber-500/40 text-xs font-semibold flex items-center gap-1.5 transition-all hover:scale-105 active:scale-95 shadow-sm"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Group</span>
@@ -315,11 +592,11 @@ function ChatHubContent() {
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   placeholder="Search members or groups..."
-                  className="w-full pl-9 pr-3.5 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/60"
+                  className="w-full pl-9 pr-3.5 py-2 bg-slate-900/90 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/60 transition-colors"
                 />
               </div>
 
-              {/* Directory Tabs */}
+              {/* Telegram-style Segment Tabs */}
               <div className="grid grid-cols-2 gap-1 p-1 bg-slate-900 rounded-xl border border-slate-800/80 text-xs font-semibold">
                 <button
                   onClick={() => setActiveTab('members')}
@@ -347,7 +624,7 @@ function ChatHubContent() {
             </div>
 
             {/* Scrollable Directory List */}
-            <div className="flex-1 overflow-y-auto divide-y divide-slate-900">
+            <div className="flex-1 overflow-y-auto divide-y divide-slate-900/80">
               {loading ? (
                 <div className="py-12">
                   <LuxuryLoader message="Loading team directory..." size="sm" />
@@ -355,18 +632,21 @@ function ChatHubContent() {
               ) : activeTab === 'members' ? (
                 filteredMembers.length === 0 ? (
                   <div className="p-8 text-center text-xs text-slate-400 space-y-1">
-                    <p className="font-semibold text-slate-300">No other members online</p>
-                    <p className="text-[11px] text-slate-500">New team members will appear when they sign in.</p>
+                    <p className="font-semibold text-slate-300">No other members registered</p>
+                    <p className="text-[11px] text-slate-500">Real users who log in will instantly appear here.</p>
                   </div>
                 ) : (
                   filteredMembers.map(m => {
                     const isSelected = selectedMember?.id === m.id && !selectedGroup;
+                    const isBlocked = currentDbUser?.blockedUsers?.includes(m.id);
+
                     return (
                       <div
                         key={m.id}
                         onClick={() => {
                           setSelectedMember(m);
                           setSelectedGroup(null);
+                          setMobileView('chat');
                         }}
                         className={`p-3.5 flex items-center justify-between gap-3 cursor-pointer transition-all ${
                           isSelected
@@ -375,7 +655,7 @@ function ChatHubContent() {
                         }`}
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          {/* Avatar with live status indicator dot */}
+                          {/* Avatar with status indicator */}
                           <div className="relative shrink-0">
                             <img
                               src={m.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(m.name)}&background=047857&color=fff`}
@@ -391,7 +671,14 @@ function ChatHubContent() {
                           </div>
 
                           <div className="min-w-0 flex-1">
-                            <p className="font-bold text-xs text-white truncate">{m.name}</p>
+                            <div className="flex items-center gap-1.5">
+                              <p className="font-bold text-xs text-white truncate">{m.name}</p>
+                              {isBlocked && (
+                                <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-rose-950 text-rose-400 border border-rose-800/40">
+                                  Blocked
+                                </span>
+                              )}
+                            </div>
                             <p className="text-[11px] text-slate-400 truncate">{m.department}</p>
                             <span className="text-[10px] text-emerald-400 font-mono">
                               {formatLastSeen(m.lastSeen, m.isOnline)}
@@ -399,7 +686,7 @@ function ChatHubContent() {
                           </div>
                         </div>
 
-                        {/* Call Icon on hover */}
+                        {/* Call Icon */}
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -418,13 +705,18 @@ function ChatHubContent() {
                 )
               ) : (
                 filteredGroups.length === 0 ? (
-                  <div className="p-8 text-center text-xs text-slate-400">
-                    <p>No groups created yet.</p>
+                  <div className="p-8 text-center text-xs text-slate-400 space-y-2">
+                    <div className="w-12 h-12 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-amber-400 mx-auto">
+                      <Users className="w-6 h-6" />
+                    </div>
+                    <p className="font-semibold text-slate-300">No team groups yet</p>
+                    <p className="text-[11px] text-slate-500">Create the first group for catering discussions or department lunches!</p>
                     <button
                       onClick={() => setIsCreateGroupOpen(true)}
-                      className="mt-2 text-amber-300 hover:underline text-[11px] font-semibold"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-400 text-slate-950 text-xs font-bold shadow hover:bg-amber-300 transition-all mt-2"
                     >
-                      + Create First Team Group
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Create Group</span>
                     </button>
                   </div>
                 ) : (
@@ -436,6 +728,7 @@ function ChatHubContent() {
                         onClick={() => {
                           setSelectedGroup(g);
                           setSelectedMember(null);
+                          setMobileView('chat');
                         }}
                         className={`p-3.5 flex items-center justify-between gap-3 cursor-pointer transition-all ${
                           isSelected
@@ -481,60 +774,143 @@ function ChatHubContent() {
           </div>
 
           {/* Right Column: Chat Room Window */}
-          <div className="flex-1 flex flex-col bg-slate-950 h-full overflow-hidden">
+          <div className={`flex-1 flex flex-col bg-slate-950 h-full overflow-hidden ${
+            mobileView === 'list' ? 'hidden md:flex' : 'flex'
+          }`}>
             
-            {/* Chat Room Header */}
+            {/* Telegram Chat Header */}
             {(selectedMember || selectedGroup) ? (
-              <div className="p-4 border-b border-emerald-900/40 bg-slate-950/90 backdrop-blur-md flex items-center justify-between gap-4 shrink-0">
+              <div className="p-3.5 border-b border-emerald-900/40 bg-slate-950/95 backdrop-blur-md flex items-center justify-between gap-3 shrink-0 z-20">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="relative shrink-0">
-                    <img
-                      src={
-                        selectedGroup 
-                          ? (selectedGroup.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedGroup.name)}&background=d97706&color=fff`)
-                          : (selectedMember?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedMember?.name || 'User')}&background=047857&color=fff`)
-                      }
-                      alt="Avatar"
-                      className="w-11 h-11 rounded-2xl object-cover ring-2 ring-emerald-500/40"
-                    />
-                    {!selectedGroup && selectedMember && (
-                      <span className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-slate-950 ${
-                        selectedMember.isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'
-                      }`} />
-                    )}
-                  </div>
+                  {/* Mobile Back Button */}
+                  <button
+                    onClick={() => setMobileView('list')}
+                    className="p-2 -ml-1 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 md:hidden"
+                    title="Back to conversations"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                  </button>
 
-                  <div className="min-w-0">
-                    <h3 className="font-serif font-bold text-white text-base truncate">
-                      {selectedGroup ? selectedGroup.name : selectedMember?.name}
-                    </h3>
-                    <div className="flex items-center gap-2 text-xs">
-                      {selectedGroup ? (
-                        <span className="text-amber-400 font-medium">
-                          {selectedGroup.members?.length || 0} active members • Group Channel
-                        </span>
-                      ) : (
-                        <>
-                          <span className="text-slate-400">{selectedMember?.department}</span>
-                          <span className="text-slate-600">•</span>
-                          <span className={`font-mono font-medium ${selectedMember?.isOnline ? 'text-emerald-400' : 'text-slate-400'}`}>
-                            {formatLastSeen(selectedMember?.lastSeen, selectedMember?.isOnline)}
-                          </span>
-                        </>
+                  {/* Avatar & Clickable Target for Settings / Profile */}
+                  <div 
+                    onClick={() => {
+                      if (selectedGroup) {
+                        setEditGroupName(selectedGroup.name);
+                        setEditGroupDesc(selectedGroup.description || '');
+                        setIsGroupSettingsOpen(true);
+                      }
+                    }}
+                    className={`flex items-center gap-3 min-w-0 ${selectedGroup ? 'cursor-pointer hover:opacity-90' : ''}`}
+                  >
+                    <div className="relative shrink-0">
+                      <img
+                        src={
+                          selectedGroup 
+                            ? (selectedGroup.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedGroup.name)}&background=d97706&color=fff`)
+                            : (selectedMember?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedMember?.name || 'User')}&background=047857&color=fff`)
+                        }
+                        alt="Avatar"
+                        className="w-10 h-10 rounded-2xl object-cover ring-2 ring-emerald-500/40"
+                      />
+                      {!selectedGroup && selectedMember && (
+                        <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-950 ${
+                          selectedMember.isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'
+                        }`} />
                       )}
+                    </div>
+
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <h3 className="font-serif font-bold text-white text-sm sm:text-base truncate">
+                          {selectedGroup ? selectedGroup.name : selectedMember?.name}
+                        </h3>
+                        {selectedGroup && (
+                          <span className="p-1 text-slate-400 hover:text-amber-300">
+                            <Settings className="w-3.5 h-3.5" />
+                          </span>
+                        )}
+                      </div>
+                      
+                      <div className="flex items-center gap-2 text-xs">
+                        {selectedGroup ? (
+                          <span className="text-amber-400/90 font-medium text-[11px]">
+                            {selectedGroup.members?.length || 0} members • click for group info & settings
+                          </span>
+                        ) : (
+                          <>
+                            <span className="text-slate-400 text-[11px]">{selectedMember?.department}</span>
+                            <span className="text-slate-600">•</span>
+                            <span className={`font-mono text-[11px] font-medium ${selectedMember?.isOnline ? 'text-emerald-400' : 'text-slate-400'}`}>
+                              {formatLastSeen(selectedMember?.lastSeen, selectedMember?.isOnline)}
+                            </span>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Top Action: Start Audio Call */}
-                <div className="flex items-center gap-2">
+                {/* Header Actions */}
+                <div className="flex items-center gap-2 relative">
+                  {/* Start Audio Call */}
                   <button
                     onClick={() => setIsAudioCallOpen(true)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-lg hover:scale-105 active:scale-95 transition-all"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-md hover:scale-105 active:scale-95 transition-all"
                   >
-                    <Phone className="w-4 h-4 text-slate-950" />
-                    <span className="hidden sm:inline">Audio Call</span>
+                    <Phone className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Call</span>
                   </button>
+
+                  {/* Group Settings Button */}
+                  {selectedGroup && (
+                    <button
+                      onClick={() => {
+                        setEditGroupName(selectedGroup.name);
+                        setEditGroupDesc(selectedGroup.description || '');
+                        setIsGroupSettingsOpen(true);
+                      }}
+                      title="Group Info & Settings"
+                      className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-300 border border-slate-800 transition-all hover:scale-105"
+                    >
+                      <Settings className="w-4 h-4" />
+                    </button>
+                  )}
+
+                  {/* 1-on-1 User Menu (Block / Unblock) */}
+                  {!selectedGroup && selectedMember && (
+                    <div className="relative">
+                      <button
+                        onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                        title="Conversation Options"
+                        className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition-all"
+                      >
+                        <MoreVertical className="w-4 h-4" />
+                      </button>
+
+                      {isUserMenuOpen && (
+                        <div className="absolute right-0 mt-2 w-48 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-1.5 z-50 animate-in fade-in">
+                          <button
+                            onClick={handleToggleBlock}
+                            disabled={togglingBlock}
+                            className={`w-full flex items-center gap-2 px-3 py-2 text-xs rounded-xl transition-all ${
+                              isCurrentMemberBlocked
+                                ? 'text-emerald-400 hover:bg-emerald-950/40'
+                                : 'text-rose-400 hover:bg-rose-950/40'
+                            }`}
+                          >
+                            <Ban className="w-3.5 h-3.5" />
+                            <span>
+                              {togglingBlock
+                                ? 'Updating...'
+                                : isCurrentMemberBlocked
+                                ? 'Unblock Member'
+                                : 'Block Member'}
+                            </span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (
@@ -543,23 +919,50 @@ function ChatHubContent() {
               </div>
             )}
 
-            {/* Message Bubble Feed */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+            {/* Block Warning Banner */}
+            {isCurrentMemberBlocked && (
+              <div className="bg-rose-950/70 border-b border-rose-900/60 p-2.5 px-4 flex items-center justify-between text-xs text-rose-300">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                  <span>You have blocked this member. You will not receive messages from them.</span>
+                </div>
+                <button
+                  onClick={handleToggleBlock}
+                  disabled={togglingBlock}
+                  className="px-2.5 py-1 rounded-lg bg-rose-900 hover:bg-rose-800 text-white text-[11px] font-bold"
+                >
+                  Unblock
+                </button>
+              </div>
+            )}
+
+            {amIBlockedByMember && (
+              <div className="bg-amber-950/60 border-b border-amber-900/60 p-2.5 px-4 flex items-center gap-2 text-xs text-amber-300">
+                <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                <span>You cannot send messages to this member as they have blocked incoming chats.</span>
+              </div>
+            )}
+
+            {/* Message Bubble Feed (Self-contained scroll without outer window scrolling) */}
+            <div 
+              ref={chatScrollContainerRef} 
+              className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3.5"
+            >
               {(!selectedMember && !selectedGroup) ? (
                 <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-3">
-                  <div className="w-16 h-16 rounded-3xl bg-slate-900 border border-emerald-900/60 flex items-center justify-center text-amber-400 mx-auto">
+                  <div className="w-16 h-16 rounded-3xl bg-slate-900 border border-emerald-900/60 flex items-center justify-center text-amber-400 mx-auto shadow-xl">
                     <MessageSquare className="w-8 h-8" />
                   </div>
                   <h4 className="font-serif font-bold text-white text-lg">Shopify Catering Team Chat</h4>
                   <p className="text-xs text-slate-400 max-w-sm">
-                    Select a colleague or group channel from the left sidebar to start real-time messaging or make direct audio calls.
+                    Select a colleague or team group from the left panel to coordinate lunch, catering orders, and refreshment requests.
                   </p>
                 </div>
               ) : messages.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center p-8 text-slate-500 space-y-2">
                   <Radio className="w-8 h-8 mx-auto text-emerald-500 animate-pulse" />
                   <p className="text-xs text-slate-300 font-semibold">Start the conversation</p>
-                  <p className="text-[11px]">Send a friendly greeting or coordinate lunch & refreshments!</p>
+                  <p className="text-[11px]">Say hello or plan today's team lunch menu!</p>
                 </div>
               ) : (
                 messages.map((msg) => {
@@ -602,8 +1005,17 @@ function ChatHubContent() {
                   );
                 })
               )}
-              <div ref={messagesEndRef} />
             </div>
+
+            {/* Error Message Toast */}
+            {sendError && (
+              <div className="mx-4 mb-2 p-2 bg-rose-950/80 border border-rose-800 rounded-xl text-rose-300 text-xs flex items-center justify-between">
+                <span>{sendError}</span>
+                <button onClick={() => setSendError(null)} className="text-rose-400 hover:text-white">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
 
             {/* Chat Message Input Form */}
             {(selectedMember || selectedGroup) && (
@@ -613,21 +1025,24 @@ function ChatHubContent() {
                     <input
                       type="text"
                       required
+                      disabled={isCurrentMemberBlocked || amIBlockedByMember}
                       value={inputMessage}
                       onChange={e => setInputMessage(e.target.value)}
                       placeholder={
-                        selectedGroup 
+                        isCurrentMemberBlocked || amIBlockedByMember
+                          ? 'This conversation is blocked...'
+                          : selectedGroup 
                           ? `Message #${selectedGroup.name}...` 
                           : `Message ${selectedMember?.name}...`
                       }
-                      className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-2xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
+                      className="w-full px-4 py-3 bg-slate-900 border border-slate-700/80 rounded-2xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     />
                   </div>
 
                   <button
                     type="submit"
-                    disabled={sending || !inputMessage.trim()}
-                    className="p-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-slate-950 font-bold shadow-md transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={sending || !inputMessage.trim() || isCurrentMemberBlocked || amIBlockedByMember}
+                    className="p-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-slate-950 font-bold shadow-md transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
                   >
                     <Send className="w-4 h-4 text-slate-950" />
                   </button>
@@ -651,6 +1066,325 @@ function ChatHubContent() {
         targetDepartment={selectedMember?.department}
         isGroup={!!selectedGroup}
       />
+
+      {/* Telegram-style Group Info & Settings Drawer / Modal */}
+      {isGroupSettingsOpen && selectedGroup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
+          <div className="w-full max-w-lg bg-slate-900 border border-amber-500/50 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            
+            {/* Modal Header */}
+            <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/80">
+              <div className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-amber-400" />
+                <h3 className="font-serif font-bold text-white text-base">Group Settings & Members</h3>
+              </div>
+              <button
+                onClick={() => {
+                  setIsGroupSettingsOpen(false);
+                  setIsEditingGroup(false);
+                  setIsAddMemberOpen(false);
+                }}
+                className="text-slate-400 hover:text-white p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-6">
+              
+              {/* Group Profile Card */}
+              <div className="bg-slate-950/80 p-4 rounded-2xl border border-slate-800 flex items-center gap-4">
+                <img
+                  src={selectedGroup.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedGroup.name)}&background=d97706&color=fff`}
+                  alt={selectedGroup.name}
+                  className="w-16 h-16 rounded-2xl object-cover ring-2 ring-amber-500/40 shrink-0"
+                />
+                <div className="min-w-0 flex-1">
+                  {!isEditingGroup ? (
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-bold text-white text-base truncate">{selectedGroup.name}</h4>
+                        {isGroupAdmin && (
+                          <button
+                            onClick={() => {
+                              setEditGroupName(selectedGroup.name);
+                              setEditGroupDesc(selectedGroup.description || '');
+                              setIsEditingGroup(true);
+                            }}
+                            className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-amber-400 border border-slate-800 text-xs flex items-center gap-1"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                            <span>Edit</span>
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-400 mt-0.5">{selectedGroup.description || 'No description provided'}</p>
+                      <div className="mt-2 flex items-center gap-3 text-[11px] text-slate-500 font-mono">
+                        <span>Created by: {selectedGroup.createdByName || 'Admin'}</span>
+                        <span>•</span>
+                        <span>{selectedGroup.members?.length || 0} members</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <form onSubmit={handleSaveGroupSettings} className="space-y-2">
+                      <input
+                        type="text"
+                        required
+                        value={editGroupName}
+                        onChange={e => setEditGroupName(e.target.value)}
+                        placeholder="Group Name"
+                        className="w-full px-3 py-1.5 bg-slate-900 border border-amber-500/50 rounded-xl text-xs text-white focus:outline-none"
+                      />
+                      <input
+                        type="text"
+                        value={editGroupDesc}
+                        onChange={e => setEditGroupDesc(e.target.value)}
+                        placeholder="Group Description"
+                        className="w-full px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white focus:outline-none"
+                      />
+                      <div className="flex items-center gap-2 pt-1">
+                        <button
+                          type="submit"
+                          disabled={savingGroupSettings || !editGroupName.trim()}
+                          className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold text-xs"
+                        >
+                          {savingGroupSettings ? 'Saving...' : 'Save Changes'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setIsEditingGroup(false)}
+                          className="px-3 py-1 rounded-lg bg-slate-800 text-slate-300 text-xs"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  )}
+                </div>
+              </div>
+
+              {/* Members Section */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h5 className="font-bold text-white text-xs uppercase tracking-wider flex items-center gap-1.5">
+                    <Users className="w-4 h-4 text-emerald-400" />
+                    <span>Members ({groupMemberList.length})</span>
+                  </h5>
+
+                  {/* Add Member Button */}
+                  {isGroupAdmin && (
+                    <button
+                      onClick={() => setIsAddMemberOpen(!isAddMemberOpen)}
+                      className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-emerald-600 hover:text-slate-950 text-emerald-400 border border-emerald-500/30 text-xs font-semibold flex items-center gap-1 transition-all"
+                    >
+                      <UserPlus className="w-3.5 h-3.5" />
+                      <span>Add Member</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Add Member Panel */}
+                {isAddMemberOpen && (
+                  <div className="p-3.5 bg-slate-950 rounded-2xl border border-emerald-500/40 space-y-3">
+                    <p className="text-xs font-bold text-amber-300">Invite Colleagues to Group</p>
+                    {nonGroupMembers.length === 0 ? (
+                      <p className="text-xs text-slate-400">All registered users are already in this group.</p>
+                    ) : (
+                      <div className="max-h-40 overflow-y-auto divide-y divide-slate-800 space-y-1">
+                        {nonGroupMembers.map(m => {
+                          const isChecked = newMembersToAdd.includes(m.id);
+                          return (
+                            <label
+                              key={m.id}
+                              className="flex items-center justify-between p-2 hover:bg-slate-900 rounded-lg cursor-pointer"
+                            >
+                              <div className="flex items-center gap-2">
+                                <img
+                                  src={m.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(m.name)}&background=047857&color=fff`}
+                                  alt={m.name}
+                                  className="w-6 h-6 rounded-full object-cover"
+                                />
+                                <div>
+                                  <p className="text-xs font-bold text-white">{m.name}</p>
+                                  <p className="text-[10px] text-slate-400">{m.department}</p>
+                                </div>
+                              </div>
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setNewMembersToAdd(prev => [...prev, m.id]);
+                                  } else {
+                                    setNewMembersToAdd(prev => prev.filter(id => id !== m.id));
+                                  }
+                                }}
+                                className="w-4 h-4 rounded text-amber-500 focus:ring-amber-400 bg-slate-900 border-slate-700"
+                              />
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+                      <button
+                        type="button"
+                        onClick={() => setIsAddMemberOpen(false)}
+                        className="px-3 py-1 rounded-lg bg-slate-800 text-xs text-slate-300"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        disabled={addingMembers || newMembersToAdd.length === 0}
+                        onClick={handleAddMembersToGroup}
+                        className="px-3.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold text-xs disabled:opacity-50"
+                      >
+                        {addingMembers ? 'Adding...' : `Add Selected (${newMembersToAdd.length})`}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Member List */}
+                <div className="divide-y divide-slate-800/80 bg-slate-950/60 rounded-2xl border border-slate-800 overflow-hidden">
+                  {groupMemberList.map(m => {
+                    const isOwner = m.id === selectedGroup.createdBy;
+                    const isAdmin = selectedGroup.admins?.includes(m.id);
+                    const isMe = m.id === user?.uid;
+
+                    return (
+                      <div key={m.id} className="p-3 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <img
+                            src={m.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(m.name)}&background=047857&color=fff`}
+                            alt={m.name}
+                            className="w-8 h-8 rounded-full object-cover ring-1 ring-slate-700 shrink-0"
+                          />
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-xs font-bold text-white truncate">{m.name}</p>
+                              {isMe && <span className="text-[10px] text-slate-400 font-mono">(You)</span>}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {isOwner ? (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-400">
+                                  <Crown className="w-3 h-3 text-amber-400" />
+                                  Owner
+                                </span>
+                              ) : isAdmin ? (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400">
+                                  <Shield className="w-3 h-3 text-emerald-400" />
+                                  Admin
+                                </span>
+                              ) : (
+                                <span className="text-[10px] text-slate-400">Member</span>
+                              )}
+                              <span className="text-[10px] text-slate-600">•</span>
+                              <span className="text-[10px] text-slate-400 truncate">{m.department}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Admin / Owner Member Controls */}
+                        <div className="flex items-center gap-1 shrink-0">
+                          {/* Toggle Admin Role: Only Group Owner can promote/demote */}
+                          {isGroupOwner && !isOwner && (
+                            <button
+                              onClick={() => handleToggleAdmin(m.id)}
+                              title={isAdmin ? 'Demote from Admin' : 'Promote to Admin'}
+                              className={`p-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                isAdmin
+                                  ? 'bg-emerald-950 text-emerald-400 border border-emerald-800/40 hover:bg-slate-800'
+                                  : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-amber-400 hover:bg-slate-800'
+                              }`}
+                            >
+                              <Shield className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+
+                          {/* Kick Member */}
+                          {((isGroupOwner && !isOwner) || (isGroupAdmin && !isAdmin && !isOwner)) && (
+                            <button
+                              onClick={() => handleRemoveMember(m.id)}
+                              title="Remove member from group"
+                              className="p-1.5 rounded-lg bg-slate-900 hover:bg-rose-950 text-slate-400 hover:text-rose-400 border border-slate-800 transition-all"
+                            >
+                              <UserMinus className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Danger Zone: Leave Group & Delete Group */}
+              <div className="pt-4 border-t border-slate-800 space-y-2">
+                {/* Leave Group Button */}
+                {isGroupMember && !isGroupOwner && (
+                  <button
+                    onClick={() => handleRemoveMember(user?.uid || '')}
+                    className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl bg-slate-950 hover:bg-rose-950/40 text-rose-400 border border-rose-900/40 text-xs font-semibold transition-all"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Leave Group Channel</span>
+                  </button>
+                )}
+
+                {/* Delete Group Button: Only Owner or Super Admin */}
+                {isGroupOwner && (
+                  <button
+                    onClick={() => setIsDeleteGroupConfirmOpen(true)}
+                    className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl bg-rose-950/60 hover:bg-rose-900 text-rose-300 border border-rose-800 text-xs font-bold transition-all"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete Group Permanently</span>
+                  </button>
+                )}
+              </div>
+
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* Delete Group Confirmation Modal */}
+      {isDeleteGroupConfirmOpen && selectedGroup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in">
+          <div className="w-full max-w-sm bg-slate-900 border border-rose-500/60 rounded-3xl p-6 shadow-2xl space-y-4 text-center">
+            <div className="w-12 h-12 rounded-2xl bg-rose-950/80 border border-rose-700/60 flex items-center justify-center text-rose-400 mx-auto">
+              <Trash2 className="w-6 h-6" />
+            </div>
+            <div>
+              <h4 className="font-serif font-bold text-white text-base">Delete Group Channel?</h4>
+              <p className="text-xs text-slate-400 mt-1">
+                Are you sure you want to permanently delete <strong className="text-white">#{selectedGroup.name}</strong>? All chat messages and channel history will be wiped from database.
+              </p>
+            </div>
+            <div className="flex items-center justify-center gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsDeleteGroupConfirmOpen(false)}
+                className="px-4 py-2 rounded-xl bg-slate-800 text-xs text-slate-300 font-semibold"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={deletingGroup}
+                onClick={handleDeleteGroup}
+                className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-lg transition-all"
+              >
+                {deletingGroup ? 'Deleting...' : 'Delete Group'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Create Group Modal */}
       {isCreateGroupOpen && (

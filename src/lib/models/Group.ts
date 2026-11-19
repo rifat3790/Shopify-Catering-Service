@@ -5,6 +5,7 @@ export interface IGroup extends Document {
   description?: string;
   createdBy: string;
   createdByName?: string;
+  admins: string[];
   members: string[];
   avatar?: string;
   createdAt: Date;
@@ -17,6 +18,7 @@ const GroupSchema = new Schema<IGroup>(
     description: { type: String, default: '' },
     createdBy: { type: String, required: true },
     createdByName: { type: String, default: 'Member' },
+    admins: [{ type: String }],
     members: [{ type: String, required: true }],
     avatar: { type: String, default: '' },
   },
@@ -30,3 +32,4 @@ export default (typeof mongoose !== 'undefined' && mongoose.models && mongoose.m
   : (typeof mongoose !== 'undefined' && mongoose.model)
   ? mongoose.model<IGroup>('Group', GroupSchema)
   : (null as any);
+

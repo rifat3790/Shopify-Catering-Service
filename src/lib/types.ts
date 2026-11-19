@@ -54,6 +54,7 @@ export interface UserRecord {
   phone?: string;
   lastSeen?: string;
   isOnline?: boolean;
+  blockedUsers?: string[];
   createdAt: string;
 }
 
@@ -74,9 +75,11 @@ export interface ChatGroup {
   description?: string;
   createdBy: string;
   createdByName?: string;
+  admins: string[];
   members: string[];
   avatar?: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 // System Super Admin configuration

@@ -2,11 +2,18 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useLanguage } from '@/context/LanguageContext';
 import { UtensilsCrossed, Heart, Shield, Database, Flame, Sparkles } from 'lucide-react';
 
 export default function Footer() {
   const { language } = useLanguage();
+  const pathname = usePathname();
+
+  // Telegram / Discord style full-screen chat interface: hide footer to prevent page overflow
+  if (pathname === '/chat') {
+    return null;
+  }
 
   return (
     <footer className="mt-20 border-t border-emerald-950 bg-slate-950 text-slate-400 text-xs">

@@ -36,28 +36,7 @@ let ordersCache: OrderData[] = [];
 let menuItemsCache: MenuItemData[] = [];
 let usersCache: UserRecord[] = [];
 let messagesCache: ChatMessage[] = [];
-let groupsCache: ChatGroup[] = [
-  {
-    id: 'grp-all-team',
-    name: 'Shopify Team — All Hands',
-    description: 'Official Catering & Office Refreshment Discussion',
-    createdBy: 'system',
-    createdByName: 'Shopify Admin',
-    members: [],
-    avatar: 'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=120&q=80',
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'grp-lunch-club',
-    name: 'Lunch & Snack Specials',
-    description: 'Daily cravings, reviews & orders',
-    createdBy: 'system',
-    createdByName: 'Shopify Staff',
-    members: [],
-    avatar: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=120&q=80',
-    createdAt: new Date().toISOString(),
-  }
-];
+let groupsCache: ChatGroup[] = [];
 
 // User Management - ONLY REAL LOGGED-IN USERS
 export async function getAllUsers(): Promise<UserRecord[]> {
@@ -85,6 +64,7 @@ export async function getAllUsers(): Promise<UserRecord[]> {
             phone: d.phone || '',
             lastSeen: d.lastSeen?.toISOString?.() || new Date(lastSeenTime).toISOString(),
             isOnline: Boolean(d.isOnline || isRecentlyActive),
+            blockedUsers: d.blockedUsers || [],
             createdAt: d.createdAt?.toISOString?.() || new Date().toISOString()
           };
         });
@@ -176,6 +156,7 @@ export async function syncUser(userData: {
         department: doc.department || 'Shopify Team',
         avatar: doc.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(doc.name || 'User')}&background=047857&color=fff`,
         phone: doc.phone || '',
+        blockedUsers: doc.blockedUsers || [],
         createdAt: doc.createdAt?.toISOString?.() || new Date().toISOString()
       };
 
@@ -359,6 +340,58 @@ export async function deleteUser(idOrEmail: string): Promise<boolean> {
   }
 
   return deleted;
+}
+
+// Block / Unblock a User
+export async function toggleBlockUser(
+  currentUserId: string,
+  targetUserId: string
+): Promise<{ isBlocked: boolean; blockedUsers: string[] }> {
+  let isBlocked = false;
+  let updatedList: string[] = [];
+
+  try {
+    await connectToDatabase();
+    if (User) {
+      const isObjectId = currentUserId.match(/^[0-9a-fA-F]{24}$/);
+      const query = isObjectId ? { _id: currentUserId } : { email: currentUserId.toLowerCase().trim() };
+      const doc = await User.findOne(query);
+      if (doc) {
+        const list: string[] = doc.blockedUsers || [];
+        const idx = list.indexOf(targetUserId);
+        if (idx !== -1) {
+          list.splice(idx, 1);
+          isBlocked = false;
+        } else {
+          list.push(targetUserId);
+          isBlocked = true;
+        }
+        doc.blockedUsers = list;
+        await doc.save();
+        updatedList = list;
+      }
+    }
+  } catch (err) {
+    console.warn("MongoDB toggle block failed:", err);
+  }
+
+  // Also update memory cache
+  const idx = usersCache.findIndex(u => u.id === currentUserId || u.email.toLowerCase() === currentUserId.toLowerCase());
+  if (idx !== -1) {
+    const list = usersCache[idx].blockedUsers || [];
+    const bIdx = list.indexOf(targetUserId);
+    if (bIdx !== -1) {
+      list.splice(bIdx, 1);
+      isBlocked = false;
+    } else {
+      list.push(targetUserId);
+      isBlocked = true;
+    }
+    usersCache[idx].blockedUsers = list;
+    updatedList = list;
+  }
+
+  return { isBlocked, blockedUsers: updatedList };
 }
 
 // Balance Add, Remove, and Edit (Direct Set)
@@ -737,6 +770,20 @@ export async function sendChatMessage(data: {
   groupId?: string;
   text: string;
 }): Promise<ChatMessage> {
+  // Check if either sender or receiver is blocked in 1-on-1 chat
+  if (data.receiverId) {
+    const allUsers = await getAllUsers();
+    const sender = allUsers.find(u => u.id === data.senderId);
+    const receiver = allUsers.find(u => u.id === data.receiverId);
+    
+    if (sender?.blockedUsers?.includes(data.receiverId)) {
+      throw new Error("You have blocked this member. Unblock to send messages.");
+    }
+    if (receiver?.blockedUsers?.includes(data.senderId)) {
+      throw new Error("You cannot send messages to this member as you are blocked.");
+    }
+  }
+
   const newMsg: ChatMessage = {
     id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     senderId: data.senderId,
@@ -775,21 +822,23 @@ export async function getAllChatGroups(): Promise<ChatGroup[]> {
     if (Group) {
       const docs = await Group.find().sort({ createdAt: -1 }).lean();
       if (docs && docs.length > 0) {
-        const mapped = docs.map((d: any) => ({
+        return docs.map((d: any) => ({
           id: d._id.toString(),
           name: d.name,
-          description: d.description,
+          description: d.description || '',
           createdBy: d.createdBy,
-          createdByName: d.createdByName,
+          createdByName: d.createdByName || 'Member',
+          admins: (d.admins && d.admins.length > 0) ? d.admins : [d.createdBy],
           members: d.members || [],
-          avatar: d.avatar,
-          createdAt: d.createdAt?.toISOString?.() || new Date().toISOString()
+          avatar: d.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(d.name)}&background=047857&color=fff`,
+          createdAt: d.createdAt?.toISOString?.() || new Date().toISOString(),
+          updatedAt: d.updatedAt?.toISOString?.() || new Date().toISOString()
         }));
-        return [...groupsCache, ...mapped];
       }
+      return groupsCache;
     }
   } catch (err) {
-    // fallback
+    console.warn("MongoDB groups fetch failed, using memory:", err);
   }
   return groupsCache;
 }
@@ -802,26 +851,32 @@ export async function createChatGroup(data: {
   members: string[];
   avatar?: string;
 }): Promise<ChatGroup> {
+  const membersList = Array.from(new Set([data.createdBy, ...(data.members || [])]));
+  const adminsList = [data.createdBy];
+
   const newGroup: ChatGroup = {
     id: `grp-${Date.now()}`,
-    name: data.name,
-    description: data.description || '',
+    name: data.name.trim(),
+    description: (data.description || '').trim(),
     createdBy: data.createdBy,
     createdByName: data.createdByName || 'Team Member',
-    members: data.members,
+    admins: adminsList,
+    members: membersList,
     avatar: data.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(data.name)}&background=047857&color=fff`,
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   };
 
   try {
     await connectToDatabase();
     if (Group) {
       const doc = await Group.create({
-        name: data.name,
-        description: data.description,
-        createdBy: data.createdBy,
-        createdByName: data.createdByName,
-        members: data.members,
+        name: newGroup.name,
+        description: newGroup.description,
+        createdBy: newGroup.createdBy,
+        createdByName: newGroup.createdByName,
+        admins: adminsList,
+        members: membersList,
         avatar: newGroup.avatar
       });
       if (doc) newGroup.id = doc._id.toString();
@@ -832,4 +887,239 @@ export async function createChatGroup(data: {
 
   groupsCache.unshift(newGroup);
   return newGroup;
+}
+
+export async function updateChatGroup(
+  groupId: string,
+  data: { name?: string; description?: string; avatar?: string },
+  requesterId: string
+): Promise<ChatGroup | null> {
+  const groups = await getAllChatGroups();
+  const group = groups.find(g => g.id === groupId);
+  if (!group) return null;
+
+  const isSuper = requesterId === SUPER_ADMIN_EMAIL;
+  const isAdmin = (group.admins || []).includes(requesterId) || group.createdBy === requesterId || isSuper;
+  if (!isAdmin) {
+    throw new Error("Unauthorized: Only group admins or owners can edit group settings.");
+  }
+
+  const updatedName = data.name !== undefined ? data.name.trim() : group.name;
+  const updatedDesc = data.description !== undefined ? data.description.trim() : group.description;
+  const updatedAvatar = data.avatar !== undefined ? data.avatar.trim() : group.avatar;
+
+  try {
+    await connectToDatabase();
+    if (Group) {
+      const isObjectId = groupId.match(/^[0-9a-fA-F]{24}$/);
+      if (isObjectId) {
+        await Group.findByIdAndUpdate(groupId, {
+          $set: {
+            name: updatedName,
+            description: updatedDesc,
+            avatar: updatedAvatar,
+            updatedAt: new Date()
+          }
+        });
+      }
+    }
+  } catch (err) {
+    console.warn("MongoDB update group failed:", err);
+  }
+
+  const idx = groupsCache.findIndex(g => g.id === groupId);
+  const updatedGroup: ChatGroup = {
+    ...group,
+    name: updatedName,
+    description: updatedDesc,
+    avatar: updatedAvatar,
+    updatedAt: new Date().toISOString()
+  };
+
+  if (idx !== -1) {
+    groupsCache[idx] = updatedGroup;
+  } else {
+    groupsCache.unshift(updatedGroup);
+  }
+
+  return updatedGroup;
+}
+
+export async function addMembersToGroup(
+  groupId: string,
+  memberIds: string[],
+  requesterId: string
+): Promise<ChatGroup | null> {
+  const groups = await getAllChatGroups();
+  const group = groups.find(g => g.id === groupId);
+  if (!group) return null;
+
+  const isSuper = requesterId === SUPER_ADMIN_EMAIL;
+  const isAdmin = (group.admins || []).includes(requesterId) || group.createdBy === requesterId || isSuper;
+  const isMember = group.members.includes(requesterId);
+
+  if (!isAdmin && !isMember) {
+    throw new Error("Unauthorized: You must be a member of this group to invite colleagues.");
+  }
+
+  const newMembers = Array.from(new Set([...group.members, ...memberIds]));
+
+  try {
+    await connectToDatabase();
+    if (Group) {
+      const isObjectId = groupId.match(/^[0-9a-fA-F]{24}$/);
+      if (isObjectId) {
+        await Group.findByIdAndUpdate(groupId, {
+          $set: { members: newMembers, updatedAt: new Date() }
+        });
+      }
+    }
+  } catch (err) {
+    console.warn("MongoDB add group members failed:", err);
+  }
+
+  const idx = groupsCache.findIndex(g => g.id === groupId);
+  const updated: ChatGroup = { ...group, members: newMembers, updatedAt: new Date().toISOString() };
+  if (idx !== -1) groupsCache[idx] = updated;
+
+  return updated;
+}
+
+export async function removeMemberFromGroup(
+  groupId: string,
+  targetUserId: string,
+  requesterId: string
+): Promise<ChatGroup | null> {
+  const groups = await getAllChatGroups();
+  const group = groups.find(g => g.id === groupId);
+  if (!group) return null;
+
+  const isSuper = requesterId === SUPER_ADMIN_EMAIL;
+  const isOwner = group.createdBy === requesterId || isSuper;
+  const isAdmin = (group.admins || []).includes(requesterId) || isOwner;
+  const isSelf = requesterId === targetUserId;
+
+  if (!isAdmin && !isSelf) {
+    throw new Error("Unauthorized: Only group admins can remove members.");
+  }
+
+  if (targetUserId === group.createdBy && !isSelf && !isSuper) {
+    throw new Error("Cannot remove the creator/owner of the group.");
+  }
+
+  const updatedMembers = group.members.filter(id => id !== targetUserId);
+  const updatedAdmins = (group.admins || []).filter(id => id !== targetUserId);
+
+  try {
+    await connectToDatabase();
+    if (Group) {
+      const isObjectId = groupId.match(/^[0-9a-fA-F]{24}$/);
+      if (isObjectId) {
+        await Group.findByIdAndUpdate(groupId, {
+          $set: { members: updatedMembers, admins: updatedAdmins, updatedAt: new Date() }
+        });
+      }
+    }
+  } catch (err) {
+    console.warn("MongoDB remove member failed:", err);
+  }
+
+  const idx = groupsCache.findIndex(g => g.id === groupId);
+  const updated: ChatGroup = {
+    ...group,
+    members: updatedMembers,
+    admins: updatedAdmins,
+    updatedAt: new Date().toISOString()
+  };
+  if (idx !== -1) groupsCache[idx] = updated;
+
+  return updated;
+}
+
+export async function toggleGroupAdmin(
+  groupId: string,
+  targetUserId: string,
+  requesterId: string
+): Promise<ChatGroup | null> {
+  const groups = await getAllChatGroups();
+  const group = groups.find(g => g.id === groupId);
+  if (!group) return null;
+
+  const isSuper = requesterId === SUPER_ADMIN_EMAIL;
+  const isOwner = group.createdBy === requesterId || isSuper;
+
+  if (!isOwner) {
+    throw new Error("Unauthorized: Only the group owner can promote or demote group admins.");
+  }
+
+  let updatedAdmins = [...(group.admins || [group.createdBy])];
+  if (updatedAdmins.includes(targetUserId)) {
+    // Cannot demote owner
+    if (targetUserId === group.createdBy) return group;
+    updatedAdmins = updatedAdmins.filter(id => id !== targetUserId);
+  } else {
+    updatedAdmins.push(targetUserId);
+  }
+
+  try {
+    await connectToDatabase();
+    if (Group) {
+      const isObjectId = groupId.match(/^[0-9a-fA-F]{24}$/);
+      if (isObjectId) {
+        await Group.findByIdAndUpdate(groupId, {
+          $set: { admins: updatedAdmins, updatedAt: new Date() }
+        });
+      }
+    }
+  } catch (err) {
+    console.warn("MongoDB toggle admin failed:", err);
+  }
+
+  const idx = groupsCache.findIndex(g => g.id === groupId);
+  const updated: ChatGroup = {
+    ...group,
+    admins: updatedAdmins,
+    updatedAt: new Date().toISOString()
+  };
+  if (idx !== -1) groupsCache[idx] = updated;
+
+  return updated;
+}
+
+export async function deleteChatGroup(
+  groupId: string,
+  requesterId: string
+): Promise<boolean> {
+  const groups = await getAllChatGroups();
+  const group = groups.find(g => g.id === groupId);
+  if (!group) return false;
+
+  const isSuper = requesterId === SUPER_ADMIN_EMAIL;
+  const isOwner = group.createdBy === requesterId || isSuper;
+
+  if (!isOwner) {
+    throw new Error("Unauthorized: Only the group owner or Super Admin can delete this group.");
+  }
+
+  try {
+    await connectToDatabase();
+    if (Group) {
+      const isObjectId = groupId.match(/^[0-9a-fA-F]{24}$/);
+      if (isObjectId) {
+        await Group.findByIdAndDelete(groupId);
+      } else {
+        await Group.deleteOne({ _id: groupId });
+      }
+    }
+    if (Message) {
+      await Message.deleteMany({ groupId });
+    }
+  } catch (err) {
+    console.warn("MongoDB delete group failed:", err);
+  }
+
+  groupsCache = groupsCache.filter(g => g.id !== groupId);
+  messagesCache = messagesCache.filter(m => m.groupId !== groupId);
+
+  return true;
 }
