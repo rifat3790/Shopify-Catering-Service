@@ -386,7 +386,9 @@ export default function StorageMetricsCard() {
           <p className="text-2xl font-bold font-mono text-white">
             {financials?.totalActiveUsers || 0}
           </p>
-          <p className="text-[11px] text-amber-400 mt-1 font-mono">Zero Dummy Accounts</p>
+          <p className="text-[11px] text-emerald-400 mt-1 font-mono">
+            {language === 'bn' ? 'নিবন্ধিত আসল মেম্বার' : 'Verified Registered Members'}
+          </p>
         </div>
       </div>
     </div>

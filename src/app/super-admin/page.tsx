@@ -414,7 +414,9 @@ function SuperAdminDashboardContent() {
                 <Users className="w-4 h-4 text-amber-400" />
               </div>
               <p className="text-2xl font-bold font-serif text-white">{users.length}</p>
-              <p className="text-[11px] text-amber-400 mt-1 font-mono">Zero Dummy Accounts</p>
+              <p className="text-[11px] text-amber-400 mt-1 font-mono">
+                {language === 'bn' ? 'নিবন্ধিত আসল মেম্বার' : 'Verified Registered Members'}
+              </p>
             </div>
 
             <div className="p-5 rounded-2xl bg-slate-900/80 border border-emerald-500/30 shadow-lg">
@@ -776,7 +778,7 @@ function SuperAdminDashboardContent() {
                           <p className="text-xs text-slate-400">
                             {language === 'bn' 
                               ? 'কোনো ডামি অ্যাকাউন্ট নেই। মেম্বাররা লগইন করলে বা উপরে "+ Add User" দিয়ে যোগ করলে এখানে প্রদর্শিত হবে।' 
-                              : 'Zero dummy accounts. Real users appear dynamically upon Google/Email sign-in or via "+ Add User" above.'}
+                              : 'No registered members found. Real users appear dynamically upon Google/Email sign-in or via "+ Add User" above.'}
                           </p>
                         </div>
                       </td>
