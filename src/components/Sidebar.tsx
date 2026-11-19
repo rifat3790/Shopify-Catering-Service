@@ -1,0 +1,308 @@
+'use client';
+
+import React, { useState } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
+import { useLanguage } from '@/context/LanguageContext';
+import { 
+  UtensilsCrossed, 
+  LayoutDashboard, 
+  TableProperties, 
+  MenuSquare, 
+  Users, 
+  Calculator, 
+  Crown, 
+  User, 
+  Wallet, 
+  PlusCircle, 
+  Languages, 
+  LogOut, 
+  ChevronRight,
+  Menu,
+  X,
+  Sparkles,
+  ShieldCheck
+} from 'lucide-react';
+
+interface SidebarProps {
+  onOpenNewOrder?: () => void;
+}
+
+export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
+  const pathname = usePathname();
+  const { user, logout } = useAuth();
+  const { language, toggleLanguage } = useLanguage();
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  const navItems = [
+    {
+      href: '/',
+      labelEn: 'Dashboard',
+      labelBn: 'ড্যাশবোর্ড',
+      icon: LayoutDashboard,
+      badge: 'Live',
+    },
+    {
+      href: '/tracker',
+      labelEn: 'Live Order Tracker',
+      labelBn: 'অর্ডার ট্র্যাকার',
+      icon: TableProperties,
+      badge: '',
+    },
+    {
+      href: '/menu',
+      labelEn: 'Menu & Dishes',
+      labelBn: 'মেনু ম্যানেজমেন্ট',
+      icon: MenuSquare,
+      badge: '',
+    },
+    {
+      href: '/members',
+      labelEn: 'Member Directory',
+      labelBn: 'মেম্বার তালিকা',
+      icon: Users,
+      badge: 'Balances',
+    },
+    {
+      href: '/pos',
+      labelEn: 'Express POS',
+      labelBn: 'কাউন্টার পিওএস',
+      icon: Calculator,
+      badge: 'Fast',
+    },
+  ];
+
+  const roleItems = [
+    {
+      href: '/super-admin',
+      labelEn: 'Super Admin',
+      labelBn: 'সুপার অ্যাডমিন',
+      icon: Crown,
+      color: 'text-amber-400',
+    },
+    {
+      href: '/admin',
+      labelEn: 'Admin Kitchen',
+      labelBn: 'অ্যাডমিন কিচেন',
+      icon: ShieldCheck,
+      color: 'text-emerald-400',
+    },
+    {
+      href: '/user',
+      labelEn: 'My Catering Hub',
+      labelBn: 'ব্যক্তিগত ব্যালেন্স',
+      icon: User,
+      color: 'text-sky-400',
+    },
+  ];
+
+  const content = (
+    <div className="flex flex-col h-full bg-slate-950 border-r border-emerald-900/40 text-slate-100 select-none">
+      
+      {/* Brand Header */}
+      <div className="p-6 border-b border-emerald-900/40">
+        <Link href="/" className="flex items-center gap-3 group">
+          <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-emerald-800 to-emerald-600 p-[2px] shadow-lg shadow-emerald-950/50 group-hover:scale-105 transition-transform duration-300">
+            <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center border border-amber-500/30">
+              <UtensilsCrossed className="w-5 h-5 text-amber-400 group-hover:rotate-12 transition-transform duration-300" />
+            </div>
+          </div>
+          <div>
+            <div className="flex items-center gap-1.5">
+              <span className="font-serif text-lg font-bold tracking-tight bg-gradient-to-r from-emerald-400 via-amber-200 to-amber-400 bg-clip-text text-transparent">
+                Shopify Catering
+              </span>
+            </div>
+            <p className="text-[10px] text-emerald-400/80 font-medium tracking-wide">
+              {language === 'bn' ? 'এক্সিকিউটিভ ফুড পোর্টাল' : 'Executive Enterprise Portal'}
+            </p>
+          </div>
+        </Link>
+      </div>
+
+      {/* User Balance Card ("sobay tader balance dekhte pabe") */}
+      <div className="px-5 py-4">
+        <Link
+          href="/user"
+          className="block p-3.5 rounded-2xl bg-gradient-to-br from-emerald-950/80 via-slate-900 to-slate-950 border border-emerald-700/50 shadow-lg hover:border-amber-400/60 transition-all group"
+        >
+          <div className="flex items-center justify-between text-[11px] text-slate-400 mb-1">
+            <span className="flex items-center gap-1 font-semibold text-emerald-300">
+              <Wallet className="w-3.5 h-3.5 text-amber-400" />
+              <span>{language === 'bn' ? 'আমার ব্যালেন্স' : 'My Balance'}</span>
+            </span>
+            <span className="text-[10px] uppercase font-bold px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+              {user?.role || 'User'}
+            </span>
+          </div>
+
+          <div className="flex items-baseline justify-between">
+            <span className="text-xl font-extrabold font-mono text-emerald-400 group-hover:text-amber-300 transition-colors">
+              ৳{user?.balance?.toFixed(0) || '450'}
+            </span>
+            <span className="text-[11px] text-slate-400 flex items-center gap-0.5 group-hover:text-white">
+              <span>{user?.displayName || 'Shamim'}</span>
+              <ChevronRight className="w-3 h-3 text-amber-400" />
+            </span>
+          </div>
+        </Link>
+
+        {/* Quick Add Order CTA */}
+        {onOpenNewOrder && (
+          <button
+            onClick={onOpenNewOrder}
+            className="w-full mt-3 py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-950/50 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+          >
+            <PlusCircle className="w-4 h-4 text-slate-950" />
+            <span>{language === 'bn' ? 'নতুন খাবার অর্ডার' : 'New Quick Order'}</span>
+          </button>
+        )}
+      </div>
+
+      {/* Main Navigation Tabs */}
+      <div className="flex-1 overflow-y-auto px-4 py-2 space-y-1">
+        <p className="px-3 py-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+          {language === 'bn' ? 'প্রধান মেনু' : 'Main Modules'}
+        </p>
+
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = pathname === item.href;
+
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={() => setMobileOpen(false)}
+              className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                isActive
+                  ? 'bg-gradient-to-r from-emerald-950 to-slate-900 text-amber-300 border border-emerald-500/50 shadow-md shadow-emerald-950/50'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-900'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <Icon className={`w-4 h-4 ${isActive ? 'text-amber-400' : 'text-slate-400'}`} />
+                <span>{language === 'bn' ? item.labelBn : item.labelEn}</span>
+              </div>
+              {item.badge && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  {item.badge}
+                </span>
+              )}
+            </Link>
+          );
+        })}
+
+        <div className="pt-4">
+          <p className="px-3 py-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+            {language === 'bn' ? 'রোলভিত্তিক ড্যাশবোর্ড' : 'Role Portals'}
+          </p>
+
+          {roleItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = pathname === item.href;
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setMobileOpen(false)}
+                className={`flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all ${
+                  isActive
+                    ? 'bg-slate-900 text-white border border-slate-700 shadow-sm'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-900/60'
+                }`}
+              >
+                <Icon className={`w-4 h-4 ${item.color}`} />
+                <span>{language === 'bn' ? item.labelBn : item.labelEn}</span>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Sidebar Footer Controls */}
+      <div className="p-4 border-t border-slate-900 bg-slate-950/80 space-y-3">
+        <div className="flex items-center justify-between">
+          {/* Language Toggle */}
+          <button
+            onClick={toggleLanguage}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-xs font-semibold text-emerald-300 border border-slate-800 transition-colors"
+          >
+            <Languages className="w-3.5 h-3.5 text-amber-400" />
+            <span>{language === 'bn' ? 'বাংলা ➔ EN' : 'EN ➔ বাং'}</span>
+          </button>
+
+          {/* Logout / Switch */}
+          {user ? (
+            <button
+              onClick={() => logout()}
+              title="Sign Out"
+              className="p-2 rounded-xl bg-slate-900 hover:bg-rose-950/50 text-slate-400 hover:text-rose-400 border border-slate-800 transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          ) : (
+            <Link
+              href="/login"
+              className="text-xs font-bold text-amber-300 hover:underline"
+            >
+              লগইন করুন
+            </Link>
+          )}
+        </div>
+      </div>
+
+    </div>
+  );
+
+  return (
+    <>
+      {/* Desktop Persistent Sidebar */}
+      <aside className="hidden lg:block w-72 shrink-0 h-screen sticky top-0 z-40">
+        {content}
+      </aside>
+
+      {/* Mobile Top Navbar with Hamburger */}
+      <div className="lg:hidden sticky top-0 z-50 bg-slate-950/95 backdrop-blur-md border-b border-emerald-900/40 px-4 py-3 flex items-center justify-between">
+        <Link href="/" className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-xl bg-emerald-900/80 border border-amber-500/40 flex items-center justify-center text-amber-400">
+            <UtensilsCrossed className="w-4 h-4" />
+          </div>
+          <span className="font-serif font-bold text-white text-base">Shopify Catering</span>
+        </Link>
+
+        <div className="flex items-center gap-2">
+          <Link
+            href="/user"
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-950 border border-emerald-600/60 font-mono font-bold text-xs text-emerald-300"
+          >
+            <Wallet className="w-3 h-3 text-amber-400" />
+            <span>৳{user?.balance?.toFixed(0) || '450'}</span>
+          </Link>
+
+          <button
+            onClick={() => setMobileOpen(!mobileOpen)}
+            className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300"
+          >
+            {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile Slide-Out Drawer */}
+      {mobileOpen && (
+        <div className="lg:hidden fixed inset-0 z-50 flex">
+          <div className="w-72 h-full bg-slate-950 shadow-2xl relative animate-in slide-in-from-left">
+            {content}
+          </div>
+          <div
+            className="flex-1 bg-black/70 backdrop-blur-sm"
+            onClick={() => setMobileOpen(false)}
+          />
+        </div>
+      )}
+    </>
+  );
+}
