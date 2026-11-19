@@ -44,6 +44,35 @@ export interface MenuItemData {
 
 export type UserRole = 'super_admin' | 'admin' | 'staff' | 'user';
 
+export type ThemePresetId = 'emerald' | 'sapphire' | 'amethyst' | 'ruby' | 'arctic' | 'custom';
+
+export interface CustomThemeConfig {
+  primary: string;
+  accent: string;
+  bg?: string;
+  card?: string;
+}
+
+export interface ThemePreset {
+  id: ThemePresetId;
+  name: string;
+  nameBn: string;
+  description: string;
+  descriptionBn: string;
+  tag: string;
+  primary: string;
+  primaryLight: string;
+  primaryDark: string;
+  primaryRgb: string;
+  accent: string;
+  accentLight: string;
+  accentDark: string;
+  accentRgb: string;
+  bgBase: string;
+  bgCard: string;
+  previewGradient: string;
+}
+
 export interface UserRecord {
   id: string;
   name: string;
@@ -59,6 +88,8 @@ export interface UserRecord {
   lastSeen?: string;
   isOnline?: boolean;
   blockedUsers?: string[];
+  themeColor?: string;
+  customTheme?: CustomThemeConfig;
   createdAt: string;
 }
 

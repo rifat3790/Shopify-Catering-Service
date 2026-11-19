@@ -26,7 +26,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { userId, email, name, username, avatar, department, phone } = body;
+    const { userId, email, name, username, avatar, department, phone, themeColor, customTheme } = body;
 
     const idOrEmail = userId || email;
     if (!idOrEmail) {
@@ -36,15 +36,18 @@ export async function POST(request: Request) {
       );
     }
 
+    const updates: any = {};
+    if (name !== undefined) updates.name = name?.trim();
+    if (username !== undefined) updates.username = username?.trim();
+    if (avatar !== undefined) updates.avatar = avatar?.trim();
+    if (department !== undefined) updates.department = department?.trim();
+    if (phone !== undefined) updates.phone = phone?.trim();
+    if (themeColor !== undefined) updates.themeColor = themeColor;
+    if (customTheme !== undefined) updates.customTheme = customTheme;
+
     const updated = await updateUserProfile(
       idOrEmail,
-      {
-        name: name?.trim(),
-        username: username?.trim(),
-        avatar: avatar?.trim(),
-        department: department?.trim(),
-        phone: phone?.trim(),
-      },
+      updates,
       email?.trim()
     );
 

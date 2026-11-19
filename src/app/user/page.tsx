@@ -15,6 +15,7 @@ import { OrderData, UserRecord } from '@/lib/types';
 import { getClientCache, setClientCache } from '@/lib/clientCache';
 import { filterOrdersByDate, DateFilterType } from '@/lib/dateFilterUtils';
 import { downloadReceiptPng, downloadOrdersAsZip } from '@/lib/receiptGenerator';
+import { useTheme } from '@/context/ThemeContext';
 import Link from 'next/link';
 import { 
   Wallet, 
@@ -27,13 +28,15 @@ import {
   RefreshCw,
   MessageSquare,
   Edit3,
-  X
+  X,
+  Palette
 } from 'lucide-react';
 
 function UserDashboardContent() {
   const { user, refreshUser, updateLocalUserProfile } = useAuth();
   const { language } = useLanguage();
   const { toast } = useToast();
+  const { setIsThemeModalOpen } = useTheme();
 
   // Instant 0ms cache initialize
   const [orders, setOrders] = useState<OrderData[]>(() => {
@@ -319,10 +322,20 @@ function UserDashboardContent() {
             </div>
 
             <div className="flex items-center gap-2 self-start md:self-auto flex-wrap">
+              {/* Theme Customizer Button */}
+              <button
+                onClick={() => setIsThemeModalOpen(true)}
+                className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-300 border border-amber-500/40 font-semibold text-xs flex items-center gap-1.5 transition-all hover:scale-105"
+                title={language === 'bn' ? 'থিম কালার কাস্টমাইজ করুন' : 'Change Theme & Colors'}
+              >
+                <Palette className="w-3.5 h-3.5 text-amber-400" />
+                <span>{language === 'bn' ? 'থিম কাস্টমাইজ' : 'Theme Colors'}</span>
+              </button>
+
               {/* Profile Edit Button */}
               <button
                 onClick={() => setIsProfileModalOpen(true)}
-                className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-300 border border-amber-500/40 font-semibold text-xs flex items-center gap-1.5 transition-all hover:scale-105"
+                className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700 font-semibold text-xs flex items-center gap-1.5 transition-all hover:scale-105"
                 title={language === 'bn' ? 'প্রোফাইল পরিবর্তন করুন' : 'Edit Profile'}
               >
                 <Edit3 className="w-3.5 h-3.5" />

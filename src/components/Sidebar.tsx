@@ -30,8 +30,10 @@ import {
   MessageSquare,
   Edit3,
   Receipt,
-  Lock
+  Lock,
+  Palette
 } from 'lucide-react';
+import { useTheme } from '@/context/ThemeContext';
 
 interface SidebarProps {
   onOpenNewOrder?: () => void;
@@ -42,6 +44,7 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
   const { user, logout, refreshUser } = useAuth();
   const { language, toggleLanguage } = useLanguage();
   const { toast } = useToast();
+  const { setIsThemeModalOpen } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [internalOrderOpen, setInternalOrderOpen] = useState(false);
@@ -247,14 +250,25 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setIsProfileModalOpen(true)}
-                title={language === 'bn' ? 'প্রোফাইল এডিট করুন' : 'Edit Profile'}
-                className="p-1.5 rounded-lg bg-slate-800 hover:bg-emerald-900/60 text-slate-300 hover:text-amber-300 border border-slate-700 transition-all hover:scale-105 shrink-0"
-              >
-                <Edit3 className="w-3 h-3" />
-              </button>
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIsThemeModalOpen(true)}
+                  title={language === 'bn' ? 'থিম কালার কাস্টমাইজ করুন' : 'Change Theme & Colors'}
+                  className="p-1.5 rounded-lg bg-slate-800 hover:bg-amber-900/60 text-slate-300 hover:text-amber-300 border border-slate-700 transition-all hover:scale-105"
+                >
+                  <Palette className="w-3 h-3 text-amber-400" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsProfileModalOpen(true)}
+                  title={language === 'bn' ? 'প্রোফাইল এডিট করুন' : 'Edit Profile'}
+                  className="p-1.5 rounded-lg bg-slate-800 hover:bg-emerald-900/60 text-slate-300 hover:text-amber-300 border border-slate-700 transition-all hover:scale-105"
+                >
+                  <Edit3 className="w-3 h-3" />
+                </button>
+              </div>
             </div>
 
             {/* Wallet Balance Link */}
@@ -397,14 +411,25 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
       {/* Sidebar Footer Controls */}
       <div className="p-4 border-t border-slate-900 bg-slate-950/80 space-y-3">
         <div className="flex items-center justify-between">
-          {/* Language Toggle */}
-          <button
-            onClick={toggleLanguage}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-xs font-semibold text-emerald-300 border border-slate-800 transition-colors"
-          >
-            <Languages className="w-3.5 h-3.5 text-amber-400" />
-            <span>{language === 'bn' ? 'বাংলা ➔ EN' : 'EN ➔ বাং'}</span>
-          </button>
+          <div className="flex items-center gap-1.5">
+            {/* Language Toggle */}
+            <button
+              onClick={toggleLanguage}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-xs font-semibold text-emerald-300 border border-slate-800 transition-colors"
+            >
+              <Languages className="w-3.5 h-3.5 text-amber-400" />
+              <span>{language === 'bn' ? 'বাংলা ➔ EN' : 'EN ➔ বাং'}</span>
+            </button>
+
+            {/* Theme Palette Button */}
+            <button
+              onClick={() => setIsThemeModalOpen(true)}
+              title={language === 'bn' ? 'থিম কালার কাস্টমাইজেশন' : 'Theme Palette'}
+              className="p-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-400 border border-slate-800 transition-colors hover:scale-105"
+            >
+              <Palette className="w-4 h-4" />
+            </button>
+          </div>
 
           {/* Logout / Switch */}
           {user ? (

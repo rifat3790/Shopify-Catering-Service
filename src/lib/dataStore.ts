@@ -260,6 +260,8 @@ export async function getAllUsers(): Promise<UserRecord[]> {
         lastSeen: d.lastSeen?.toISOString?.() || new Date(lastSeenTime).toISOString(),
         isOnline: Boolean(d.isOnline || isRecentlyActive),
         blockedUsers: d.blockedUsers || [],
+        themeColor: d.themeColor || 'emerald',
+        customTheme: d.customTheme,
         createdAt: d.createdAt?.toISOString?.() || new Date().toISOString()
       };
     });
@@ -450,6 +452,8 @@ export async function updateUserProfile(
       department: updatedDoc.department,
       avatar: updatedDoc.avatar,
       phone: updatedDoc.phone,
+      themeColor: updatedDoc.themeColor || 'emerald',
+      customTheme: updatedDoc.customTheme,
       createdAt: updatedDoc.createdAt?.toISOString?.() || new Date().toISOString()
     };
     usersCache = usersCache.map(u => 
@@ -557,6 +561,8 @@ export async function syncUser(userData: {
         avatar: doc.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(doc.name || 'User')}&background=047857&color=fff`,
         phone: doc.phone || '',
         blockedUsers: doc.blockedUsers || [],
+        themeColor: doc.themeColor || 'emerald',
+        customTheme: doc.customTheme,
         createdAt: doc.createdAt?.toISOString?.() || new Date().toISOString()
       };
 

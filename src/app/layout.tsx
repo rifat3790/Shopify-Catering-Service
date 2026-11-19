@@ -1,9 +1,11 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
+import { ThemeProvider } from '@/context/ThemeContext';
 import { LanguageProvider } from '@/context/LanguageContext';
 import { ToastProvider } from '@/context/ToastContext';
 import GlobalCallManager from '@/components/GlobalCallManager';
+import ThemeSelectorModal from '@/components/ThemeSelectorModal';
 
 export const metadata: Metadata = {
   title: 'Shopify Catering Service — Order & Payment Tracker',
@@ -30,14 +32,17 @@ export default function RootLayout({
       </head>
       <body className="bg-slate-950 text-slate-100 min-h-screen flex flex-col antialiased selection:bg-emerald-500 selection:text-slate-950">
         <AuthProvider>
-          <LanguageProvider>
-            <ToastProvider>
-              <GlobalCallManager />
-              <div className="flex-1 flex flex-col">
-                {children}
-              </div>
-            </ToastProvider>
-          </LanguageProvider>
+          <ThemeProvider>
+            <LanguageProvider>
+              <ToastProvider>
+                <GlobalCallManager />
+                <ThemeSelectorModal />
+                <div className="flex-1 flex flex-col">
+                  {children}
+                </div>
+              </ToastProvider>
+            </LanguageProvider>
+          </ThemeProvider>
         </AuthProvider>
       </body>
     </html>

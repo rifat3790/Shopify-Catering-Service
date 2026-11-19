@@ -28,6 +28,8 @@ export interface AuthUser {
   totalSpent: number;
   department?: string;
   phone?: string;
+  themeColor?: string;
+  customTheme?: any;
 }
 
 interface AuthContextType {
@@ -124,6 +126,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             totalSpent: Number(dbUser.totalSpent) || 0,
             department: dbUser.department || (isSuper ? 'Executive Management' : (determinedRole === 'admin' ? 'Admin Team' : 'Shopify Member')),
             phone: dbUser.phone || '',
+            themeColor: dbUser.themeColor || 'emerald',
+            customTheme: dbUser.customTheme,
           };
           if (typeof window !== 'undefined') {
             localStorage.setItem('shopify_cached_user', JSON.stringify(freshUser));

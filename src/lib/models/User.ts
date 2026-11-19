@@ -16,6 +16,12 @@ export interface IUser extends Document {
   lastSeen?: Date;
   isOnline?: boolean;
   blockedUsers?: string[];
+  themeColor?: string;
+  customTheme?: {
+    primary?: string;
+    accent?: string;
+    bg?: string;
+  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -40,6 +46,12 @@ const UserSchema = new Schema<IUser>(
     lastSeen: { type: Date, default: Date.now },
     isOnline: { type: Boolean, default: false },
     blockedUsers: [{ type: String }],
+    themeColor: { type: String, default: 'emerald' },
+    customTheme: {
+      primary: { type: String, default: '' },
+      accent: { type: String, default: '' },
+      bg: { type: String, default: '' },
+    },
   },
   {
     timestamps: true,
