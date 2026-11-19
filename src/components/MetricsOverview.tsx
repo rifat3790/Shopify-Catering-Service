@@ -21,6 +21,7 @@ interface MetricsProps {
     totalDue?: number;
     collectionRate: string;
     rawCollectionRate?: number;
+    totalMemberBalance?: number;
   };
   isLoading?: boolean;
 }
@@ -89,6 +90,21 @@ export default function MetricsOverview({ stats, isLoading }: MetricsProps) {
       badge: 'Change',
       badgeColor: 'bg-sky-500/10 text-sky-400 border-sky-500/20',
     },
+    ...(stats.totalMemberBalance !== undefined ? [{
+      id: 'memberBalance',
+      titleEn: 'Total Member Balance',
+      titleBn: 'মোট সংরক্ষিত ব্যালেন্স',
+      subtextEn: 'Live Member Wallets',
+      subtextBn: 'সদস্যদের সক্রিয় ব্যালেন্স',
+      value: `৳${stats.totalMemberBalance.toFixed(2)}`,
+      unit: '',
+      icon: Wallet,
+      color: 'from-emerald-500/20 to-amber-500/10',
+      borderColor: 'border-emerald-500/40',
+      iconColor: 'text-emerald-300',
+      badge: 'Live Balances',
+      badgeColor: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20',
+    }] : []),
     {
       id: 'rate',
       titleEn: 'Collection Rate',
@@ -108,7 +124,7 @@ export default function MetricsOverview({ stats, isLoading }: MetricsProps) {
 
   return (
     <section className="w-full">
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+      <div className={`grid grid-cols-2 md:grid-cols-3 ${stats.totalMemberBalance !== undefined ? 'lg:grid-cols-6' : 'lg:grid-cols-5'} gap-3 sm:gap-4`}>
         {cards.map((card) => {
           const Icon = card.icon;
           return (

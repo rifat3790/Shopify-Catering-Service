@@ -66,8 +66,13 @@ function AdminPageContent() {
 
   // Dynamic calculated stats for the selected date range
   const dynamicStats = useMemo(() => {
-    return calculateStatsFromOrders(filteredByDateOrders);
-  }, [filteredByDateOrders]);
+    const s = calculateStatsFromOrders(filteredByDateOrders);
+    const totalMemberBalance = members.reduce((sum, m) => sum + (Number(m.balance) || 0), 0);
+    return {
+      ...s,
+      totalMemberBalance,
+    };
+  }, [filteredByDateOrders, members]);
 
   // Counts for date filter pills
   const dateCounts = useMemo(() => {

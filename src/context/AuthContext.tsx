@@ -71,13 +71,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return true;
   });
 
-  // Sync user with MongoDB backend with low-latency timeout
+  // Sync user with MongoDB backend with resilient timeout
   const syncWithBackend = async (firebaseUser: User): Promise<AuthUser> => {
     const isSuper = firebaseUser.email?.toLowerCase().trim() === SUPER_ADMIN_EMAIL.toLowerCase();
 
+    // Check Firebase Auth Token Claims FIRST for guaranteed authoritative role
+    let tokenClaimRole: UserRole | undefined;
+    try {
+      const idToken = await firebaseUser.getIdTokenResult();
+      if (idToken?.claims?.role) {
+        tokenClaimRole = idToken.claims.role as UserRole;
+      }
+    } catch (e) {}
+
     try {
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 3500);
+      const timer = setTimeout(() => controller.abort(), 12000);
 
       const res = await fetch('/api/users/sync', {
         method: 'POST',
@@ -99,6 +108,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const defaultUsername = '@' + (firebaseUser.email || 'member').split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '');
           const nameVal = dbUser.name || firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Member';
           const avatarVal = dbUser.avatar || firebaseUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(nameVal)}&background=047857&color=fff`;
+          const determinedRole: UserRole = isSuper ? 'super_admin' : (dbUser.role || tokenClaimRole || 'user');
+
           const freshUser: AuthUser = {
             uid: firebaseUser.uid,
             email: firebaseUser.email,
@@ -107,11 +118,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             username: dbUser.username || defaultUsername,
             photoURL: avatarVal,
             avatar: avatarVal,
-            role: isSuper ? 'super_admin' : (dbUser.role || 'user'),
+            role: determinedRole,
             balance: Number(dbUser.balance) || 0,
             currentDue: Number(dbUser.currentDue) || 0,
             totalSpent: Number(dbUser.totalSpent) || 0,
-            department: dbUser.department || (isSuper ? 'Executive Management' : 'Shopify Member'),
+            department: dbUser.department || (isSuper ? 'Executive Management' : (determinedRole === 'admin' ? 'Admin Team' : 'Shopify Member')),
             phone: dbUser.phone || '',
           };
           if (typeof window !== 'undefined') {
@@ -132,10 +143,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
     } catch (e) {
-      console.warn('Backend sync error (resilient fallback active):', e);
+      console.warn('Backend sync warning (using cached role):', e);
     }
 
-    // Local fallback if backend is unreachable
+    // Local fallback preserving cached role - NEVER downgrade an admin to 'user'
+    let cachedRole: UserRole = 'user';
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('shopify_cached_user');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.role) cachedRole = parsed.role;
+        }
+      } catch (e) {}
+    }
+
+    const effectiveRole: UserRole = isSuper ? 'super_admin' : (tokenClaimRole || user?.role || cachedRole);
     const fallbackUsername = '@' + (firebaseUser.email || 'member').split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '');
     const fallbackName = firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Member';
     const fallbackAvatar = firebaseUser.photoURL || `https://ui-avatars.com/api/?name=Member&background=047857&color=fff`;
@@ -147,12 +170,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       username: fallbackUsername,
       photoURL: fallbackAvatar,
       avatar: fallbackAvatar,
-      role: isSuper ? 'super_admin' : 'user',
-      balance: 0,
-      currentDue: 0,
-      totalSpent: 0,
-      department: isSuper ? 'Executive Management' : 'Shopify Member',
-      phone: '',
+      role: effectiveRole,
+      balance: user?.balance || 0,
+      currentDue: user?.currentDue || 0,
+      totalSpent: user?.totalSpent || 0,
+      department: user?.department || (isSuper ? 'Executive Management' : (effectiveRole === 'admin' ? 'Admin Team' : 'Shopify Member')),
+      phone: user?.phone || '',
     };
     if (typeof window !== 'undefined') {
       localStorage.setItem('shopify_cached_user', JSON.stringify(fallbackUser));
@@ -177,7 +200,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           prev.phone === synced.phone &&
           prev.department === synced.department
         ) {
-          return prev; // No state change -> prevents re-render loops!
+          return prev;
         }
         return synced;
       });
@@ -193,22 +216,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: User | null) => {
       if (firebaseUser && firebaseUser.email) {
         const isSuper = firebaseUser.email?.toLowerCase().trim() === SUPER_ADMIN_EMAIL.toLowerCase();
-        // Optimistic fast state
-        setUser(prev => prev || {
-          uid: firebaseUser.uid,
-          email: firebaseUser.email,
-          displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Member',
-          photoURL: firebaseUser.photoURL,
-          role: isSuper ? 'super_admin' : 'user',
-          balance: 0,
-          currentDue: 0,
-          totalSpent: 0,
+
+        // Check Firebase token claims for immediate verified role
+        let claimRole: UserRole | undefined;
+        try {
+          const idToken = await firebaseUser.getIdTokenResult();
+          if (idToken?.claims?.role) {
+            claimRole = idToken.claims.role as UserRole;
+          }
+        } catch (e) {}
+
+        // Optimistic fast state: NEVER downgrade to 'user'!
+        setUser(prev => {
+          const resolvedRole: UserRole = isSuper ? 'super_admin' : (claimRole || prev?.role || 'user');
+          if (prev) {
+            return {
+              ...prev,
+              role: resolvedRole,
+            };
+          }
+          return {
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Member',
+            name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Member',
+            username: '@' + (firebaseUser.email || 'member').split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, ''),
+            photoURL: firebaseUser.photoURL,
+            role: resolvedRole,
+            balance: 0,
+            currentDue: 0,
+            totalSpent: 0,
+          };
         });
         setLoading(false);
 
-        // Background sync with database
+        // Authoritative background sync with database
         const syncedUser = await syncWithBackend(firebaseUser);
-        setUser(syncedUser);
+        if (syncedUser) {
+          setUser(syncedUser);
+        }
       } else {
         setUser(null);
         if (typeof window !== 'undefined') {

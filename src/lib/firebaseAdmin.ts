@@ -49,6 +49,7 @@ if (!admin.apps.length) {
         clientEmail,
         privateKey,
       }),
+      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'shopify-catering-service.firebasestorage.app',
     });
     console.log('✅ Firebase Admin SDK initialized successfully.');
   } catch (error) {
@@ -57,12 +58,14 @@ if (!admin.apps.length) {
 }
 
 export const adminAuth = admin.apps.length ? admin.auth() : null;
+export const adminStorage = admin.apps.length ? admin.storage() : null;
 
 export async function getFirebaseUsersList(): Promise<Array<{
   uid: string;
   email: string;
   displayName?: string;
   photoURL?: string;
+  role?: string;
   createdAt?: string;
   lastLoginAt?: string;
 }>> {
@@ -77,6 +80,7 @@ export async function getFirebaseUsersList(): Promise<Array<{
       email: u.email || '',
       displayName: u.displayName || u.email?.split('@')[0] || 'Member',
       photoURL: u.photoURL || undefined,
+      role: (u.customClaims?.role as string) || undefined,
       createdAt: u.metadata?.creationTime,
       lastLoginAt: u.metadata?.lastSignInTime,
     })).filter(u => !!u.email);

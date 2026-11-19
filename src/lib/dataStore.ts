@@ -74,17 +74,30 @@ export function applyUserOverridesAndUsername(user: UserRecord): UserRecord {
   };
 }
 
+// Cached Firebase Auth users to prevent throttling Google APIs on every request
+let cachedFbUsers: Array<{ uid: string; email: string; displayName?: string; photoURL?: string; role?: string; createdAt?: string }> = [];
+let lastFbFetch = 0;
+
+async function getCachedFbUsers() {
+  const now = Date.now();
+  if (cachedFbUsers.length > 0 && (now - lastFbFetch) < 30000) {
+    return cachedFbUsers;
+  }
+  try {
+    cachedFbUsers = await getFirebaseUsersList();
+    lastFbFetch = now;
+  } catch (err) {
+    console.warn("Could not fetch Firebase Auth users:", err);
+  }
+  return cachedFbUsers;
+}
+
 // User Management - ALL REGISTERED USERS (FROM FIREBASE AUTH & DATABASE)
 export async function getAllUsers(): Promise<UserRecord[]> {
   const now = Date.now();
 
-  // 1. Fetch real registered users from Firebase Authentication (past, present & future)
-  let fbUsers: Array<{ uid: string; email: string; displayName?: string; photoURL?: string; createdAt?: string }> = [];
-  try {
-    fbUsers = await getFirebaseUsersList();
-  } catch (err) {
-    console.warn("Could not fetch Firebase Auth users:", err);
-  }
+  // 1. Fetch real registered users from Firebase Authentication (cached for fast 0-latency)
+  const fbUsers = await getCachedFbUsers();
 
   // 2. Try MongoDB
   let mongoDocs: any[] = [];
@@ -102,43 +115,10 @@ export async function getAllUsers(): Promise<UserRecord[]> {
     }
 
     if (User) {
-      // Sync any missing Firebase user into MongoDB (EXCLUDING permanently deleted users)
-      for (const fb of fbUsers) {
-        if (!fb.email) continue;
-        const emailClean = fb.email.toLowerCase().trim();
-        const uidClean = (fb.uid || '').toLowerCase().trim();
-
-        // If user was removed, do NOT sync back and ensure deleted from Firebase Auth
-        if (deletedSet.has(emailClean) || (uidClean && deletedSet.has(uidClean))) {
-          if (adminAuth && fb.uid) {
-            adminAuth.deleteUser(fb.uid).catch(() => {});
-          }
-          continue;
-        }
-
-        const exists = await User.findOne({ email: emailClean });
-        if (!exists) {
-          const isSuper = emailClean === SUPER_ADMIN_EMAIL.toLowerCase();
-          await User.create({
-            uid: fb.uid,
-            name: fb.displayName || emailClean.split('@')[0],
-            email: emailClean,
-            role: isSuper ? 'super_admin' : 'user',
-            balance: 0,
-            currentDue: 0,
-            totalSpent: 0,
-            department: isSuper ? 'Executive Management' : 'Shopify Member',
-            avatar: fb.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(fb.displayName || 'Member')}&background=047857&color=fff`,
-            createdAt: fb.createdAt ? new Date(fb.createdAt) : new Date(),
-          });
-        } else if (fb.uid && !exists.uid) {
-          exists.uid = fb.uid;
-          await exists.save();
-        }
-      }
-
+      // 1 single query to fetch all documents
       const rawDocs = await User.find().sort({ createdAt: -1 }).lean();
-      // Ensure no tombstoned deleted user is returned
+      
+      // Filter out tombstoned deleted users
       mongoDocs = rawDocs.filter((d: any) => {
         const mEmail = (d.email || '').toLowerCase().trim();
         const mUid = (d.uid || '').toLowerCase().trim();
@@ -148,6 +128,40 @@ export async function getAllUsers(): Promise<UserRecord[]> {
         }
         return true;
       });
+
+      // Fast in-memory lookup to check for missing Firebase users
+      const existingEmailSet = new Set(mongoDocs.map((d: any) => (d.email || '').toLowerCase().trim()));
+      
+      for (const fb of fbUsers) {
+        if (!fb.email) continue;
+        const emailClean = fb.email.toLowerCase().trim();
+        const uidClean = (fb.uid || '').toLowerCase().trim();
+
+        if (deletedSet.has(emailClean) || (uidClean && deletedSet.has(uidClean))) {
+          continue;
+        }
+
+        if (!existingEmailSet.has(emailClean)) {
+          const isSuper = emailClean === SUPER_ADMIN_EMAIL.toLowerCase();
+          const targetRole = isSuper ? 'super_admin' : (fb.role === 'admin' ? 'admin' : 'user');
+          try {
+            const newDoc = await User.create({
+              uid: fb.uid,
+              name: fb.displayName || emailClean.split('@')[0],
+              email: emailClean,
+              role: targetRole,
+              balance: 0,
+              currentDue: 0,
+              totalSpent: 0,
+              department: isSuper ? 'Executive Management' : (targetRole === 'admin' ? 'Admin Team' : 'Shopify Member'),
+              avatar: fb.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(fb.displayName || 'Member')}&background=047857&color=fff`,
+              createdAt: fb.createdAt ? new Date(fb.createdAt) : new Date(),
+            });
+            mongoDocs.push(newDoc.toObject ? newDoc.toObject() : newDoc);
+            existingEmailSet.add(emailClean);
+          } catch (e) {}
+        }
+      }
     }
   } catch (err) {
     console.warn("MongoDB connection fallback to Firebase users & memory:", err);
@@ -423,7 +437,12 @@ export async function syncUser(userData: {
     }
 
     if (User) {
-      let doc = await User.findOne({ email: emailClean });
+      let doc = await User.findOne({
+        $or: [
+          { email: emailClean },
+          ...(userData.uid ? [{ uid: userData.uid }] : [])
+        ]
+      });
       if (!doc) {
         // Create new real authenticated user in MongoDB
         doc = await User.create({
@@ -591,12 +610,25 @@ export async function updateUserRole(
       }
 
       if (doc) {
+        lastFbFetch = 0; // Invalidate cached Firebase users
         // Also update Firebase custom claims if Firebase Admin SDK available
-        if (adminAuth && doc.uid) {
-          try {
-            await adminAuth.setCustomUserClaims(doc.uid, { role: newRole });
-          } catch (fbErr) {
-            console.warn('Could not set Firebase custom claims for role:', fbErr);
+        if (adminAuth) {
+          const targetUid = doc.uid || (idOrEmail.length > 20 && !idOrEmail.includes('@') ? idOrEmail : '');
+          if (targetUid) {
+            try {
+              await adminAuth.setCustomUserClaims(targetUid, { role: newRole });
+            } catch (fbErr) {
+              console.warn('Could not set Firebase custom claims for role:', fbErr);
+            }
+          } else if (doc.email) {
+            try {
+              const fbUser = await adminAuth.getUserByEmail(doc.email);
+              if (fbUser && fbUser.uid) {
+                await adminAuth.setCustomUserClaims(fbUser.uid, { role: newRole });
+                doc.uid = fbUser.uid;
+                await doc.save();
+              }
+            } catch (fbErr) {}
           }
         }
 
