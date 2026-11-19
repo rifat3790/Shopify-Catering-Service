@@ -335,8 +335,16 @@ function PosPageContent() {
               </h3>
 
               {menuItems.length === 0 ? (
-                <div className="p-8 rounded-2xl bg-slate-900/50 border border-slate-800 text-center text-slate-400 text-xs">
-                  মেনুতে কোনো খাবার নেই। অনুগ্রহ করে প্রথমে মেনু পেজে খাবার যুক্ত করুন।
+                <div className="p-8 rounded-2xl bg-slate-900/50 border border-slate-800 text-center text-slate-400 text-xs space-y-3">
+                  <p>{language === 'bn' ? 'মেনুতে কোনো খাবার নেই। উপরে "+ কাস্টম আইটেম" দিয়ে খাবার যুক্ত করুন।' : 'No menu dishes found yet.'}</p>
+                  <button
+                    type="button"
+                    onClick={() => setShowCustomInput(true)}
+                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-500 text-slate-950 font-bold text-xs shadow-md inline-flex items-center gap-1.5"
+                  >
+                    <PlusSquare className="w-3.5 h-3.5" />
+                    <span>{language === 'bn' ? '+ কাস্টম আইটেম যোগ করুন' : '+ Add Custom Dish'}</span>
+                  </button>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">

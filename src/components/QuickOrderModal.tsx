@@ -17,7 +17,8 @@ import {
   PlusSquare,
   Trash2,
   Lock,
-  AlertCircle
+  AlertCircle,
+  Utensils
 } from 'lucide-react';
 
 interface QuickOrderModalProps {
@@ -609,8 +610,28 @@ export default function QuickOrderModal({
 
             {/* Dynamic Catalog Grid */}
             {menuItems.length === 0 ? (
-              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 text-center text-slate-400 text-xs">
-                মেনুতে কোনো খাবার নেই। উপরে &quot;+ কাস্টম আইটেম&quot; দিয়ে খাবার যুক্ত করুন।
+              <div className="p-6 rounded-2xl bg-slate-950/70 border border-slate-800 text-center space-y-3">
+                <div className="p-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-300 w-fit mx-auto">
+                  <Utensils className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-slate-300">
+                    {language === 'bn' ? 'মেনুতে কোনো খাবার সংরক্ষিত নেই' : 'No menu dishes added yet'}
+                  </p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    {language === 'bn' 
+                      ? 'যেকোনো খাবার ও মূল্য অর্ডারে যোগ করতে "+ কাস্টম আইটেম" বাটনে ক্লিক করুন।' 
+                      : 'Click "+ Custom Item" above to order any custom refreshment or dish.'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowAddCustom(true)}
+                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-500 text-slate-950 font-bold text-xs shadow-md hover:scale-105 transition-all inline-flex items-center gap-1.5"
+                >
+                  <PlusSquare className="w-3.5 h-3.5" />
+                  <span>{language === 'bn' ? '+ কাস্টম খাবার যোগ করুন' : '+ Add Custom Dish'}</span>
+                </button>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-56 overflow-y-auto pr-1">
