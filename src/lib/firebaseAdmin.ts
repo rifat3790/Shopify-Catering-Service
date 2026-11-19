@@ -32,8 +32,13 @@ FGtQVVLANoc2t2A/N9hIGEGPDb5Wd+8YGFcImypBv54+d+CUjGCZz+p6cz7+WuPm
 xy0ZThFNDNSK5kKRFFTF8Q==
 -----END PRIVATE KEY-----`;
 
-const privateKey = process.env.FIREBASE_PRIVATE_KEY
-  ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
+let rawKey = process.env.FIREBASE_PRIVATE_KEY;
+if (rawKey && rawKey.startsWith('"') && rawKey.endsWith('"')) {
+  rawKey = rawKey.slice(1, -1);
+}
+
+const privateKey = rawKey && rawKey.includes('PRIVATE KEY')
+  ? rawKey.replace(/\\n/g, '\n')
   : FALLBACK_PRIVATE_KEY;
 
 if (!admin.apps.length) {
