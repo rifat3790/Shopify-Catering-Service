@@ -5,6 +5,7 @@ import Sidebar from '@/components/Sidebar';
 import AuthGuard from '@/components/AuthGuard';
 import LuxuryLoader from '@/components/LuxuryLoader';
 import AudioCallModal from '@/components/AudioCallModal';
+import IncomingCallDialog from '@/components/IncomingCallDialog';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/context/ToastContext';
@@ -66,8 +67,22 @@ function ChatHubContent() {
   const [sendError, setSendError] = useState<string | null>(null);
   const chatScrollContainerRef = useRef<HTMLDivElement | null>(null);
 
-  // Audio Call Modal state
+  // Audio Call & Live Signaling state
   const [isAudioCallOpen, setIsAudioCallOpen] = useState(false);
+  const [callSessionData, setCallSessionData] = useState<{
+    callId?: string;
+    isCaller: boolean;
+    targetName: string;
+    targetAvatar?: string;
+    targetRole?: string;
+    targetDepartment?: string;
+    targetUserId?: string;
+    initialOffer?: any;
+    isGroup?: boolean;
+  } | null>(null);
+
+  // Incoming Call State
+  const [incomingCall, setIncomingCall] = useState<any>(null);
 
   // Create Group Modal state
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
@@ -224,6 +239,99 @@ function ChatHubContent() {
   useEffect(() => {
     scrollToBottom();
   }, [messages, selectedMember, selectedGroup]);
+
+  // Listen for incoming WebRTC calls in real-time
+  useEffect(() => {
+    if (!user) return;
+
+    const checkIncomingCalls = async () => {
+      if (isAudioCallOpen) return;
+
+      try {
+        const queryId = user.uid || '';
+        const queryEmail = user.email || '';
+        const res = await fetch(`/api/chat/call?userId=${encodeURIComponent(queryId)}&userEmail=${encodeURIComponent(queryEmail)}`);
+        const json = await res.json();
+        const session = json?.session;
+
+        if (session && session.status === 'ringing') {
+          const myId = (user.uid || '').toLowerCase();
+          const myEmail = (user.email || '').toLowerCase();
+          const isCaller = session.callerId?.toLowerCase() === myId || session.callerId?.toLowerCase() === myEmail;
+          
+          if (!isCaller) {
+            setIncomingCall(session);
+          }
+        } else if (!session || session.status === 'ended' || session.status === 'rejected') {
+          if (incomingCall) setIncomingCall(null);
+        }
+      } catch (e) {}
+    };
+
+    const callInterval = setInterval(checkIncomingCalls, 1500);
+    return () => clearInterval(callInterval);
+  }, [user, isAudioCallOpen, incomingCall]);
+
+  const handleStartCall = (member?: UserRecord | null, group?: ChatGroup | null) => {
+    const targetM = member || selectedMember;
+    const targetG = group || selectedGroup;
+
+    if (targetG) {
+      setCallSessionData({
+        isCaller: true,
+        targetName: targetG.name,
+        targetAvatar: targetG.avatar,
+        targetRole: 'Group Channel',
+        targetDepartment: 'Shopify Audio',
+        isGroup: true,
+        targetUserId: targetG.id
+      });
+      setIsAudioCallOpen(true);
+      return;
+    }
+
+    if (targetM) {
+      setCallSessionData({
+        isCaller: true,
+        targetName: targetM.name,
+        targetAvatar: targetM.avatar,
+        targetRole: targetM.role,
+        targetDepartment: targetM.department,
+        targetUserId: targetM.id,
+        isGroup: false
+      });
+      setIsAudioCallOpen(true);
+    }
+  };
+
+  const handleAcceptIncomingCall = () => {
+    if (!incomingCall) return;
+    setCallSessionData({
+      callId: incomingCall.callId,
+      isCaller: false,
+      targetName: incomingCall.callerName,
+      targetAvatar: incomingCall.callerAvatar,
+      targetRole: 'Colleague',
+      targetDepartment: 'Shopify Catering',
+      initialOffer: incomingCall.offer,
+      isGroup: !!incomingCall.isGroup,
+    });
+    setIncomingCall(null);
+    setIsAudioCallOpen(true);
+  };
+
+  const handleDeclineIncomingCall = async () => {
+    if (!incomingCall) return;
+    const cId = incomingCall.callId;
+    setIncomingCall(null);
+    try {
+      await fetch('/api/chat/call', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'signal', callId: cId, status: 'rejected' })
+      });
+    } catch (e) {}
+  };
 
   // Current user's DB record for blockedUsers checking
   const currentDbUser = members.find(
@@ -755,7 +863,7 @@ function ChatHubContent() {
                               e.stopPropagation();
                               setSelectedMember(m);
                               setSelectedGroup(null);
-                              setIsAudioCallOpen(true);
+                              handleStartCall(m, null);
                             }}
                             title={`Audio Call ${m.name}`}
                             className="p-2 rounded-xl bg-slate-900 hover:bg-amber-500 text-amber-300 hover:text-slate-950 border border-amber-500/40 transition-all hover:scale-105"
@@ -833,7 +941,7 @@ function ChatHubContent() {
                             e.stopPropagation();
                             setSelectedMember(m);
                             setSelectedGroup(null);
-                            setIsAudioCallOpen(true);
+                            handleStartCall(m, null);
                           }}
                           title={`Audio Call ${m.name}`}
                           className="p-2 rounded-xl bg-slate-900 hover:bg-emerald-600 text-slate-400 hover:text-slate-950 border border-slate-800 transition-all hover:scale-105 shrink-0"
@@ -898,7 +1006,7 @@ function ChatHubContent() {
                             e.stopPropagation();
                             setSelectedGroup(g);
                             setSelectedMember(null);
-                            setIsAudioCallOpen(true);
+                            handleStartCall(null, g);
                           }}
                           title={`Audio Conference with ${g.name}`}
                           className="p-2 rounded-xl bg-slate-900 hover:bg-amber-400 text-slate-400 hover:text-slate-950 border border-slate-800 transition-all hover:scale-105 shrink-0"
@@ -995,7 +1103,7 @@ function ChatHubContent() {
                 <div className="flex items-center gap-2 relative">
                   {/* Start Audio Call */}
                   <button
-                    onClick={() => setIsAudioCallOpen(true)}
+                    onClick={() => handleStartCall(selectedMember, selectedGroup)}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-md hover:scale-105 active:scale-95 transition-all"
                   >
                     <Phone className="w-3.5 h-3.5" />
@@ -1197,15 +1305,36 @@ function ChatHubContent() {
 
       </div>
 
-      {/* Audio Call Modal */}
+      {/* Incoming WebRTC Call Dialog */}
+      <IncomingCallDialog
+        isOpen={!!incomingCall}
+        callerName={incomingCall?.callerName || 'Colleague'}
+        callerAvatar={incomingCall?.callerAvatar}
+        callerRole={incomingCall?.isGroup ? 'Group Audio' : 'Colleague'}
+        callerDepartment="Shopify Catering"
+        onAccept={handleAcceptIncomingCall}
+        onDecline={handleDeclineIncomingCall}
+      />
+
+      {/* WebRTC Audio Call Modal */}
       <AudioCallModal
         isOpen={isAudioCallOpen}
-        onClose={() => setIsAudioCallOpen(false)}
-        targetName={selectedGroup ? selectedGroup.name : (selectedMember?.name || 'Colleague')}
-        targetAvatar={selectedGroup ? selectedGroup.avatar : selectedMember?.avatar}
-        targetRole={selectedMember?.role}
-        targetDepartment={selectedMember?.department}
-        isGroup={!!selectedGroup}
+        onClose={() => {
+          setIsAudioCallOpen(false);
+          setCallSessionData(null);
+        }}
+        callId={callSessionData?.callId}
+        isCaller={callSessionData?.isCaller ?? true}
+        targetName={callSessionData?.targetName || (selectedGroup ? selectedGroup.name : (selectedMember?.name || 'Colleague'))}
+        targetAvatar={callSessionData?.targetAvatar || (selectedGroup ? selectedGroup.avatar : selectedMember?.avatar)}
+        targetRole={callSessionData?.targetRole || selectedMember?.role}
+        targetDepartment={callSessionData?.targetDepartment || selectedMember?.department}
+        targetUserId={callSessionData?.targetUserId}
+        currentUserId={user?.uid}
+        currentUserName={user?.displayName || currentDbUser?.name || 'Member'}
+        currentUserAvatar={user?.photoURL || currentDbUser?.avatar}
+        initialOffer={callSessionData?.initialOffer}
+        isGroup={callSessionData?.isGroup ?? !!selectedGroup}
       />
 
       {/* Telegram-style Group Info & Settings Drawer / Modal */}

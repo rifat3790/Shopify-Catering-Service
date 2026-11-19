@@ -3,6 +3,7 @@ import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
 import { LanguageProvider } from '@/context/LanguageContext';
 import { ToastProvider } from '@/context/ToastContext';
+import GlobalCallManager from '@/components/GlobalCallManager';
 
 export const metadata: Metadata = {
   title: 'Shopify Catering Service — Order & Payment Tracker',
@@ -23,6 +24,7 @@ export default function RootLayout({
         <AuthProvider>
           <LanguageProvider>
             <ToastProvider>
+              <GlobalCallManager />
               <div className="flex-1 flex flex-col">
                 {children}
               </div>

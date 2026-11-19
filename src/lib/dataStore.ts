@@ -414,26 +414,12 @@ export async function syncUser(userData: {
   try {
     await connectToDatabase();
 
-    // Check if account is in deleted tombstone list
+    // When a user signs in or registers fresh, clear any previous deletion tombstone so their new account works permanently
     if (Setting) {
-      if (userData.allowRevive) {
-        // Admin is intentionally recreating/reviving this account
-        await Setting.findOneAndUpdate(
-          { key: 'deleted_users' },
-          { $pull: { value: { $in: [emailClean, uidClean].filter(Boolean) } } }
-        );
-      } else {
-        const delDoc = await Setting.findOne({ key: 'deleted_users' }).lean();
-        if (delDoc && Array.isArray((delDoc as any).value)) {
-          const deletedSet = new Set((delDoc as any).value.map((x: any) => String(x).toLowerCase().trim()));
-          if (deletedSet.has(emailClean) || (uidClean && deletedSet.has(uidClean))) {
-            if (adminAuth && userData.uid) {
-              await adminAuth.deleteUser(userData.uid).catch(() => {});
-            }
-            throw new Error('This account has been permanently removed by an administrator.');
-          }
-        }
-      }
+      await Setting.findOneAndUpdate(
+        { key: 'deleted_users' },
+        { $pull: { value: { $in: [emailClean, uidClean].filter(Boolean) } } }
+      ).catch(() => {});
     }
 
     if (User) {
@@ -1332,10 +1318,18 @@ export async function getChatMessages(query: {
       if (query.groupId) {
         filter = { groupId: query.groupId };
       } else if (query.userId1 && query.userId2) {
+        // Resolve all possible identifiers for user 1 and user 2 so messages are never missed
+        const allUsers = usersCache.length > 0 ? usersCache : await getAllUsers();
+        const u1 = allUsers.find(u => u.id === query.userId1 || u.email.toLowerCase() === query.userId1?.toLowerCase());
+        const u2 = allUsers.find(u => u.id === query.userId2 || u.email.toLowerCase() === query.userId2?.toLowerCase());
+
+        const u1List = Array.from(new Set([query.userId1, u1?.id, u1?.email].filter(Boolean))) as string[];
+        const u2List = Array.from(new Set([query.userId2, u2?.id, u2?.email].filter(Boolean))) as string[];
+
         filter = {
           $or: [
-            { senderId: query.userId1, receiverId: query.userId2 },
-            { senderId: query.userId2, receiverId: query.userId1 },
+            { senderId: { $in: u1List }, receiverId: { $in: u2List } },
+            { senderId: { $in: u2List }, receiverId: { $in: u1List } },
           ]
         };
       }
@@ -1369,9 +1363,15 @@ export async function getChatMessages(query: {
     return messagesCache.filter(m => m.groupId === query.groupId);
   }
   if (query.userId1 && query.userId2) {
+    const allUsers = usersCache;
+    const u1 = allUsers.find(u => u.id === query.userId1 || u.email.toLowerCase() === query.userId1?.toLowerCase());
+    const u2 = allUsers.find(u => u.id === query.userId2 || u.email.toLowerCase() === query.userId2?.toLowerCase());
+    const u1List = Array.from(new Set([query.userId1, u1?.id, u1?.email].filter(Boolean))) as string[];
+    const u2List = Array.from(new Set([query.userId2, u2?.id, u2?.email].filter(Boolean))) as string[];
+
     return messagesCache.filter(m => 
-      (m.senderId === query.userId1 && m.receiverId === query.userId2) ||
-      (m.senderId === query.userId2 && m.receiverId === query.userId1)
+      (u1List.includes(m.senderId) && u2List.includes(m.receiverId || '')) ||
+      (u2List.includes(m.senderId) && u1List.includes(m.receiverId || ''))
     );
   }
   return messagesCache;
@@ -1749,6 +1749,205 @@ export async function deleteChatGroup(
   groupsCache = groupsCache.filter(g => g.id !== groupId);
   messagesCache = messagesCache.filter(m => m.groupId !== groupId);
 
+  return true;
+}
+
+// ==================== WEBRTC CALL SIGNALING SYSTEM ====================
+
+export interface ActiveCallSession {
+  callId: string;
+  callerId: string;
+  callerName: string;
+  callerAvatar?: string;
+  receiverId: string;
+  receiverName: string;
+  receiverAvatar?: string;
+  status: 'ringing' | 'accepted' | 'rejected' | 'ended';
+  isGroup?: boolean;
+  groupId?: string;
+  groupName?: string;
+  offer?: any;
+  answer?: any;
+  callerCandidates?: any[];
+  receiverCandidates?: any[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+const activeCallSessions: Map<string, ActiveCallSession> = new Map();
+
+export async function initiateCallSession(data: {
+  callerId: string;
+  callerName: string;
+  callerAvatar?: string;
+  receiverId: string;
+  receiverName: string;
+  receiverAvatar?: string;
+  isGroup?: boolean;
+  groupId?: string;
+  groupName?: string;
+  offer?: any;
+}): Promise<ActiveCallSession> {
+  const callId = `call-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  const session: ActiveCallSession = {
+    callId,
+    callerId: data.callerId,
+    callerName: data.callerName,
+    callerAvatar: data.callerAvatar,
+    receiverId: data.receiverId,
+    receiverName: data.receiverName,
+    receiverAvatar: data.receiverAvatar,
+    status: 'ringing',
+    isGroup: !!data.isGroup,
+    groupId: data.groupId,
+    groupName: data.groupName,
+    offer: data.offer || null,
+    callerCandidates: [],
+    receiverCandidates: [],
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  };
+
+  activeCallSessions.set(callId, session);
+
+  try {
+    await connectToDatabase();
+    if (Setting) {
+      await Setting.findOneAndUpdate(
+        { key: `call_${callId}` },
+        { key: `call_${callId}`, value: session },
+        { upsert: true, new: true }
+      );
+    }
+  } catch (e) {}
+
+  return session;
+}
+
+export async function getCallSessionForUser(userId: string, userEmail?: string): Promise<ActiveCallSession | null> {
+  const now = Date.now();
+  const idSet = new Set<string>();
+  if (userId) idSet.add(userId.toLowerCase());
+  if (userEmail) idSet.add(userEmail.toLowerCase());
+
+  try {
+    const allUsers = await getAllUsers();
+    const match = allUsers.find(u => 
+      (userId && (u.id === userId || (u as any).uid === userId || u.email?.toLowerCase() === userId.toLowerCase())) ||
+      (userEmail && (u.email?.toLowerCase() === userEmail.toLowerCase() || u.id === userEmail || (u as any).uid === userEmail))
+    );
+    if (match) {
+      if (match.id) idSet.add(match.id.toLowerCase());
+      if ((match as any).uid) idSet.add(String((match as any).uid).toLowerCase());
+      if (match.email) idSet.add(match.email.toLowerCase());
+    }
+  } catch (e) {}
+
+  const matchesUser = (id?: string) => {
+    if (!id) return false;
+    return idSet.has(id.toLowerCase());
+  };
+
+  // 1. Check in-memory map
+  for (const [id, session] of activeCallSessions.entries()) {
+    if (now - session.createdAt > 60000 && session.status === 'ringing') {
+      activeCallSessions.delete(id);
+      continue;
+    }
+    if (session.status === 'ended' || session.status === 'rejected') {
+      if (now - session.updatedAt > 6000) {
+        activeCallSessions.delete(id);
+        continue;
+      }
+    }
+
+    if (matchesUser(session.receiverId) || matchesUser(session.callerId)) {
+      return session;
+    }
+  }
+
+  // 2. Fallback to MongoDB
+  try {
+    await connectToDatabase();
+    if (Setting) {
+      const docs = await Setting.find({ key: { $regex: '^call_' } }).lean();
+      for (const d of docs) {
+        const val: ActiveCallSession = (d as any).value;
+        if (val && (matchesUser(val.receiverId) || matchesUser(val.callerId))) {
+          if (now - val.createdAt < 60000) {
+            activeCallSessions.set(val.callId, val);
+            return val;
+          }
+        }
+      }
+    }
+  } catch (e) {}
+
+  return null;
+}
+
+export async function updateCallSignal(callId: string, updates: {
+  status?: 'ringing' | 'accepted' | 'rejected' | 'ended';
+  offer?: any;
+  answer?: any;
+  iceCandidate?: any;
+  senderId?: string;
+}): Promise<ActiveCallSession | null> {
+  let session = activeCallSessions.get(callId);
+  if (!session) {
+    try {
+      await connectToDatabase();
+      if (Setting) {
+        const doc = await Setting.findOne({ key: `call_${callId}` }).lean();
+        if (doc && (doc as any).value) {
+          session = (doc as any).value;
+        }
+      }
+    } catch (e) {}
+  }
+
+  if (!session) return null;
+
+  if (updates.status) session.status = updates.status;
+  if (updates.offer) session.offer = updates.offer;
+  if (updates.answer) session.answer = updates.answer;
+  if (updates.iceCandidate && updates.senderId) {
+    if (updates.senderId === session.callerId) {
+      session.callerCandidates = [...(session.callerCandidates || []), updates.iceCandidate];
+    } else {
+      session.receiverCandidates = [...(session.receiverCandidates || []), updates.iceCandidate];
+    }
+  }
+  session.updatedAt = Date.now();
+
+  activeCallSessions.set(callId, session);
+
+  try {
+    await connectToDatabase();
+    if (Setting) {
+      if (session.status === 'ended' || session.status === 'rejected') {
+        await Setting.deleteOne({ key: `call_${callId}` });
+      } else {
+        await Setting.findOneAndUpdate(
+          { key: `call_${callId}` },
+          { value: session },
+          { upsert: true }
+        );
+      }
+    }
+  } catch (e) {}
+
+  return session;
+}
+
+export async function endCallSession(callId: string): Promise<boolean> {
+  activeCallSessions.delete(callId);
+  try {
+    await connectToDatabase();
+    if (Setting) {
+      await Setting.deleteOne({ key: `call_${callId}` });
+    }
+  } catch (e) {}
   return true;
 }
 
