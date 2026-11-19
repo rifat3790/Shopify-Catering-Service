@@ -361,7 +361,7 @@ function OrdersPageContent() {
                 className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-md transition-all flex items-center gap-1.5 hover:scale-105"
               >
                 <Plus className="w-4 h-4 text-slate-950" />
-                <span>{language === 'bn' ? '+ নতুন অর্ডার যোগ করুন' : '+ Add New Order'}</span>
+                <span>{language === 'bn' ? 'নতুন অর্ডার যোগ করুন' : 'Add New Order'}</span>
               </button>
             )}
           </div>

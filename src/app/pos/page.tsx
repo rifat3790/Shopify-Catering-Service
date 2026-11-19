@@ -172,7 +172,7 @@ function PosPageContent() {
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-300 border border-amber-500/40 text-xs font-semibold transition-colors"
             >
               <PlusSquare className="w-3.5 h-3.5" />
-              <span>+ কাস্টম আইটেম</span>
+              <span>{language === 'bn' ? 'কাস্টম আইটেম' : 'Custom Item'}</span>
             </button>
 
             <button

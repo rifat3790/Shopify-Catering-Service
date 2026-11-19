@@ -375,7 +375,7 @@ function SuperAdminDashboardContent() {
                 className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-md transition-all flex items-center gap-1.5"
               >
                 <UserPlus className="w-4 h-4 text-slate-950" />
-                <span>{language === 'bn' ? '+ নতুন মেম্বার যুক্ত' : '+ Add User'}</span>
+                <span>{language === 'bn' ? 'নতুন মেম্বার যুক্ত' : 'Add User'}</span>
               </button>
 
               <button
@@ -851,7 +851,7 @@ function SuperAdminDashboardContent() {
                                 className="px-2.5 py-1 rounded-lg bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/60 text-xs font-semibold transition-colors inline-flex items-center gap-1"
                               >
                                 <PlusCircle className="w-3.5 h-3.5" />
-                                <span>+ Add</span>
+                                <span>Add</span>
                               </button>
 
                               <button
@@ -860,7 +860,7 @@ function SuperAdminDashboardContent() {
                                 className="px-2.5 py-1 rounded-lg bg-rose-950/60 hover:bg-rose-900 text-rose-300 border border-rose-800/60 text-xs font-semibold transition-colors inline-flex items-center gap-1"
                               >
                                 <MinusCircle className="w-3.5 h-3.5" />
-                                <span>- Deduct</span>
+                                <span>Deduct</span>
                               </button>
 
                               <button

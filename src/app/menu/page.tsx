@@ -236,7 +236,7 @@ function MenuPageContent() {
                 className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-md transition-all hover:scale-105"
               >
                 <Plus className="w-4 h-4 text-slate-950" />
-                <span>{language === 'bn' ? '+ নতুন খাবার যুক্ত করুন' : '+ Add New Dish'}</span>
+                <span>{language === 'bn' ? 'নতুন খাবার যুক্ত করুন' : 'Add New Dish'}</span>
               </button>
             )}
 

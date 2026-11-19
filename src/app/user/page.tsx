@@ -340,7 +340,7 @@ function UserDashboardContent() {
                     className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-slate-950 text-xs font-bold border border-amber-500/40 transition-all flex items-center gap-1 shadow-sm hover:scale-105"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    <span>{language === 'bn' ? 'ব্যালেন্স আপডেট' : '+ Top-up / Edit'}</span>
+                    <span>{language === 'bn' ? 'ব্যালেন্স আপডেট' : 'Top-up / Edit'}</span>
                   </button>
                 )}
               </div>

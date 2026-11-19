@@ -408,7 +408,7 @@ function AdminPageContent() {
                   className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 text-slate-950 font-bold text-xs flex items-center gap-1.5"
                 >
                   <Plus className="w-4 h-4 text-slate-950" />
-                  <span>+ নতুন খাবার</span>
+                  <span>{language === 'bn' ? 'নতুন খাবার' : 'Add Dish'}</span>
                 </button>
               </div>
 

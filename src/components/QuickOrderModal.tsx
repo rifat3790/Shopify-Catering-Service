@@ -438,7 +438,7 @@ export default function QuickOrderModal({
                 className="text-xs font-bold text-amber-300 hover:text-amber-200 flex items-center gap-1"
               >
                 <PlusSquare className="w-3.5 h-3.5" />
-                <span>{language === 'bn' ? '+ কাস্টম আইটেম' : '+ Custom Item'}</span>
+                <span>{language === 'bn' ? 'কাস্টম আইটেম' : 'Custom Item'}</span>
               </button>
             </div>
 

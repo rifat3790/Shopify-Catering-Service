@@ -229,7 +229,7 @@ function MembersPageContent() {
               className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-md transition-all hover:scale-105"
             >
               <Plus className="w-4 h-4 text-slate-950" />
-              <span>{language === 'bn' ? '+ নতুন মেম্বার যুক্ত করুন' : '+ Add New Member'}</span>
+              <span>{language === 'bn' ? 'নতুন মেম্বার যুক্ত করুন' : 'Add New Member'}</span>
             </button>
           </div>
         </div>
@@ -377,14 +377,14 @@ function MembersPageContent() {
                       className="py-1.5 px-1 rounded-lg bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/60 font-semibold text-[11px] flex items-center justify-center gap-0.5"
                     >
                       <PlusCircle className="w-3 h-3" />
-                      <span>+ Add</span>
+                      <span>Add</span>
                     </button>
                     <button
                       onClick={() => openBalanceModal(member, 'deduct')}
                       className="py-1.5 px-1 rounded-lg bg-rose-950/60 hover:bg-rose-900 text-rose-300 border border-rose-800/60 font-semibold text-[11px] flex items-center justify-center gap-0.5"
                     >
                       <MinusCircle className="w-3 h-3" />
-                      <span>- Deduct</span>
+                      <span>Deduct</span>
                     </button>
                     <button
                       onClick={() => openBalanceModal(member, 'set')}
