@@ -9,6 +9,7 @@ import QuickOrderModal from '@/components/QuickOrderModal';
 import ProfileModal from '@/components/ProfileModal';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
+import { useToast } from '@/context/ToastContext';
 import { OrderData, UserRecord } from '@/lib/types';
 import Link from 'next/link';
 import { 
@@ -21,12 +22,14 @@ import {
   Plus, 
   RefreshCw,
   MessageSquare,
-  Edit3
+  Edit3,
+  X
 } from 'lucide-react';
 
 function UserDashboardContent() {
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, updateLocalUserProfile } = useAuth();
   const { language } = useLanguage();
+  const { toast } = useToast();
 
   const [orders, setOrders] = useState<OrderData[]>([]);
   const [selectedInvoice, setSelectedInvoice] = useState<OrderData | null>(null);
@@ -39,27 +42,32 @@ function UserDashboardContent() {
   const [elevatedMemberList, setElevatedMemberList] = useState<UserRecord[]>([]);
   const [inspectedUserName, setInspectedUserName] = useState<string>('');
 
+  // Balance Quick Edit / Recharge Modal
+  const [isBalanceModalOpen, setIsBalanceModalOpen] = useState(false);
+  const [balanceAmount, setBalanceAmount] = useState<number>(500);
+  const [balanceAction, setBalanceAction] = useState<'add' | 'deduct' | 'set'>('add');
+  const [isUpdatingBalance, setIsUpdatingBalance] = useState(false);
+
   const loadUserData = async () => {
     setLoading(true);
     try {
-      if (refreshUser) {
-        await refreshUser().catch(() => {});
-      }
-      const ordRes = await fetch('/api/orders');
-      if (ordRes.ok) {
-        const o = await ordRes.json();
-        if (o.success && o.data) {
-          setOrders(o.data);
-        }
+      const [ordRes, uRes] = await Promise.all([
+        fetch('/api/orders').then(r => r.ok ? r.json() : null).catch(() => null),
+        fetch('/api/users').then(r => r.ok ? r.json() : null).catch(() => null)
+      ]);
+
+      if (ordRes && ordRes.success && Array.isArray(ordRes.data)) {
+        setOrders(ordRes.data);
       }
 
-      if (isElevated) {
-        const uRes = await fetch('/api/users');
-        if (uRes.ok) {
-          const u = await uRes.json();
-          if (u.success && u.data) {
-            setElevatedMemberList(u.data);
-          }
+      if (uRes && uRes.success && Array.isArray(uRes.data)) {
+        setElevatedMemberList(uRes.data);
+        const me = uRes.data.find((u: UserRecord) => 
+          u.email.toLowerCase() === (user?.email || '').toLowerCase() || 
+          u.id === user?.uid
+        );
+        if (me && me.balance !== undefined && me.balance !== user?.balance) {
+          updateLocalUserProfile({ balance: me.balance, totalSpent: me.totalSpent });
         }
       }
     } catch (e) {
@@ -71,7 +79,7 @@ function UserDashboardContent() {
 
   useEffect(() => {
     loadUserData();
-  }, [user]);
+  }, [user?.uid, user?.email]);
 
   // Current active name to filter orders
   const activeDisplayName = inspectedUserName || user?.displayName || user?.name || user?.email?.split('@')[0] || 'User';
@@ -93,10 +101,55 @@ function UserDashboardContent() {
     );
   });
 
+  // Calculate live balances
+  const inspectedMember = elevatedMemberList.find(m => m.name === inspectedUserName || m.email === inspectedUserName);
+  const activeUserRecord = inspectedMember || (user ? elevatedMemberList.find(m => m.email?.toLowerCase() === user.email?.toLowerCase() || m.id === user.uid) : null);
+
   const calculatedSpent = myOrders.reduce((acc, curr) => acc + (Number(curr.totalBill) || 0), 0);
-  const displayBalance = user?.balance ?? 0;
-  const displaySpent = (user?.totalSpent && user.totalSpent > 0) ? user.totalSpent : calculatedSpent;
-  const displayDue = user?.currentDue ?? 0;
+  const displayBalance = activeUserRecord ? activeUserRecord.balance : (user?.balance ?? 0);
+  const displaySpent = activeUserRecord && activeUserRecord.totalSpent > 0 ? activeUserRecord.totalSpent : calculatedSpent;
+  const displayDue = activeUserRecord ? activeUserRecord.currentDue : (user?.currentDue ?? 0);
+
+  const handleBalanceSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (balanceAmount < 0) return;
+
+    const targetUserId = activeUserRecord?.id || user?.uid || '';
+    if (!targetUserId) return;
+
+    setIsUpdatingBalance(true);
+    try {
+      const res = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: targetUserId,
+          balanceAmount: Number(balanceAmount),
+          action: balanceAction
+        })
+      });
+      const json = await res.json();
+      if (json.success && json.data) {
+        toast.success(
+          language === 'bn' 
+            ? `ব্যালেন্স সফলভাবে আপডেট হয়েছে! বর্তমান ব্যালেন্স: ৳${Number(json.data.balance).toFixed(2)}`
+            : `Balance updated successfully! Balance: ৳${Number(json.data.balance).toFixed(2)}`,
+          'Balance Updated'
+        );
+        setElevatedMemberList(prev => prev.map(m => m.id === targetUserId ? json.data : m));
+        if (targetUserId === user?.uid || json.data.email?.toLowerCase() === user?.email?.toLowerCase()) {
+          updateLocalUserProfile({ balance: json.data.balance });
+        }
+        setIsBalanceModalOpen(false);
+      } else {
+        toast.error(json.error || 'Failed to update balance', 'Error');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Error updating balance', 'Failed');
+    } finally {
+      setIsUpdatingBalance(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col lg:flex-row text-slate-100">
@@ -138,24 +191,25 @@ function UserDashboardContent() {
               <button
                 onClick={() => setIsProfileModalOpen(true)}
                 className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-300 border border-amber-500/40 font-semibold text-xs flex items-center gap-1.5 transition-all hover:scale-105"
+                title={language === 'bn' ? 'প্রোফাইল পরিবর্তন করুন' : 'Edit Profile'}
               >
                 <Edit3 className="w-3.5 h-3.5" />
                 <span>{language === 'bn' ? 'প্রোফাইল এডিট' : 'Edit Profile'}</span>
               </button>
 
-              {/* Only Super Admin & Admin can inspect other members */}
+              {/* Elevated Inspector for Super Admin */}
               {isElevated && elevatedMemberList.length > 0 && (
-                <div className="flex items-center gap-1.5 mr-2">
-                  <span className="text-[11px] text-slate-400 font-semibold">Inspect Member:</span>
+                <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 rounded-xl p-1 text-xs">
+                  <span className="text-[10px] text-slate-400 pl-2">Inspect Member:</span>
                   <select
                     value={inspectedUserName}
-                    onChange={e => setInspectedUserName(e.target.value)}
-                    className="px-2.5 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-amber-300 focus:outline-none"
+                    onChange={(e) => setInspectedUserName(e.target.value)}
+                    className="bg-slate-950 text-emerald-300 font-semibold text-xs rounded-lg px-2 py-1 outline-none border border-slate-800 cursor-pointer"
                   >
-                    <option value="">My Own Account ({user?.displayName})</option>
+                    <option value="">My Own Account ({user?.displayName || user?.name || 'Self'})</option>
                     {elevatedMemberList.map(m => (
                       <option key={m.id} value={m.name}>
-                        {m.name} ({m.department})
+                        {m.name} ({m.department}) - ৳{m.balance}
                       </option>
                     ))}
                   </select>
@@ -164,14 +218,18 @@ function UserDashboardContent() {
 
               <Link
                 href="/chat"
-                className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-emerald-300 border border-emerald-600/50 font-semibold text-xs flex items-center gap-1.5 transition-all hover:scale-105"
+                className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 text-xs font-semibold flex items-center gap-1.5 transition-colors"
               >
                 <MessageSquare className="w-3.5 h-3.5 text-amber-400" />
                 <span>Team & Voice Chat</span>
               </Link>
 
               <button
-                onClick={() => { refreshUser(); loadUserData(); }}
+                onClick={async () => {
+                  await refreshUser();
+                  await loadUserData();
+                  toast.info(language === 'bn' ? 'ডাটাবেস থেকে রিফ্রেশ করা হয়েছে!' : 'Refreshed from database!', 'Refreshed');
+                }}
                 className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 transition-colors"
                 title="Refresh"
               >
@@ -201,10 +259,21 @@ function UserDashboardContent() {
                 </div>
               </div>
               
-              <div className="flex items-baseline gap-2">
+              <div className="flex items-baseline justify-between gap-2 flex-wrap">
                 <h2 className="text-3xl sm:text-4xl font-extrabold font-mono text-emerald-400">
                   ৳{displayBalance.toFixed(2)}
                 </h2>
+
+                {/* Instant Balance Recharge / Edit for Admin/Super Admin */}
+                {isElevated && (
+                  <button
+                    onClick={() => setIsBalanceModalOpen(true)}
+                    className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-slate-950 text-xs font-bold border border-amber-500/40 transition-all flex items-center gap-1 shadow-sm hover:scale-105"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>{language === 'bn' ? 'ব্যালেন্স আপডেট' : '+ Top-up / Edit'}</span>
+                  </button>
+                )}
               </div>
               <p className="text-[11px] text-emerald-300/80 mt-2 flex items-center gap-1">
                 <span>● {language === 'bn' ? 'যেকোনো খাবার অর্ডারের জন্য প্রস্তুত' : 'Available for immediate food ordering'}</span>
@@ -308,27 +377,36 @@ function UserDashboardContent() {
                       </div>
 
                       <p className="text-sm font-semibold text-white">
-                        {order.itemsText || 'General Refreshment Order'}
+                        {order.itemsText || (order.items?.map(i => `${i.quantity}x ${i.name}`).join(', ') || 'Catering Order')}
                       </p>
 
-                      <p className="text-[11px] text-slate-400">
-                        {new Date(order.orderDate).toLocaleDateString()} • {order.paymentMethod}
-                      </p>
+                      <div className="flex items-center gap-3 text-xs text-slate-400">
+                        <span>{new Date(order.orderDate).toLocaleDateString()}</span>
+                        <span>•</span>
+                        <span className="text-slate-300">{order.paymentMethod}</span>
+                        {order.notes && (
+                          <>
+                            <span>•</span>
+                            <span className="italic text-slate-400">&quot;{order.notes}&quot;</span>
+                          </>
+                        )}
+                      </div>
                     </div>
 
-                    <div className="flex items-center justify-between sm:justify-end gap-4">
+                    <div className="flex items-center gap-4 self-end sm:self-center">
                       <div className="text-right">
-                        <p className="text-[11px] text-slate-400">{language === 'bn' ? 'বিল' : 'Bill'}</p>
-                        <p className="font-mono font-bold text-amber-300 text-sm">৳{Number(order.totalBill).toFixed(2)}</p>
+                        <span className="text-[10px] uppercase tracking-wider text-slate-400 block font-semibold">Bill</span>
+                        <span className="font-mono font-bold text-base text-amber-300">
+                          ৳{Number(order.totalBill).toFixed(2)}
+                        </span>
                       </div>
 
-                      {/* Order Image Download Button */}
                       <button
                         onClick={() => setSelectedInvoice(order)}
-                        className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-semibold transition-colors"
+                        className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-emerald-950 text-amber-300 hover:text-amber-200 border border-amber-500/30 font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm"
                       >
                         <Download className="w-3.5 h-3.5" />
-                        <span>{language === 'bn' ? 'ইমেজ রসিদ' : 'Receipt Image'}</span>
+                        <span>{language === 'bn' ? 'রসিদ ইমেজ' : 'Receipt Image'}</span>
                       </button>
                     </div>
                   </div>
@@ -341,11 +419,15 @@ function UserDashboardContent() {
         </main>
       </div>
 
-      <InvoiceModal
-        order={selectedInvoice}
-        onClose={() => setSelectedInvoice(null)}
-      />
+      {/* Invoice Modal for PNG Receipt Image Download */}
+      {selectedInvoice && (
+        <InvoiceModal
+          order={selectedInvoice}
+          onClose={() => setSelectedInvoice(null)}
+        />
+      )}
 
+      {/* Quick Order Modal */}
       <QuickOrderModal
         isOpen={isOrderModalOpen}
         onClose={() => setIsOrderModalOpen(false)}
@@ -361,19 +443,119 @@ function UserDashboardContent() {
               customerAvatar: data.customerAvatar || user?.photoURL || '',
             }),
           });
-          refreshUser();
-          loadUserData();
+          await refreshUser();
+          await loadUserData();
         }}
       />
 
+      {/* Profile Modal */}
       <ProfileModal
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
-        onSaved={() => {
-          refreshUser();
-          loadUserData();
+        onSaved={async () => {
+          await refreshUser();
+          await loadUserData();
         }}
       />
+
+      {/* Instant Balance Top-up / Edit Modal */}
+      {isBalanceModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
+          <div className="relative w-full max-w-md bg-slate-900 border border-emerald-500/50 rounded-3xl p-6 shadow-2xl">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+              <h3 className="font-serif text-lg font-bold text-white flex items-center gap-2">
+                <Wallet className="w-5 h-5 text-amber-400" />
+                <span>{language === 'bn' ? 'ব্যালেন্স আপডেট ও রিচার্জ' : 'Update & Top-up Balance'}</span>
+              </h3>
+              <button
+                onClick={() => setIsBalanceModalOpen(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleBalanceSubmit} className="mt-4 space-y-4">
+              <div className="flex items-center gap-1.5 p-1 bg-slate-950 rounded-xl border border-slate-800 text-xs">
+                {(['add', 'set', 'deduct'] as const).map(act => (
+                  <button
+                    key={act}
+                    type="button"
+                    onClick={() => setBalanceAction(act)}
+                    className={`flex-1 py-1.5 rounded-lg font-bold transition-all ${
+                      balanceAction === act 
+                        ? 'bg-amber-400 text-slate-950 shadow-md' 
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {act === 'add' ? '+ যোগ (Add)' : (act === 'set' ? '= সেট (Set)' : '- মাইনাস (Deduct)')}
+                  </button>
+                ))}
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 mb-1.5">
+                  {language === 'bn' ? 'টাকার পরিমাণ (Amount)' : 'Amount (BDT ৳)'}
+                </label>
+                <div className="grid grid-cols-4 gap-2 mb-2">
+                  {[100, 200, 500, 1000].map(amt => (
+                    <button
+                      key={amt}
+                      type="button"
+                      onClick={() => setBalanceAmount(amt)}
+                      className={`py-1.5 rounded-xl text-xs font-mono font-bold border transition-all ${
+                        balanceAmount === amt 
+                          ? 'bg-emerald-500 text-slate-950 border-emerald-400' 
+                          : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-slate-700'
+                      }`}
+                    >
+                      ৳{amt}
+                    </button>
+                  ))}
+                </div>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={balanceAmount}
+                  onChange={e => setBalanceAmount(Number(e.target.value))}
+                  className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl font-mono text-emerald-400 font-bold text-lg focus:outline-none focus:border-amber-400"
+                  placeholder="Amount in ৳"
+                  required
+                />
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800/80 flex items-center justify-between text-xs">
+                <span className="text-slate-400">আপডেটের পর ব্যালেন্স হবে:</span>
+                <span className="font-mono font-bold text-amber-300 text-base">
+                  ৳{balanceAction === 'add' 
+                    ? (displayBalance + Number(balanceAmount)).toFixed(2)
+                    : (balanceAction === 'deduct' 
+                        ? Math.max(0, displayBalance - Number(balanceAmount)).toFixed(2)
+                        : Number(balanceAmount).toFixed(2))}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsBalanceModalOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-800 text-xs text-slate-300 hover:text-white"
+                >
+                  বাতিল
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUpdatingBalance}
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-amber-500 text-slate-950 font-bold text-xs shadow-lg hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
+                >
+                  {isUpdatingBalance ? 'সংরক্ষণ হচ্ছে...' : 'ব্যালেন্স আপডেট নিশ্চিত করুন'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

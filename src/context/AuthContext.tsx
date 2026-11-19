@@ -152,7 +152,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshUser = async () => {
     if (auth.currentUser) {
       const synced = await syncWithBackend(auth.currentUser);
-      setUser(synced);
+      setUser(prev => {
+        if (!prev) return synced;
+        if (
+          prev.uid === synced.uid &&
+          prev.balance === synced.balance &&
+          prev.totalSpent === synced.totalSpent &&
+          prev.currentDue === synced.currentDue &&
+          prev.role === synced.role &&
+          prev.name === synced.name &&
+          prev.username === synced.username &&
+          prev.avatar === synced.avatar &&
+          prev.phone === synced.phone &&
+          prev.department === synced.department
+        ) {
+          return prev; // No state change -> prevents re-render loops!
+        }
+        return synced;
+      });
     }
   };
 
