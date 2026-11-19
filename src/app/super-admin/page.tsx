@@ -22,7 +22,9 @@ import {
   ShieldCheck,
   RefreshCw,
   UserPlus,
-  Coins
+  Coins,
+  Trash2,
+  AlertTriangle
 } from 'lucide-react';
 
 function SuperAdminDashboardContent() {
@@ -46,6 +48,11 @@ function SuperAdminDashboardContent() {
   const [newUserRole, setNewUserRole] = useState<UserRole>('user');
   const [newUserDept, setNewUserDept] = useState('Development');
   const [newUserBalance, setNewUserBalance] = useState<number>(0);
+
+  // Delete Member Modal State
+  const [deleteModalUser, setDeleteModalUser] = useState<UserRecord | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -121,6 +128,28 @@ function SuperAdminDashboardContent() {
     setBalanceModalUser(u);
     setBalanceAction(defaultAction);
     setBalanceAmount(defaultAction === 'set' ? u.balance : (defaultAction === 'deduct' ? Math.min(100, u.balance) : 500));
+  };
+
+  const handleDeleteMember = async () => {
+    if (!deleteModalUser) return;
+    setIsDeleting(true);
+    setDeleteError('');
+    try {
+      const res = await fetch(`/api/users/${deleteModalUser.id}`, {
+        method: 'DELETE',
+      });
+      const json = await res.json();
+      if (json.success) {
+        setUsers(prev => prev.filter(u => u.id !== deleteModalUser.id));
+        setDeleteModalUser(null);
+      } else {
+        setDeleteError(json.error || 'Failed to remove member from database');
+      }
+    } catch (err: any) {
+      setDeleteError(err.message || 'Error deleting member');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const handleCreateNewUser = async (e: React.FormEvent) => {
@@ -331,7 +360,7 @@ function SuperAdminDashboardContent() {
                     <th className="py-3.5 px-4 sm:px-6 text-right">Catering Balance (৳)</th>
                     <th className="py-3.5 px-4 sm:px-6 text-right">Lifetime Spent (৳)</th>
                     <th className="py-3.5 px-4 sm:px-6 text-center">Assigned Role (রোল)</th>
-                    <th className="py-3.5 px-4 sm:px-6 text-right whitespace-nowrap">Balance Actions</th>
+                    <th className="py-3.5 px-4 sm:px-6 text-right whitespace-nowrap">Manage Balance & Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/80">
@@ -420,7 +449,7 @@ function SuperAdminDashboardContent() {
                             </select>
                           </td>
 
-                          {/* Balance Actions: Add, Deduct, Edit */}
+                          {/* Balance Actions & Delete Member */}
                           <td className="py-3.5 px-4 sm:px-6 text-right whitespace-nowrap">
                             <div className="flex items-center justify-end gap-1.5">
                               <button
@@ -449,6 +478,27 @@ function SuperAdminDashboardContent() {
                                 <Edit3 className="w-3.5 h-3.5" />
                                 <span>Edit</span>
                               </button>
+
+                              {/* Delete Member Action Button */}
+                              {isSuperAccount ? (
+                                <span 
+                                  title="Root Super Admin Account is Protected"
+                                  className="p-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 inline-flex items-center"
+                                >
+                                  <ShieldCheck className="w-3.5 h-3.5" />
+                                </span>
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    setDeleteError('');
+                                    setDeleteModalUser(u);
+                                  }}
+                                  title="Permanently remove member from database"
+                                  className="p-1.5 rounded-lg bg-rose-950/60 hover:bg-rose-900 text-rose-400 hover:text-rose-100 border border-rose-800/60 text-xs font-semibold transition-all hover:scale-110 active:scale-95 inline-flex items-center ml-1"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -686,16 +736,110 @@ function SuperAdminDashboardContent() {
                   onClick={() => setIsNewUserModalOpen(false)}
                   className="px-4 py-2 rounded-xl bg-slate-800 text-xs text-slate-300"
                 >
-                  বাতিল
+                  Cancel
                 </button>
                 <button
                   type="submit"
                   className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 text-slate-950 font-bold text-xs"
                 >
-                  সংরক্ষণ করুন
+                  Create Member
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Permanent Member Deletion Confirmation Modal */}
+      {deleteModalUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
+          <div className="w-full max-w-md bg-slate-900 border border-rose-600/50 rounded-3xl p-6 shadow-2xl space-y-4">
+            
+            {/* Modal Header */}
+            <div className="text-center space-y-2">
+              <div className="w-12 h-12 rounded-2xl bg-rose-950/80 border border-rose-700/60 flex items-center justify-center mx-auto text-rose-400">
+                <Trash2 className="w-6 h-6 animate-pulse" />
+              </div>
+              <h3 className="font-serif font-bold text-white text-lg">
+                Permanently Delete Member?
+              </h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                This action is irreversible. The member profile and all associated catering database records will be permanently purged.
+              </p>
+            </div>
+
+            {/* Target Member Card */}
+            <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
+              <div className="flex items-center gap-3">
+                <img
+                  src={deleteModalUser.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(deleteModalUser.name)}&background=047857&color=fff`}
+                  alt={deleteModalUser.name}
+                  className="w-10 h-10 rounded-xl object-cover ring-1 ring-rose-500/30"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="font-bold text-white text-sm truncate">{deleteModalUser.name}</p>
+                  <p className="text-xs text-slate-400 font-mono truncate">{deleteModalUser.email}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-900 text-xs">
+                <div>
+                  <span className="text-slate-500">Department:</span>
+                  <p className="text-slate-300 font-medium">{deleteModalUser.department}</p>
+                </div>
+                <div>
+                  <span className="text-slate-500">Remaining Balance:</span>
+                  <p className={`font-mono font-bold ${deleteModalUser.balance > 0 ? 'text-amber-400' : 'text-slate-400'}`}>
+                    ৳{deleteModalUser.balance.toFixed(2)}
+                  </p>
+                </div>
+              </div>
+
+              {deleteModalUser.balance > 0 && (
+                <div className="flex items-center gap-1.5 p-2 rounded-xl bg-amber-950/40 border border-amber-600/30 text-[11px] text-amber-300">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-amber-400" />
+                  <span>Warning: This user still has an active balance of ৳{deleteModalUser.balance.toFixed(2)}.</span>
+                </div>
+              )}
+            </div>
+
+            {deleteError && (
+              <div className="p-3 rounded-xl bg-rose-950/60 border border-rose-800 text-rose-300 text-xs">
+                {deleteError}
+              </div>
+            )}
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => setDeleteModalUser(null)}
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 font-semibold transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={handleDeleteMember}
+                className="px-5 py-2 rounded-xl bg-gradient-to-r from-rose-700 to-rose-600 hover:from-rose-600 hover:to-rose-500 text-white font-bold text-xs shadow-lg shadow-rose-950/50 flex items-center gap-1.5 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
+              >
+                {isDeleting ? (
+                  <>
+                    <div className="w-3.5 h-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                    <span>Purging from Database...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Confirm Permanent Delete</span>
+                  </>
+                )}
+              </button>
+            </div>
+
           </div>
         </div>
       )}

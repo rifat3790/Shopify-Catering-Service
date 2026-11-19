@@ -241,6 +241,55 @@ export async function updateUserRole(idOrEmail: string, newRole: UserRole): Prom
   return null;
 }
 
+// Delete Member permanently from Database & Memory Cache
+export async function deleteUser(idOrEmail: string): Promise<boolean> {
+  const search = idOrEmail.toLowerCase().trim();
+
+  // Root Super Admin account cannot be deleted!
+  if (search === SUPER_ADMIN_EMAIL.toLowerCase()) {
+    throw new Error('Primary Root Super Admin account cannot be deleted');
+  }
+
+  let deleted = false;
+
+  try {
+    await connectToDatabase();
+    if (User) {
+      const isObjectId = idOrEmail.match(/^[0-9a-fA-F]{24}$/);
+      const query = isObjectId 
+        ? { _id: idOrEmail } 
+        : { $or: [{ email: search }, { name: search }] };
+
+      const target = await User.findOne(query);
+      if (target && target.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) {
+        throw new Error('Primary Root Super Admin account cannot be deleted');
+      }
+
+      const res = await User.findOneAndDelete(query);
+      if (res) {
+        deleted = true;
+      }
+    }
+  } catch (err: any) {
+    if (err.message?.includes('Super Admin')) {
+      throw err;
+    }
+    console.warn("MongoDB delete user failed, using cache fallback:", err);
+  }
+
+  const initialLen = usersCache.length;
+  usersCache = usersCache.filter(u => 
+    u.id !== idOrEmail && 
+    u.email.toLowerCase() !== search && 
+    u.name.toLowerCase() !== search
+  );
+  if (usersCache.length < initialLen) {
+    deleted = true;
+  }
+
+  return deleted;
+}
+
 // Balance Add, Remove, and Edit (Direct Set)
 export async function updateUserBalance(
   idOrEmail: string, 

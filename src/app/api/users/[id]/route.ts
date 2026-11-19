@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getUserById, updateUserRole, updateUserBalance } from '@/lib/dataStore';
+import { getUserById, updateUserRole, updateUserBalance, deleteUser } from '@/lib/dataStore';
 
 export async function GET(
   request: Request,
@@ -44,6 +44,28 @@ export async function PUT(
   } catch (error: any) {
     return NextResponse.json(
       { success: false, error: error.message || 'Failed to update user' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const deleted = await deleteUser(id);
+    if (!deleted) {
+      return NextResponse.json({ success: false, error: 'User not found or already deleted' }, { status: 404 });
+    }
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Member profile permanently deleted from database' 
+    });
+  } catch (error: any) {
+    return NextResponse.json(
+      { success: false, error: error.message || 'Failed to delete member' },
       { status: 500 }
     );
   }

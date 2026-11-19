@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getAllUsers, updateUserRole, updateUserBalance } from '@/lib/dataStore';
+import { getAllUsers, updateUserRole, updateUserBalance, deleteUser } from '@/lib/dataStore';
 
 export async function GET(request: Request) {
   try {
@@ -47,6 +47,37 @@ export async function POST(request: Request) {
   } catch (error: any) {
     return NextResponse.json(
       { success: false, error: error.message || 'Operation failed' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    let userId = searchParams.get('userId') || searchParams.get('id');
+
+    if (!userId) {
+      const body = await request.json().catch(() => ({}));
+      userId = body.userId || body.id;
+    }
+
+    if (!userId) {
+      return NextResponse.json({ success: false, error: 'User ID is required' }, { status: 400 });
+    }
+
+    const deleted = await deleteUser(userId);
+    if (!deleted) {
+      return NextResponse.json({ success: false, error: 'User not found or already deleted' }, { status: 404 });
+    }
+
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Member profile and records permanently deleted from database' 
+    });
+  } catch (error: any) {
+    return NextResponse.json(
+      { success: false, error: error.message || 'Failed to delete member' },
       { status: 500 }
     );
   }
