@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Navbar from '@/components/Navbar';
+import Sidebar from '@/components/Sidebar';
 import MetricsOverview from '@/components/MetricsOverview';
 import LiveTrackerTable from '@/components/LiveTrackerTable';
 import QuickOrderModal from '@/components/QuickOrderModal';
@@ -102,113 +102,116 @@ export default function AdminPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col">
-      <Navbar onOpenNewOrder={() => setIsOrderModalOpen(true)} />
+    <div className="min-h-screen bg-slate-950 flex flex-col lg:flex-row text-slate-100">
+      {/* Left Sidebar Navigation */}
+      <Sidebar onOpenNewOrder={() => setIsOrderModalOpen(true)} />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 flex-1 w-full">
-        
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-emerald-900/40">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-800 to-emerald-600 p-[2px] shadow-lg">
-              <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center">
-                <ChefHat className="w-6 h-6 text-amber-400" />
-              </div>
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-bold font-serif text-white">
-                  {language === 'bn' ? 'অ্যাডমিন কিচেন ও ক্যাটারিং ড্যাশবোর্ড' : 'Admin Catering Operations Portal'}
-                </h1>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                  Manager
-                </span>
-              </div>
-              <p className="text-xs text-slate-400">
-                {language === 'bn' ? 'দৈনিক অর্ডার প্রস্তুত, মেনু ম্যানেজমেন্ট ও ক্যাশিয়ার হিসাব নিকাশ' : 'Kitchen workflow, menu pricing control, and daily customer accounts'}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Link
-              href="/super-admin"
-              className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-xs font-semibold text-amber-400 border border-amber-500/30"
-            >
-              👑 Super Admin
-            </Link>
-            <button
-              onClick={() => setIsOrderModalOpen(true)}
-              className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-md"
-            >
-              + {language === 'bn' ? 'অর্ডার এন্ট্রি' : 'New Order'}
-            </button>
-          </div>
-        </div>
-
-        {/* Tab switch */}
-        <div className="flex items-center gap-2 p-1 bg-slate-900 rounded-2xl w-fit border border-slate-800">
-          <button
-            onClick={() => setActiveTab('orders')}
-            className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              activeTab === 'orders' ? 'bg-emerald-700 text-white shadow' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            📋 {language === 'bn' ? 'অর্ডার ও পেমেন্ট ট্র্যাকার' : 'Orders & Ledger'}
-          </button>
-          <button
-            onClick={() => setActiveTab('menu')}
-            className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              activeTab === 'menu' ? 'bg-emerald-700 text-white shadow' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            🍲 {language === 'bn' ? 'মেনু ক্যাটালগ কন্ট্রোল' : 'Menu Management'}
-          </button>
-        </div>
-
-        {activeTab === 'orders' ? (
-          <div className="space-y-6">
-            <MetricsOverview stats={stats} isLoading={loading} />
-            <LiveTrackerTable
-              orders={orders}
-              onOpenNewOrder={() => setIsOrderModalOpen(true)}
-              onSelectInvoice={(order) => setSelectedInvoice(order)}
-              onUpdateStatus={handleUpdateStatus}
-              onDeleteOrder={handleDeleteOrder}
-              isLoading={loading}
-            />
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {menuItems.map(item => (
-              <div
-                key={item._id || item.name}
-                className="p-4 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-between gap-3 shadow-lg"
-              >
-                <div className="flex items-center gap-3">
-                  <img
-                    src={item.imageUrl}
-                    alt={item.name}
-                    className="w-14 h-14 rounded-xl object-cover ring-1 ring-emerald-500/30"
-                  />
-                  <div>
-                    <h4 className="font-bold text-white text-xs">{item.name}</h4>
-                    <p className="text-[11px] text-slate-400">{item.nameBn}</p>
-                    <span className="font-mono font-bold text-amber-300 text-xs">৳{item.price}</span>
-                  </div>
+      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+        <main className="p-4 sm:p-6 lg:p-10 space-y-6 max-w-[1920px] w-full mx-auto">
+          
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-emerald-900/40">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-800 to-emerald-600 p-[2px] shadow-lg shrink-0">
+                <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center">
+                  <ChefHat className="w-6 h-6 text-amber-400" />
                 </div>
-
-                <div className="text-right">
-                  <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                    Available
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="text-xl sm:text-2xl font-bold font-serif text-white">
+                    {language === 'bn' ? 'অ্যাডমিন কিচেন ও ক্যাটারিং ড্যাশবোর্ড' : 'Admin Catering Operations Portal'}
+                  </h1>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    Manager
                   </span>
                 </div>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {language === 'bn' ? 'দৈনিক অর্ডার প্রস্তুত, মেনু ম্যানেজমেন্ট ও ক্যাশিয়ার হিসাব নিকাশ' : 'Kitchen workflow, menu pricing control, and daily customer accounts'}
+                </p>
               </div>
-            ))}
-          </div>
-        )}
+            </div>
 
-      </main>
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              <Link
+                href="/super-admin"
+                className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-xs font-semibold text-amber-400 border border-amber-500/30"
+              >
+                👑 Super Admin
+              </Link>
+              <button
+                onClick={() => setIsOrderModalOpen(true)}
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-md"
+              >
+                + {language === 'bn' ? 'অর্ডার এন্ট্রি' : 'New Order'}
+              </button>
+            </div>
+          </div>
+
+          {/* Tab switch */}
+          <div className="flex items-center gap-2 p-1 bg-slate-900 rounded-2xl w-fit border border-slate-800">
+            <button
+              onClick={() => setActiveTab('orders')}
+              className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                activeTab === 'orders' ? 'bg-emerald-700 text-white shadow' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              📋 {language === 'bn' ? 'অর্ডার ও পেমেন্ট ট্র্যাকার' : 'Orders & Ledger'}
+            </button>
+            <button
+              onClick={() => setActiveTab('menu')}
+              className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                activeTab === 'menu' ? 'bg-emerald-700 text-white shadow' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              🍲 {language === 'bn' ? 'মেনু ক্যাটালগ কন্ট্রোল' : 'Menu Management'}
+            </button>
+          </div>
+
+          {activeTab === 'orders' ? (
+            <div className="space-y-6">
+              <MetricsOverview stats={stats} isLoading={loading} />
+              <LiveTrackerTable
+                orders={orders}
+                onOpenNewOrder={() => setIsOrderModalOpen(true)}
+                onSelectInvoice={(order) => setSelectedInvoice(order)}
+                onUpdateStatus={handleUpdateStatus}
+                onDeleteOrder={handleDeleteOrder}
+                isLoading={loading}
+              />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {menuItems.map(item => (
+                <div
+                  key={item._id || item.name}
+                  className="p-4 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-between gap-3 shadow-lg"
+                >
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={item.imageUrl}
+                      alt={item.name}
+                      className="w-14 h-14 rounded-xl object-cover ring-1 ring-emerald-500/30"
+                    />
+                    <div>
+                      <h4 className="font-bold text-white text-xs">{item.name}</h4>
+                      <p className="text-[11px] text-slate-400">{item.nameBn}</p>
+                      <span className="font-mono font-bold text-amber-300 text-xs">৳{item.price}</span>
+                    </div>
+                  </div>
+
+                  <div className="text-right">
+                    <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      Available
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+        </main>
+      </div>
 
       <QuickOrderModal
         isOpen={isOrderModalOpen}

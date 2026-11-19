@@ -181,8 +181,8 @@ export default function LiveTrackerTable({
       </div>
 
       {/* Main Table Responsive Container */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
+      <div className="w-full overflow-x-auto">
+        <table className="w-full min-w-[950px] text-left border-collapse">
           {/* Table Header */}
           <thead>
             <tr className="bg-emerald-950/70 border-b border-emerald-800/60 text-emerald-200 text-xs font-semibold uppercase tracking-wider">
@@ -328,7 +328,7 @@ export default function LiveTrackerTable({
                     </td>
 
                     {/* Actions Column */}
-                    <td className="py-3.5 px-4 sm:px-6 text-right">
+                    <td className="py-3.5 px-4 sm:px-6 text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-1.5">
                         <button
                           onClick={() => onSelectInvoice(order)}

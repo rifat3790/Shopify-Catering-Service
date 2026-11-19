@@ -134,7 +134,7 @@ export default function HomePage() {
         <section className="relative overflow-hidden px-4 sm:px-6 lg:px-10 pt-8 pb-10 bg-gradient-to-b from-slate-950 via-emerald-950/20 to-slate-950 border-b border-emerald-900/30">
           <div className="absolute top-0 right-1/4 w-[600px] h-[250px] bg-emerald-500/10 blur-[120px] rounded-full pointer-events-none" />
 
-          <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 relative z-10">
+          <div className="max-w-[1920px] mx-auto w-full flex flex-col xl:flex-row xl:items-center justify-between gap-6 relative z-10">
             <div className="max-w-3xl space-y-3">
               <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-950/80 border border-emerald-500/30 text-emerald-300 text-xs font-semibold shadow-sm">
                 <Sparkles className="w-3.5 h-3.5 text-amber-400" />
@@ -226,7 +226,7 @@ export default function HomePage() {
         </section>
 
         {/* Full-Width Workspace Container */}
-        <main className="w-full px-4 sm:px-6 lg:px-10 py-8 space-y-8 flex-1">
+        <main className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-10 py-8 space-y-8 flex-1">
           
           {/* 5 Key Metric Summary Cards */}
           <div>

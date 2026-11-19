@@ -45,39 +45,28 @@ export interface UserRecord {
   name: string;
   email: string;
   role: UserRole;
-  balance: number; // Current wallet/catering balance in BDT
-  currentDue: number; // Any unpaid dues
-  totalSpent: number; // Lifetime catering expenditure
+  balance: number;
+  currentDue: number;
+  totalSpent: number;
   department: string;
   avatar: string;
   phone?: string;
   createdAt: string;
 }
 
-// Initial Users with Balances and Roles
+// Authentic Team Members directly reflecting the Shopify Catering Team
 export const initialUsers: UserRecord[] = [
   {
-    id: "usr-super",
-    name: "Rifat (Super Admin)",
-    email: "superadmin@shopifycatering.com",
+    id: "usr-refayet",
+    name: "Md Refayet Hossen",
+    email: "mdrifayethossen@gmail.com",
     role: "super_admin",
     balance: 5000,
     currentDue: 0,
-    totalSpent: 1250,
-    department: "Executive Management",
+    totalSpent: 420,
+    department: "Executive Management & Engineering",
     avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: "usr-admin",
-    name: "Tanvir Hasan (Admin)",
-    email: "admin@shopifycatering.com",
-    role: "admin",
-    balance: 2400,
-    currentDue: 0,
-    totalSpent: 890,
-    department: "Catering Operations",
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
+    phone: "+880 1700-000000",
     createdAt: new Date().toISOString()
   },
   {
@@ -87,9 +76,21 @@ export const initialUsers: UserRecord[] = [
     role: "user",
     balance: 450,
     currentDue: 0,
-    totalSpent: 620,
+    totalSpent: 30,
     department: "Development",
     avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: "usr-ismail",
+    name: "Ismail",
+    email: "ismail@shopify.com",
+    role: "user",
+    balance: 300,
+    currentDue: 0,
+    totalSpent: 0,
+    department: "Design & UX",
+    avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80",
     createdAt: new Date().toISOString()
   },
   {
@@ -99,45 +100,9 @@ export const initialUsers: UserRecord[] = [
     role: "user",
     balance: 620,
     currentDue: 0,
-    totalSpent: 750,
+    totalSpent: 50,
     department: "Marketing",
     avatar: "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=150&auto=format&fit=crop&q=80",
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: "usr-ismail",
-    name: "Ismail",
-    email: "ismail@shopify.com",
-    role: "user",
-    balance: 310,
-    currentDue: 0,
-    totalSpent: 280,
-    department: "Design & UX",
-    avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80",
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: "usr-refayet",
-    name: "Refayet",
-    email: "refayet@shopify.com",
-    role: "user",
-    balance: 550,
-    currentDue: 0,
-    totalSpent: 420,
-    department: "Engineering",
-    avatar: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80",
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: "usr-muzahid",
-    name: "Muzahid",
-    email: "muzahid@shopify.com",
-    role: "user",
-    balance: 200,
-    currentDue: 0,
-    totalSpent: 190,
-    department: "Support",
-    avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&auto=format&fit=crop&q=80",
     createdAt: new Date().toISOString()
   },
   {
@@ -147,7 +112,7 @@ export const initialUsers: UserRecord[] = [
     role: "user",
     balance: 380,
     currentDue: 0,
-    totalSpent: 210,
+    totalSpent: 0,
     department: "Operations",
     avatar: "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150&auto=format&fit=crop&q=80",
     createdAt: new Date().toISOString()
@@ -157,16 +122,28 @@ export const initialUsers: UserRecord[] = [
     name: "Azim",
     email: "azim@shopify.com",
     role: "user",
-    balance: 150,
+    balance: 250,
     currentDue: 0,
-    totalSpent: 180,
+    totalSpent: 0,
     department: "Logistics",
     avatar: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80",
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: "usr-muzahid",
+    name: "Muzahid",
+    email: "muzahid@shopify.com",
+    role: "user",
+    balance: 200,
+    currentDue: 0,
+    totalSpent: 20,
+    department: "Support",
+    avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&auto=format&fit=crop&q=80",
     createdAt: new Date().toISOString()
   }
 ];
 
-// Initial seed orders directly reflecting user's Google Sheet
+// Authentic Orders directly from the Shopify Catering Service Google Sheet
 export const initialOrders: OrderData[] = [
   {
     _id: "ord-1",
@@ -256,7 +233,7 @@ export const initialOrders: OrderData[] = [
     _id: "ord-6",
     orderNumber: "ORD-1006",
     customerName: "Refayet",
-    customerDepartment: "Engineering",
+    customerDepartment: "Executive Management & Engineering",
     itemsText: "2 ta Singara + 1 ta comoccha",
     items: [
       { name: "Singara (সিঙ্গারা)", quantity: 2, unitPrice: 10, subtotal: 20 },

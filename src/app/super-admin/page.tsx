@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Navbar from '@/components/Navbar';
+import Sidebar from '@/components/Sidebar';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { UserRecord, UserRole, initialUsers } from '@/lib/types';
@@ -20,7 +20,8 @@ import {
   Layers,
   KeyRound,
   TrendingUp,
-  Receipt
+  Receipt,
+  ShieldCheck
 } from 'lucide-react';
 
 export default function SuperAdminPage() {
@@ -54,7 +55,6 @@ export default function SuperAdminPage() {
   const handleRoleChange = async (userId: string, newRole: UserRole) => {
     setUpdatingId(userId);
     try {
-      // Optimistic update
       setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
       
       const res = await fetch('/api/users', {
@@ -106,228 +106,231 @@ export default function SuperAdminPage() {
   const totalLifetimeSpent = users.reduce((acc, u) => acc + (u.totalSpent || 0), 0);
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col">
-      <Navbar />
+    <div className="min-h-screen bg-slate-950 flex flex-col lg:flex-row text-slate-100">
+      {/* Left Sidebar Dashboard Navigation */}
+      <Sidebar />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 flex-1 w-full">
-        
-        {/* Top Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-amber-500/20">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-600 to-yellow-500 p-[2px] shadow-lg shadow-amber-950/40">
-              <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center">
-                <Crown className="w-6 h-6 text-amber-400" />
-              </div>
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-2xl sm:text-3xl font-bold font-serif text-white tracking-tight">
-                  {language === 'bn' ? 'সুপার অ্যাডমিন কমান্ড সেন্টার' : 'Super Admin Command Center'}
-                </h1>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase">
-                  Executive Root
-                </span>
-              </div>
-              <p className="text-xs text-slate-400 mt-1">
-                {language === 'bn'
-                  ? 'ব্যবহারকারীর ভূমিকা নির্ধারণ (Role Assignment), ব্যালেন্স সমন্বয় এবং প্রাতিষ্ঠানিক নিয়ন্ত্রণ'
-                  : 'Assign user roles (Super Admin, Admin, Staff, User), manage company balances, and root access'}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Link
-              href="/admin"
-              className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-xs font-semibold text-emerald-300 border border-emerald-800/80 transition-colors"
-            >
-              {language === 'bn' ? 'অ্যাডমিন ড্যাশবোর্ড' : 'Admin Dashboard'}
-            </Link>
-            <Link
-              href="/user"
-              className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-xs font-semibold text-slate-300 border border-slate-800 transition-colors"
-            >
-              {language === 'bn' ? 'ইউজার পোর্টাল' : 'User Portal'}
-            </Link>
-          </div>
-        </div>
-
-        {/* Executive Metrics Overview */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="p-5 rounded-2xl bg-slate-900/80 border border-amber-500/30 shadow-lg">
-            <div className="flex items-center justify-between text-xs text-slate-400 mb-2 font-medium">
-              <span>{language === 'bn' ? 'মোট ব্যবহারকারী' : 'Total Employees'}</span>
-              <Users className="w-4 h-4 text-amber-400" />
-            </div>
-            <p className="text-2xl font-bold font-serif text-white">{users.length}</p>
-            <p className="text-[11px] text-amber-400 mt-1 font-mono">Active Catering Accounts</p>
-          </div>
-
-          <div className="p-5 rounded-2xl bg-slate-900/80 border border-emerald-500/30 shadow-lg">
-            <div className="flex items-center justify-between text-xs text-slate-400 mb-2 font-medium">
-              <span>{language === 'bn' ? 'মোট সংরক্ষিত ব্যালেন্স' : 'Total Wallet Balances'}</span>
-              <Wallet className="w-4 h-4 text-emerald-400" />
-            </div>
-            <p className="text-2xl font-bold font-mono text-emerald-300">৳{totalCompanyBalance.toFixed(2)}</p>
-            <p className="text-[11px] text-emerald-400 mt-1">Available Catering Funds</p>
-          </div>
-
-          <div className="p-5 rounded-2xl bg-slate-900/80 border border-teal-500/30 shadow-lg">
-            <div className="flex items-center justify-between text-xs text-slate-400 mb-2 font-medium">
-              <span>{language === 'bn' ? 'লাইফটাইম ক্যাটারিং সেলস' : 'Lifetime Catering Spent'}</span>
-              <TrendingUp className="w-4 h-4 text-teal-400" />
-            </div>
-            <p className="text-2xl font-bold font-mono text-amber-300">৳{totalLifetimeSpent.toFixed(2)}</p>
-            <p className="text-[11px] text-teal-400 mt-1">Total Consumed Meals</p>
-          </div>
-
-          <div className="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-lg">
-            <div className="flex items-center justify-between text-xs text-slate-400 mb-2 font-medium">
-              <span>{language === 'bn' ? 'সিস্টেম স্ট্যাটাস' : 'System Engine'}</span>
-              <ShieldAlert className="w-4 h-4 text-sky-400" />
-            </div>
-            <p className="text-base font-bold text-white flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>Next.js 15 & Vercel Ready</span>
-            </p>
-            <p className="text-[11px] text-slate-400 mt-1">RBAC Security Enabled</p>
-          </div>
-        </div>
-
-        {/* Role & Balance Management Section */}
-        <div className="rounded-3xl bg-slate-900/90 border border-emerald-900/60 shadow-2xl overflow-hidden backdrop-blur-xl">
+      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+        <main className="p-4 sm:p-6 lg:p-10 space-y-8 max-w-[1920px] w-full mx-auto">
           
-          {/* Table Header Bar */}
-          <div className="p-5 bg-gradient-to-r from-emerald-950 via-slate-950 to-emerald-950 border-b border-emerald-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h2 className="text-lg font-bold font-serif text-white flex items-center gap-2">
-                <KeyRound className="w-5 h-5 text-amber-400" />
-                <span>{language === 'bn' ? 'রোল নির্ধারণ ও ব্যালেন্স কন্ট্রোল' : 'Role Assignment & Balance Management'}</span>
-              </h2>
-              <p className="text-xs text-slate-400">
-                {language === 'bn' 
-                  ? 'সুপার অ্যাডমিন যেকাউকে Super Admin, Admin, Staff বা সাধারণ ইউজার রোল দিতে পারেন' 
-                  : 'Super Admin can assign or promote any member to Super Admin, Admin, Staff or User'}
-              </p>
+          {/* Top Header */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-amber-500/20">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-600 to-yellow-500 p-[2px] shadow-lg shadow-amber-950/40 shrink-0">
+                <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center">
+                  <Crown className="w-6 h-6 text-amber-400" />
+                </div>
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="text-2xl sm:text-3xl font-bold font-serif text-white tracking-tight">
+                    {language === 'bn' ? 'সুপার অ্যাডমিন কমান্ড সেন্টার' : 'Super Admin Command Center'}
+                  </h1>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase">
+                    Executive Root
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 mt-1">
+                  {language === 'bn'
+                    ? 'ব্যবহারকারীর ভূমিকা নির্ধারণ (Role Assignment), ব্যালেন্স সমন্বয় এবং প্রাতিষ্ঠানিক নিয়ন্ত্রণ'
+                    : 'Assign user roles (Super Admin, Admin, Staff, User), manage company balances, and root access'}
+                </p>
+              </div>
             </div>
 
-            {/* Filter toolbar */}
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                <input
-                  type="text"
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  placeholder={language === 'bn' ? 'ব্যবহারকারী খুঁজুন...' : 'Search employee...'}
-                  className="pl-9 pr-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
-                />
+            <div className="flex items-center gap-2 self-start md:self-auto">
+              <Link
+                href="/admin"
+                className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-xs font-semibold text-emerald-300 border border-emerald-800/80 transition-colors"
+              >
+                {language === 'bn' ? 'অ্যাডমিন ড্যাশবোর্ড' : 'Admin Dashboard'}
+              </Link>
+              <Link
+                href="/user"
+                className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-xs font-semibold text-slate-300 border border-slate-800 transition-colors"
+              >
+                {language === 'bn' ? 'ইউজার পোর্টাল' : 'User Portal'}
+              </Link>
+            </div>
+          </div>
+
+          {/* Executive Metrics Overview */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="p-5 rounded-2xl bg-slate-900/80 border border-amber-500/30 shadow-lg">
+              <div className="flex items-center justify-between text-xs text-slate-400 mb-2 font-medium">
+                <span>{language === 'bn' ? 'মোট ব্যবহারকারী' : 'Total Employees'}</span>
+                <Users className="w-4 h-4 text-amber-400" />
+              </div>
+              <p className="text-2xl font-bold font-serif text-white">{users.length}</p>
+              <p className="text-[11px] text-amber-400 mt-1 font-mono">Active Catering Accounts</p>
+            </div>
+
+            <div className="p-5 rounded-2xl bg-slate-900/80 border border-emerald-500/30 shadow-lg">
+              <div className="flex items-center justify-between text-xs text-slate-400 mb-2 font-medium">
+                <span>{language === 'bn' ? 'মোট সংরক্ষিত ব্যালেন্স' : 'Total Wallet Balances'}</span>
+                <Wallet className="w-4 h-4 text-emerald-400" />
+              </div>
+              <p className="text-2xl font-bold font-mono text-emerald-300">৳{totalCompanyBalance.toFixed(2)}</p>
+              <p className="text-[11px] text-emerald-400 mt-1">Available Catering Funds</p>
+            </div>
+
+            <div className="p-5 rounded-2xl bg-slate-900/80 border border-teal-500/30 shadow-lg">
+              <div className="flex items-center justify-between text-xs text-slate-400 mb-2 font-medium">
+                <span>{language === 'bn' ? 'লাইফটাইম ক্যাটারিং সেলস' : 'Lifetime Catering Spent'}</span>
+                <TrendingUp className="w-4 h-4 text-teal-400" />
+              </div>
+              <p className="text-2xl font-bold font-mono text-amber-300">৳{totalLifetimeSpent.toFixed(2)}</p>
+              <p className="text-[11px] text-teal-400 mt-1">Total Consumed Meals</p>
+            </div>
+
+            <div className="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-lg">
+              <div className="flex items-center justify-between text-xs text-slate-400 mb-2 font-medium">
+                <span>{language === 'bn' ? 'সিস্টেম স্ট্যাটাস' : 'System Engine'}</span>
+                <ShieldAlert className="w-4 h-4 text-sky-400" />
+              </div>
+              <p className="text-base font-bold text-white flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span>Next.js 15 & Vercel Ready</span>
+              </p>
+              <p className="text-[11px] text-slate-400 mt-1">RBAC Security Enabled</p>
+            </div>
+          </div>
+
+          {/* Role & Balance Management Section */}
+          <div className="rounded-3xl bg-slate-900/90 border border-emerald-900/60 shadow-2xl overflow-hidden backdrop-blur-xl">
+            
+            {/* Table Header Bar */}
+            <div className="p-5 bg-gradient-to-r from-emerald-950 via-slate-950 to-emerald-950 border-b border-emerald-800/60 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-bold font-serif text-white flex items-center gap-2">
+                  <KeyRound className="w-5 h-5 text-amber-400" />
+                  <span>{language === 'bn' ? 'রোল নির্ধারণ ও ব্যালেন্স কন্ট্রোল' : 'Role Assignment & Balance Management'}</span>
+                </h2>
+                <p className="text-xs text-slate-400">
+                  {language === 'bn' 
+                    ? 'সুপার অ্যাডমিন যেকাউকে Super Admin, Admin, Staff বা সাধারণ ইউজার রোল দিতে পারেন' 
+                    : 'Super Admin can assign or promote any member to Super Admin, Admin, Staff or User'}
+                </p>
               </div>
 
-              <select
-                value={roleFilter}
-                onChange={e => setRoleFilter(e.target.value)}
-                className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none"
-              >
-                <option value="all">All Roles</option>
-                <option value="super_admin">Super Admin</option>
-                <option value="admin">Admin</option>
-                <option value="staff">Staff</option>
-                <option value="user">User</option>
-              </select>
+              {/* Filter toolbar */}
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="relative min-w-[200px]">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    placeholder={language === 'bn' ? 'ব্যবহারকারী খুঁজুন...' : 'Search employee...'}
+                    className="w-full pl-9 pr-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+
+                <select
+                  value={roleFilter}
+                  onChange={e => setRoleFilter(e.target.value)}
+                  className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none"
+                >
+                  <option value="all">All Roles</option>
+                  <option value="super_admin">Super Admin</option>
+                  <option value="admin">Admin</option>
+                  <option value="staff">Staff</option>
+                  <option value="user">User</option>
+                </select>
+              </div>
+            </div>
+
+            {/* User Table with Perfect Responsiveness (No Clipping) */}
+            <div className="w-full overflow-x-auto border border-slate-800/50">
+              <table className="w-full min-w-[900px] text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-slate-950 border-b border-slate-800 text-slate-400 font-semibold uppercase tracking-wider">
+                    <th className="py-3.5 px-4 sm:px-6">Employee / Customer</th>
+                    <th className="py-3.5 px-4 sm:px-6">Department</th>
+                    <th className="py-3.5 px-4 sm:px-6 text-right">Catering Balance (৳)</th>
+                    <th className="py-3.5 px-4 sm:px-6 text-right">Lifetime Spent (৳)</th>
+                    <th className="py-3.5 px-4 sm:px-6 text-center">Assigned Role (রোল)</th>
+                    <th className="py-3.5 px-4 sm:px-6 text-right whitespace-nowrap">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/80">
+                  {filteredUsers.map((u) => {
+                    const isCurrentSuper = u.role === 'super_admin';
+                    const isAdmin = u.role === 'admin';
+
+                    return (
+                      <tr key={u.id} className="hover:bg-slate-800/40 transition-colors">
+                        {/* Name & Avatar */}
+                        <td className="py-3.5 px-4 sm:px-6 whitespace-nowrap">
+                          <div className="flex items-center gap-3">
+                            <img
+                              src={u.avatar}
+                              alt={u.name}
+                              className="w-9 h-9 rounded-xl object-cover ring-1 ring-emerald-500/30"
+                            />
+                            <div>
+                              <p className="font-bold text-white tracking-wide">{u.name}</p>
+                              <p className="text-[11px] text-slate-400">{u.email}</p>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Department */}
+                        <td className="py-3.5 px-4 sm:px-6 text-slate-300 font-medium whitespace-nowrap">
+                          {u.department}
+                        </td>
+
+                        {/* Balance */}
+                        <td className="py-3.5 px-4 sm:px-6 text-right font-mono font-bold text-emerald-400 text-sm whitespace-nowrap">
+                          ৳{u.balance.toFixed(2)}
+                        </td>
+
+                        {/* Spent */}
+                        <td className="py-3.5 px-4 sm:px-6 text-right font-mono font-medium text-amber-200 whitespace-nowrap">
+                          ৳{u.totalSpent.toFixed(2)}
+                        </td>
+
+                        {/* Role Selector dropdown */}
+                        <td className="py-3.5 px-4 sm:px-6 text-center whitespace-nowrap">
+                          <select
+                            value={u.role}
+                            disabled={updatingId === u.id}
+                            onChange={(e) => handleRoleChange(u.id, e.target.value as UserRole)}
+                            className={`px-3 py-1.5 rounded-xl font-bold text-xs border outline-none cursor-pointer transition-all ${
+                              isCurrentSuper
+                                ? 'bg-amber-950/80 text-amber-300 border-amber-500/60 shadow-sm'
+                                : isAdmin
+                                ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/60'
+                                : 'bg-slate-950 text-slate-200 border-slate-700'
+                            }`}
+                          >
+                            <option value="super_admin">👑 Super Admin</option>
+                            <option value="admin">🛡️ Admin</option>
+                            <option value="staff">👨‍🍳 Staff</option>
+                            <option value="user">👤 Customer / User</option>
+                          </select>
+                        </td>
+
+                        {/* Add Balance Action */}
+                        <td className="py-3.5 px-4 sm:px-6 text-right whitespace-nowrap">
+                          <button
+                            onClick={() => setBalanceModalUser(u)}
+                            className="px-3 py-1.5 rounded-lg bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/60 text-xs font-semibold transition-colors inline-flex items-center gap-1.5"
+                          >
+                            <PlusCircle className="w-3.5 h-3.5" />
+                            <span>+ ব্যালেন্স</span>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </div>
 
-          {/* User Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="bg-slate-950 border-b border-slate-800 text-slate-400 font-semibold uppercase tracking-wider">
-                  <th className="py-3 px-4 sm:px-6">Employee / Customer</th>
-                  <th className="py-3 px-4 sm:px-6">Department</th>
-                  <th className="py-3 px-4 sm:px-6 text-right">Catering Balance (৳)</th>
-                  <th className="py-3 px-4 sm:px-6 text-right">Lifetime Spent (৳)</th>
-                  <th className="py-3 px-4 sm:px-6 text-center">Assigned Role (রোল)</th>
-                  <th className="py-3 px-4 sm:px-6 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/80">
-                {filteredUsers.map((u) => {
-                  const isCurrentSuper = u.role === 'super_admin';
-                  const isAdmin = u.role === 'admin';
-
-                  return (
-                    <tr key={u.id} className="hover:bg-slate-800/40 transition-colors">
-                      {/* Name & Avatar */}
-                      <td className="py-3.5 px-4 sm:px-6">
-                        <div className="flex items-center gap-3">
-                          <img
-                            src={u.avatar}
-                            alt={u.name}
-                            className="w-9 h-9 rounded-xl object-cover ring-1 ring-emerald-500/30"
-                          />
-                          <div>
-                            <p className="font-bold text-white tracking-wide">{u.name}</p>
-                            <p className="text-[11px] text-slate-400">{u.email}</p>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Department */}
-                      <td className="py-3.5 px-4 sm:px-6 text-slate-300 font-medium">
-                        {u.department}
-                      </td>
-
-                      {/* Balance (Everyone can see balance!) */}
-                      <td className="py-3.5 px-4 sm:px-6 text-right font-mono font-bold text-emerald-400 text-sm">
-                        ৳{u.balance.toFixed(2)}
-                      </td>
-
-                      {/* Spent */}
-                      <td className="py-3.5 px-4 sm:px-6 text-right font-mono font-medium text-amber-200">
-                        ৳{u.totalSpent.toFixed(2)}
-                      </td>
-
-                      {/* Role Selector dropdown */}
-                      <td className="py-3.5 px-4 sm:px-6 text-center">
-                        <select
-                          value={u.role}
-                          disabled={updatingId === u.id}
-                          onChange={(e) => handleRoleChange(u.id, e.target.value as UserRole)}
-                          className={`px-3 py-1.5 rounded-xl font-bold text-xs border outline-none cursor-pointer transition-all ${
-                            isCurrentSuper
-                              ? 'bg-amber-950/80 text-amber-300 border-amber-500/60 shadow-sm'
-                              : isAdmin
-                              ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/60'
-                              : 'bg-slate-950 text-slate-200 border-slate-700'
-                          }`}
-                        >
-                          <option value="super_admin">👑 Super Admin</option>
-                          <option value="admin">🛡️ Admin</option>
-                          <option value="staff">👨‍🍳 Staff</option>
-                          <option value="user">👤 Customer / User</option>
-                        </select>
-                      </td>
-
-                      {/* Add Balance Action */}
-                      <td className="py-3.5 px-4 sm:px-6 text-right">
-                        <button
-                          onClick={() => setBalanceModalUser(u)}
-                          className="px-3 py-1 rounded-lg bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/60 text-xs font-semibold transition-colors flex items-center gap-1 ml-auto"
-                        >
-                          <PlusCircle className="w-3.5 h-3.5" />
-                          <span>+ ব্যালেন্স</span>
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-      </main>
+        </main>
+      </div>
 
       {/* Add Balance Modal */}
       {balanceModalUser && (

@@ -105,56 +105,59 @@ export default function TrackerPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col lg:flex-row">
+    <div className="min-h-screen bg-slate-950 flex flex-col lg:flex-row text-slate-100">
+      {/* Left Sidebar Navigation */}
       <Sidebar onOpenNewOrder={() => setIsOrderModalOpen(true)} />
 
-      <main className="flex-1 w-full min-w-0 px-4 sm:px-6 lg:px-10 py-8 space-y-6">
-        {/* Top Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-emerald-900/40">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <TableProperties className="w-5 h-5 text-amber-400" />
-              <h1 className="text-xl sm:text-2xl font-bold font-serif text-white">
-                {language === 'bn' ? 'দৈনিক অর্ডার ও পেমেন্ট ট্র্যাকার লেজার' : 'Daily Order & Payment Tracker Ledger'}
-              </h1>
+      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+        <main className="p-4 sm:p-6 lg:p-10 space-y-6 max-w-[1720px] w-full mx-auto">
+          {/* Top Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-emerald-900/40">
+            <div>
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                <TableProperties className="w-5 h-5 text-amber-400" />
+                <h1 className="text-xl sm:text-2xl font-bold font-serif text-white">
+                  {language === 'bn' ? 'দৈনিক অর্ডার ও পেমেন্ট ট্র্যাকার লেজার' : 'Daily Order & Payment Tracker Ledger'}
+                </h1>
+              </div>
+              <p className="text-xs text-slate-400">
+                {language === 'bn' 
+                  ? 'রিয়েল-টাইম বিল কালেকশন, কাস্টমার ব্যালেন্স ও ক্যাটারিং সেলস রেকর্ড'
+                  : 'Real-time billing, collection status, customer cash balance, and refreshment records'}
+              </p>
             </div>
-            <p className="text-xs text-slate-400">
-              {language === 'bn' 
-                ? 'রিয়েল-টাইম বিল কালেকশন, কাস্টমার ব্যালেন্স ও ক্যাটারিং সেলস রেকর্ড'
-                : 'Real-time billing, collection status, customer cash balance, and refreshment records'}
-            </p>
+
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              <button
+                onClick={() => fetchTrackerData()}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-xs font-medium text-slate-300 border border-slate-800 transition-colors"
+              >
+                <RefreshCw className="w-3.5 h-3.5 text-emerald-400" />
+                <span>{language === 'bn' ? 'রিফ্রেশ' : 'Refresh'}</span>
+              </button>
+              <button
+                onClick={() => setIsOrderModalOpen(true)}
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-md"
+              >
+                + {language === 'bn' ? 'নতুন এন্ট্রি' : 'New Entry'}
+              </button>
+            </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => fetchTrackerData()}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-xs font-medium text-slate-300 border border-slate-800 transition-colors"
-            >
-              <RefreshCw className="w-3.5 h-3.5 text-emerald-400" />
-              <span>{language === 'bn' ? 'রিফ্রেশ' : 'Refresh'}</span>
-            </button>
-            <button
-              onClick={() => setIsOrderModalOpen(true)}
-              className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-md"
-            >
-              + {language === 'bn' ? 'নতুন এন্ট্রি' : 'New Entry'}
-            </button>
-          </div>
-        </div>
+          {/* Top 5 Metrics */}
+          <MetricsOverview stats={stats} isLoading={loading} />
 
-        {/* Top 5 Metrics */}
-        <MetricsOverview stats={stats} isLoading={loading} />
-
-        {/* Google Sheet Style Table */}
-        <LiveTrackerTable
-          orders={orders}
-          onOpenNewOrder={() => setIsOrderModalOpen(true)}
-          onSelectInvoice={(order) => setSelectedInvoice(order)}
-          onUpdateStatus={handleUpdateStatus}
-          onDeleteOrder={handleDeleteOrder}
-          isLoading={loading}
-        />
-      </main>
+          {/* Google Sheet Style Table */}
+          <LiveTrackerTable
+            orders={orders}
+            onOpenNewOrder={() => setIsOrderModalOpen(true)}
+            onSelectInvoice={(order) => setSelectedInvoice(order)}
+            onUpdateStatus={handleUpdateStatus}
+            onDeleteOrder={handleDeleteOrder}
+            isLoading={loading}
+          />
+        </main>
+      </div>
 
       <QuickOrderModal
         isOpen={isOrderModalOpen}
