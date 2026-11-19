@@ -193,10 +193,10 @@ export default function InvoiceModal({ order, onClose }: InvoiceModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
-      <div className="relative w-full max-w-md bg-slate-900 border border-emerald-700/60 rounded-3xl shadow-2xl overflow-hidden flex flex-col">
+      <div className="relative w-full max-w-md bg-slate-900 border border-emerald-700/60 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
         
-        {/* Printable Area */}
-        <div id="printable-invoice" className="p-6 bg-slate-950 text-slate-100 font-sans">
+        {/* Printable Area with internal scroll */}
+        <div id="printable-invoice" className="p-4 sm:p-6 bg-slate-950 text-slate-100 font-sans overflow-y-auto flex-1">
           
           {/* Receipt Top Header */}
           <div className="text-center pb-4 border-b border-dashed border-slate-800">

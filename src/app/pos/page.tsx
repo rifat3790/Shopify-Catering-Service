@@ -17,7 +17,8 @@ import {
   Coins,
   ShoppingBag,
   RotateCcw,
-  PlusSquare
+  PlusSquare,
+  ArrowRight
 } from 'lucide-react';
 
 const cashPresets = [20, 30, 50, 100, 200, 500, 1000];
@@ -328,7 +329,7 @@ function PosPageContent() {
           {/* Right Column: Register Bill, Cash Presets & Change Return (5 cols) */}
           <div className="lg:col-span-5 space-y-4">
 
-            <div className="rounded-3xl bg-slate-900/90 border border-emerald-800/80 p-5 shadow-2xl backdrop-blur-xl space-y-4">
+            <div id="pos-register-card" className="rounded-3xl bg-slate-900/90 border border-emerald-800/80 p-4 sm:p-5 shadow-2xl backdrop-blur-xl space-y-4">
 
               {/* Register Header */}
               <div className="flex items-center justify-between pb-3 border-b border-slate-800">
@@ -485,6 +486,28 @@ function PosPageContent() {
           </div>
 
         </div>
+
+        {/* Mobile Sticky Bottom Checkout Bar (lg:hidden) */}
+        {totalBill > 0 && (
+          <div className="lg:hidden fixed bottom-0 left-0 right-0 p-3 bg-slate-950/95 backdrop-blur-xl border-t border-emerald-500/40 z-30 flex items-center justify-between gap-3 shadow-2xl">
+            <div>
+              <span className="text-[10px] text-slate-400 block font-mono">
+                {Object.values(cart).reduce((a, b) => a + b.qty, 0)} items in Cart
+              </span>
+              <span className="font-mono font-bold text-amber-300 text-base">৳{totalBill.toFixed(2)}</span>
+            </div>
+            <button
+              onClick={() => {
+                const registerEl = document.getElementById('pos-register-card');
+                registerEl?.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 text-slate-950 font-bold text-xs shadow-md flex items-center gap-1.5 hover:scale-105 active:scale-95 transition-all"
+            >
+              <span>{language === 'bn' ? 'বিল ও পেমেন্ট দেখুন' : 'Review & Pay'}</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
       </main>
 
       <InvoiceModal

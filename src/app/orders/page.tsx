@@ -385,9 +385,128 @@ function OrdersPageContent() {
             </p>
           </div>
         ) : (
-          <div className="bg-slate-900/80 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
+          <>
+            {/* Mobile Touch-Friendly Order Cards View (md:hidden) */}
+            <div className="md:hidden space-y-3">
+              {filteredOrders.map((order) => {
+                const isPaid = order.status === 'Paid';
+                const isDue = order.status === 'Due' || order.changeDue < 0;
+
+                return (
+                  <div
+                    key={order._id || order.orderNumber}
+                    className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-3 shadow-lg"
+                  >
+                    {/* Header: Order Number, Date, Status */}
+                    <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-slate-800/80">
+                      <div>
+                        <span className="font-mono font-bold text-amber-300 text-sm">{order.orderNumber}</span>
+                        <p className="text-[10px] text-slate-500 flex items-center gap-1 mt-0.5">
+                          <Clock className="w-3 h-3 text-slate-400" />
+                          <span>{new Date(order.orderDate).toLocaleDateString()}</span>
+                        </p>
+                      </div>
+
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border ${
+                        isPaid
+                          ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
+                          : isDue
+                          ? 'bg-rose-500/10 text-rose-300 border-rose-500/30'
+                          : 'bg-amber-500/10 text-amber-300 border-amber-500/30'
+                      }`}>
+                        {order.status}
+                      </span>
+                    </div>
+
+                    {/* Customer Info */}
+                    <div className="flex items-center gap-2.5">
+                      <img
+                        src={order.customerAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(order.customerName || 'User')}&background=047857&color=fff`}
+                        alt={order.customerName}
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(order.customerName || 'User')}&background=047857&color=fff`;
+                        }}
+                        className="w-9 h-9 rounded-full object-cover ring-1 ring-emerald-500/40 shrink-0"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="font-bold text-white text-xs truncate">{order.customerName}</p>
+                        <p className="text-[10px] text-slate-400 font-mono truncate">{order.customerDepartment || 'Shopify Team'}</p>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">
+                        {order.paymentMethod}
+                      </span>
+                    </div>
+
+                    {/* Ordered Dishes */}
+                    <div className="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800/80 text-xs text-slate-300">
+                      <p className="line-clamp-2 text-white font-medium">
+                        {order.itemsText || (order.items?.map(i => `${i.quantity}x ${i.name}`).join(', ') || 'Catering Order')}
+                      </p>
+                      {order.notes && (
+                        <p className="text-[10px] text-amber-400/80 italic mt-1 truncate">
+                          Note: {order.notes}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Financials & Actions */}
+                    <div className="flex items-center justify-between pt-1 text-xs">
+                      <div>
+                        <span className="text-[10px] text-slate-400 block">{language === 'bn' ? 'মোট বিল' : 'Total Bill'}</span>
+                        <span className="font-mono font-bold text-amber-300 text-base">৳{order.totalBill.toFixed(2)}</span>
+                      </div>
+
+                      <div className="text-right">
+                        <span className="text-[10px] text-slate-400 block">{language === 'bn' ? 'পরিশোধ' : 'Paid'}</span>
+                        <span className={`font-mono text-xs font-semibold ${order.paidAmount >= order.totalBill ? 'text-emerald-400 font-bold' : 'text-slate-300'}`}>
+                          ৳{order.paidAmount.toFixed(2)}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => setSelectedInvoice(order)}
+                          className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 text-xs"
+                          title="Invoice"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => downloadReceiptPng(order)}
+                          className="p-2 rounded-xl bg-slate-800 hover:bg-emerald-900/60 text-emerald-400 border border-slate-700 text-xs"
+                          title="Download PNG"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                        </button>
+                        {isSuperOrAdmin && (
+                          <>
+                            <button
+                              onClick={() => handleOpenEdit(order)}
+                              className="p-2 rounded-xl bg-slate-800 hover:bg-amber-900/60 text-amber-400 border border-slate-700 text-xs"
+                              title="Edit"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteOrder(order)}
+                              className="p-2 rounded-xl bg-slate-800 hover:bg-rose-950 text-rose-400 border border-slate-700 text-xs"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop Expansive Master Ledger Table (hidden md:block) */}
+            <div className="hidden md:block bg-slate-900/80 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
                 <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
                   <tr>
                     <th className="px-4 py-3.5">Order</th>
@@ -532,6 +651,7 @@ function OrdersPageContent() {
               </table>
             </div>
           </div>
+        </>
         )}
 
       </main>

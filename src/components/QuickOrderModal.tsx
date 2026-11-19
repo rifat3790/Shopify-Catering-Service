@@ -408,8 +408,8 @@ export default function QuickOrderModal({
             </div>
 
             {user && (
-              <div className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-emerald-950/40 border border-emerald-800/60 shadow-inner">
-                <div className="flex items-center gap-3 min-w-0">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 sm:gap-3 p-3 rounded-2xl bg-emerald-950/40 border border-emerald-800/60 shadow-inner">
+                <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto">
                   <img
                     src={customerAvatar || user.photoURL || user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(customerName || 'User')}&background=047857&color=fff`}
                     alt="Profile"
@@ -418,7 +418,7 @@ export default function QuickOrderModal({
                     }}
                     className="w-10 h-10 rounded-full object-cover ring-2 ring-emerald-500/40 shrink-0"
                   />
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="text-xs font-bold text-white truncate flex items-center gap-1.5">
                       <span>{customerName || user.displayName || 'Member'}</span>
                       <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-mono">
@@ -429,7 +429,7 @@ export default function QuickOrderModal({
                   </div>
                 </div>
 
-                <div className="text-right shrink-0 bg-slate-900/90 px-3 py-1.5 rounded-xl border border-emerald-700/50">
+                <div className="text-left sm:text-right w-full sm:w-auto shrink-0 bg-slate-900/90 px-3 py-1.5 rounded-xl border border-emerald-700/50 flex sm:block items-center justify-between">
                   <span className="text-[10px] font-semibold text-emerald-300 uppercase block">
                     {language === 'bn' ? 'ওয়ালেট ব্যালেন্স' : 'Wallet Balance'}
                   </span>
