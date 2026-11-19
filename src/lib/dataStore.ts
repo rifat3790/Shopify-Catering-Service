@@ -250,6 +250,16 @@ export async function deleteUser(idOrEmail: string): Promise<boolean> {
     throw new Error('Primary Root Super Admin account cannot be deleted');
   }
 
+  // Check if target user in cache is root super admin
+  const cachedUser = usersCache.find(u => 
+    u.id === idOrEmail || 
+    u.email.toLowerCase() === search || 
+    u.name.toLowerCase() === search
+  );
+  if (cachedUser && cachedUser.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) {
+    throw new Error('Primary Root Super Admin account cannot be deleted');
+  }
+
   let deleted = false;
 
   try {
