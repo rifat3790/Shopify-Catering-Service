@@ -1,16 +1,18 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Sidebar from '@/components/Sidebar';
 import AuthGuard from '@/components/AuthGuard';
 import LuxuryLoader from '@/components/LuxuryLoader';
 import InvoiceModal from '@/components/InvoiceModal';
 import QuickOrderModal from '@/components/QuickOrderModal';
 import ProfileModal from '@/components/ProfileModal';
+import DateFilterPills from '@/components/DateFilterPills';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/context/ToastContext';
 import { OrderData, UserRecord } from '@/lib/types';
+import { filterOrdersByDate, DateFilterType } from '@/lib/dateFilterUtils';
 import Link from 'next/link';
 import { 
   Wallet, 
@@ -35,6 +37,7 @@ function UserDashboardContent() {
   const [selectedInvoice, setSelectedInvoice] = useState<OrderData | null>(null);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [dateFilter, setDateFilter] = useState<DateFilterType>('today');
   const [loading, setLoading] = useState(true);
 
   // Admin view switcher (only for super_admin and admin)
@@ -63,10 +66,10 @@ function UserDashboardContent() {
       if (uRes && uRes.success && Array.isArray(uRes.data)) {
         setElevatedMemberList(uRes.data);
         const me = uRes.data.find((u: UserRecord) => 
-          u.email.toLowerCase() === (user?.email || '').toLowerCase() || 
-          u.id === user?.uid
+          (user?.email && u.email.toLowerCase() === user.email.toLowerCase()) || 
+          (user?.uid && u.id === user.uid)
         );
-        if (me && me.balance !== undefined && me.balance !== user?.balance) {
+        if (me && me.balance !== undefined) {
           updateLocalUserProfile({ balance: me.balance, totalSpent: me.totalSpent });
         }
       }
@@ -81,34 +84,88 @@ function UserDashboardContent() {
     loadUserData();
   }, [user?.uid, user?.email]);
 
-  // Current active name to filter orders
-  const activeDisplayName = inspectedUserName || user?.displayName || user?.name || user?.email?.split('@')[0] || 'User';
-  const activeEmail = user?.email || '';
+  // Target User determination: either inspected member or current logged in user
+  const inspectedMember = useMemo(() => {
+    if (!inspectedUserName) return null;
+    return elevatedMemberList.find(m => m.name === inspectedUserName || m.email === inspectedUserName) || null;
+  }, [inspectedUserName, elevatedMemberList]);
 
-  // Filter orders strictly for this user
-  const myOrders = orders.filter(o => {
-    const cust = (o.customerName || '').toLowerCase().trim();
-    const mail = (o.customerEmail || '').toLowerCase().trim();
-    const uId = o.userId || '';
-    const targetName = activeDisplayName.toLowerCase().trim();
-    const targetMail = activeEmail.toLowerCase().trim();
-    const myUid = user?.uid || '';
+  const activeUserRecord = useMemo(() => {
+    if (inspectedMember) return inspectedMember;
+    if (!user) return null;
+    return elevatedMemberList.find(m => 
+      (user.email && m.email?.toLowerCase() === user.email.toLowerCase()) || 
+      (user.uid && m.id === user.uid)
+    ) || null;
+  }, [inspectedMember, user, elevatedMemberList]);
 
-    return (
-      (uId && myUid && uId === myUid) ||
-      (mail && targetMail && mail === targetMail) ||
-      (cust && targetName && (cust.includes(targetName) || targetName.includes(cust)))
-    );
-  });
+  // Strict email & ID for the current viewing context (100% user-isolated)
+  const effectiveEmail = useMemo(() => {
+    return (inspectedMember?.email || activeUserRecord?.email || user?.email || '').toLowerCase().trim();
+  }, [inspectedMember, activeUserRecord, user]);
 
-  // Calculate live balances
-  const inspectedMember = elevatedMemberList.find(m => m.name === inspectedUserName || m.email === inspectedUserName);
-  const activeUserRecord = inspectedMember || (user ? elevatedMemberList.find(m => m.email?.toLowerCase() === user.email?.toLowerCase() || m.id === user.uid) : null);
+  const effectiveUid = useMemo(() => {
+    return inspectedMember?.id || activeUserRecord?.id || user?.uid || '';
+  }, [inspectedMember, activeUserRecord, user]);
 
-  const calculatedSpent = myOrders.reduce((acc, curr) => acc + (Number(curr.totalBill) || 0), 0);
-  const displayBalance = activeUserRecord ? activeUserRecord.balance : (user?.balance ?? 0);
+  const effectiveName = useMemo(() => {
+    return (inspectedMember?.name || activeUserRecord?.name || user?.displayName || user?.name || user?.email?.split('@')[0] || 'User').trim();
+  }, [inspectedMember, activeUserRecord, user]);
+
+  // STRICT PERSONAL ORDERS FILTER (NO loose substring matching - complete user isolation!)
+  const allPersonalOrders = useMemo(() => {
+    return orders.filter(o => {
+      const oMail = (o.customerEmail || '').toLowerCase().trim();
+      const oUid = o.userId || '';
+      const oName = (o.customerName || '').toLowerCase().trim();
+
+      // Priority 1: Exact customer email match
+      if (oMail && effectiveEmail) {
+        return oMail === effectiveEmail;
+      }
+      // Priority 2: Exact user ID match
+      if (oUid && effectiveUid) {
+        return oUid === effectiveUid;
+      }
+      // Priority 3: Exact customer name match (only if email & uid are not set)
+      if (oName && effectiveName) {
+        return oName === effectiveName.toLowerCase();
+      }
+      return false;
+    });
+  }, [orders, effectiveEmail, effectiveUid, effectiveName]);
+
+  // Filter personal orders by selected date period
+  const myOrders = useMemo(() => {
+    return filterOrdersByDate(allPersonalOrders, dateFilter);
+  }, [allPersonalOrders, dateFilter]);
+
+  // Date counts for personal orders
+  const dateCounts = useMemo(() => {
+    return {
+      today: filterOrdersByDate(allPersonalOrders, 'today').length,
+      yesterday: filterOrdersByDate(allPersonalOrders, 'yesterday').length,
+      '7days': filterOrdersByDate(allPersonalOrders, '7days').length,
+      '30days': filterOrdersByDate(allPersonalOrders, '30days').length,
+      '1year': filterOrdersByDate(allPersonalOrders, '1year').length,
+      lifetime: allPersonalOrders.length,
+    };
+  }, [allPersonalOrders]);
+
+  // Calculations strictly for this user
+  const calculatedSpent = useMemo(() => {
+    return allPersonalOrders.reduce((acc, curr) => acc + (Number(curr.totalBill) || 0), 0);
+  }, [allPersonalOrders]);
+
+  const calculatedDue = useMemo(() => {
+    return allPersonalOrders
+      .filter(o => o.status === 'Due' || o.changeDue < 0)
+      .reduce((acc, curr) => acc + Math.max(0, (Number(curr.totalBill) || 0) - (Number(curr.paidAmount) || 0)), 0);
+  }, [allPersonalOrders]);
+
+  const displayBalance = activeUserRecord ? (Number(activeUserRecord.balance) || 0) : (Number(user?.balance) || 0);
   const displaySpent = activeUserRecord && activeUserRecord.totalSpent > 0 ? activeUserRecord.totalSpent : calculatedSpent;
-  const displayDue = activeUserRecord ? activeUserRecord.currentDue : (user?.currentDue ?? 0);
+  const displayDue = activeUserRecord && activeUserRecord.currentDue > 0 ? activeUserRecord.currentDue : calculatedDue;
 
   const handleBalanceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -162,17 +219,17 @@ function UserDashboardContent() {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-emerald-900/40">
             <div className="flex items-center gap-3">
               <img
-                src={activeUserRecord?.avatar || user?.photoURL || user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(activeDisplayName || 'User')}&background=047857&color=fff`}
-                alt={activeDisplayName || 'User'}
+                src={activeUserRecord?.avatar || user?.photoURL || user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(effectiveName || 'User')}&background=047857&color=fff`}
+                alt={effectiveName || 'User'}
                 onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(activeDisplayName || 'User')}&background=047857&color=fff`;
+                  (e.currentTarget as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(effectiveName || 'User')}&background=047857&color=fff`;
                 }}
                 className="w-14 h-14 rounded-2xl object-cover ring-2 ring-emerald-500/50 shadow-lg shrink-0"
               />
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <h1 className="text-2xl sm:text-3xl font-bold font-serif text-white">
-                    {user?.displayName || 'User'}&apos;s Catering Hub
+                    {effectiveName || 'User'}&apos;s Catering Hub
                   </h1>
                   <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 uppercase">
                     {user?.department || 'Shopify Member'}
@@ -345,16 +402,26 @@ function UserDashboardContent() {
               </button>
             </div>
 
-            <div className="p-4 sm:p-6 space-y-3">
+            <div className="p-4 sm:p-6 space-y-4">
+              {/* Date Filter Pills for Personal Orders (Defaults to Today) */}
+              <DateFilterPills
+                selected={dateFilter}
+                onChange={setDateFilter}
+                counts={dateCounts}
+              />
+
               {loading ? (
                 <LuxuryLoader message="Loading your personal orders..." subMessage="Fetching dynamic ledger" />
               ) : myOrders.length === 0 ? (
                 <div className="text-center py-12 text-slate-400">
                   <UtensilsCrossed className="w-8 h-8 mx-auto mb-2 text-slate-600" />
-                  <p>{language === 'bn' ? 'আপনার কোনো পূর্বের অর্ডার পাওয়া যায়নি।' : 'No previous orders found for this profile.'}</p>
+                  <p>{language === 'bn' ? 'নির্ধারিত সময়সীমায় আপনার কোনো অর্ডার পাওয়া যায়নি।' : 'No orders found for this selected period.'}</p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    {language === 'bn' ? 'পূর্বের সকল অর্ডার দেখতে উপরে "সর্বমোট (Lifetime)" ফিল্টার নির্বাচন করুন।' : 'Select "Lifetime" filter above to see all historical orders.'}
+                  </p>
                   <button
                     onClick={() => setIsOrderModalOpen(true)}
-                    className="mt-3 px-4 py-2 rounded-xl bg-emerald-600 text-slate-950 font-bold text-xs"
+                    className="mt-3 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold text-xs shadow-md"
                   >
                     + {language === 'bn' ? 'খাবার অর্ডার করুন' : 'Order Food Now'}
                   </button>

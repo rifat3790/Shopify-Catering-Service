@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import AuthGuard from '@/components/AuthGuard';
 import LuxuryLoader from '@/components/LuxuryLoader';
+import OrderControlCard from '@/components/OrderControlCard';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/context/ToastContext';
@@ -525,6 +526,9 @@ function SuperAdminDashboardContent() {
               </div>
             </div>
           )}
+
+          {/* Global Order System & Daily Cutoff Control (Super Admin Exclusive) */}
+          <OrderControlCard />
 
           {/* Dynamic Route Permissions Control (Super Admin Exclusive) */}
           <div className="rounded-3xl bg-slate-900/90 border border-amber-500/40 shadow-2xl p-5 space-y-4 backdrop-blur-xl">

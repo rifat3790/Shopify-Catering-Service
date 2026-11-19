@@ -46,6 +46,13 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [internalOrderOpen, setInternalOrderOpen] = useState(false);
   const [routePerms, setRoutePerms] = useState<RoutePermissions>(DEFAULT_ROUTE_PERMISSIONS);
+  const [orderControl, setOrderControl] = useState<{
+    ordersEnabled: boolean;
+    dailyCutoffTime: string;
+    cutoffEnabled: boolean;
+    isOrderAllowedNow: boolean;
+    evaluation?: any;
+  } | null>(null);
 
   useEffect(() => {
     fetch('/api/admin/permissions')
@@ -57,12 +64,29 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
       })
       .catch(() => {});
 
+    const fetchOrderControl = () => {
+      fetch('/api/settings/orders')
+        .then(r => r.json())
+        .then(res => {
+          if (res.success && res.data) {
+            setOrderControl(res.data);
+          }
+        })
+        .catch(() => {});
+    };
+    fetchOrderControl();
+    const timer = setInterval(fetchOrderControl, 30000);
+
     if (refreshUser) {
       refreshUser().catch(() => {});
       const onFocus = () => refreshUser().catch(() => {});
       window.addEventListener('focus', onFocus);
-      return () => window.removeEventListener('focus', onFocus);
+      return () => {
+        window.removeEventListener('focus', onFocus);
+        clearInterval(timer);
+      };
     }
+    return () => clearInterval(timer);
   }, []);
 
   const isSuper = user?.role === 'super_admin';
@@ -156,7 +180,17 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
     },
   ].filter(p => p.show);
 
+  const isOrderAllowedForMe = isSuper || isAdmin || (orderControl ? orderControl.isOrderAllowedNow : true);
+
   const handleOrderClick = () => {
+    if (!isOrderAllowedForMe && orderControl && !orderControl.isOrderAllowedNow) {
+      toast.warning(
+        orderControl.evaluation?.messageBn || (language === 'bn' ? 'আজকের খাবার অর্ডারের নির্ধারিত সময় শেষ হয়ে গেছে।' : 'Daily order cutoff has passed.'),
+        language === 'bn' ? 'অর্ডার গ্রহণ বন্ধ' : 'Orders Closed'
+      );
+      return;
+    }
+
     if (onOpenNewOrder) {
       onOpenNewOrder();
     } else {
@@ -263,10 +297,23 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
         {user && (
           <button
             onClick={handleOrderClick}
-            className="w-full mt-3 py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-950/50 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+            className={`w-full mt-3 py-2.5 px-4 rounded-xl font-bold text-xs shadow-lg transition-all flex items-center justify-center gap-2 ${
+              isOrderAllowedForMe
+                ? 'bg-gradient-to-r from-emerald-600 via-emerald-500 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-slate-950 shadow-emerald-950/50 hover:scale-[1.02] active:scale-[0.98]'
+                : 'bg-slate-900 border border-rose-500/40 text-rose-300 hover:bg-slate-850 hover:border-rose-400'
+            }`}
           >
-            <PlusCircle className="w-4 h-4 text-slate-950" />
-            <span>{language === 'bn' ? 'নতুন খাবার অর্ডার' : 'New Quick Order'}</span>
+            {isOrderAllowedForMe ? (
+              <>
+                <PlusCircle className="w-4 h-4 text-slate-950" />
+                <span>{language === 'bn' ? 'নতুন খাবার অর্ডার' : 'New Quick Order'}</span>
+              </>
+            ) : (
+              <>
+                <Lock className="w-4 h-4 text-rose-400" />
+                <span>{language === 'bn' ? 'অর্ডার সময় শেষ (বন্ধ)' : 'Orders Closed'}</span>
+              </>
+            )}
           </button>
         )}
       </div>

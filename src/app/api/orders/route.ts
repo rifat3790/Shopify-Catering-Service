@@ -1,14 +1,26 @@
 import { NextResponse } from 'next/server';
 import { getAllOrders, createOrder, updateOrder, deleteOrder } from '@/lib/dataStore';
+import { filterOrdersByDate, DateFilterType } from '@/lib/dateFilterUtils';
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search')?.toLowerCase() || '';
     const status = searchParams.get('status') || '';
+    const userEmail = searchParams.get('userEmail')?.toLowerCase().trim() || '';
+    const dateFilter = (searchParams.get('dateFilter') || '') as DateFilterType;
     
     let orders = await getAllOrders();
+
+    // 1. Strict Personal User Filter if requested
+    if (userEmail) {
+      orders = orders.filter(o => 
+        (o.customerEmail && o.customerEmail.toLowerCase().trim() === userEmail) ||
+        (o.customerName && o.customerName.toLowerCase().trim() === userEmail)
+      );
+    }
     
+    // 2. Search query filter
     if (search) {
       orders = orders.filter(
         o =>
@@ -19,8 +31,14 @@ export async function GET(request: Request) {
       );
     }
 
+    // 3. Status filter
     if (status && status !== 'All') {
       orders = orders.filter(o => o.status === status);
+    }
+
+    // 4. Date period filter
+    if (dateFilter) {
+      orders = filterOrdersByDate(orders, dateFilter);
     }
 
     return NextResponse.json({ success: true, data: orders });

@@ -1,54 +1,35 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Sidebar from '@/components/Sidebar';
 import AuthGuard from '@/components/AuthGuard';
 import MetricsOverview from '@/components/MetricsOverview';
 import LiveTrackerTable from '@/components/LiveTrackerTable';
 import QuickOrderModal from '@/components/QuickOrderModal';
 import InvoiceModal from '@/components/InvoiceModal';
+import DateFilterPills from '@/components/DateFilterPills';
 import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/context/ToastContext';
 import { OrderData } from '@/lib/types';
+import { filterOrdersByDate, calculateStatsFromOrders, DateFilterType } from '@/lib/dateFilterUtils';
 import { TableProperties, RefreshCw } from 'lucide-react';
 
 function TrackerContent() {
   const { language } = useLanguage();
   const { toast } = useToast();
   const [orders, setOrders] = useState<OrderData[]>([]);
-  const [stats, setStats] = useState({
-    ordersCount: 0,
-    completedOrdersCount: 0,
-    totalOrders: 0,
-    totalBill: 0,
-    totalPaid: 0,
-    totalRefundChange: 0,
-    totalDue: 0,
-    collectionRate: "0.0%",
-    rawCollectionRate: 0
-  });
+  const [dateFilter, setDateFilter] = useState<DateFilterType>('today');
   const [loading, setLoading] = useState(true);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<OrderData | null>(null);
 
   const fetchTrackerData = async () => {
     try {
-      const [ordersRes, statsRes] = await Promise.all([
-        fetch('/api/orders'),
-        fetch('/api/stats')
-      ]);
-
+      const ordersRes = await fetch('/api/orders');
       if (ordersRes.ok) {
         const oData = await ordersRes.json();
         if (oData.success && oData.data) {
           setOrders(oData.data);
-        }
-      }
-
-      if (statsRes.ok) {
-        const sData = await statsRes.json();
-        if (sData.success && sData.data) {
-          setStats(sData.data);
         }
       }
     } catch (err) {
@@ -63,6 +44,28 @@ function TrackerContent() {
     const interval = setInterval(fetchTrackerData, 10000);
     return () => clearInterval(interval);
   }, []);
+
+  // Filter orders by date
+  const filteredOrders = useMemo(() => {
+    return filterOrdersByDate(orders, dateFilter);
+  }, [orders, dateFilter]);
+
+  // Dynamic calculated stats for the selected date range
+  const dynamicStats = useMemo(() => {
+    return calculateStatsFromOrders(filteredOrders);
+  }, [filteredOrders]);
+
+  // Counts for date filter pills
+  const dateCounts = useMemo(() => {
+    return {
+      today: filterOrdersByDate(orders, 'today').length,
+      yesterday: filterOrdersByDate(orders, 'yesterday').length,
+      '7days': filterOrdersByDate(orders, '7days').length,
+      '30days': filterOrdersByDate(orders, '30days').length,
+      '1year': filterOrdersByDate(orders, '1year').length,
+      lifetime: orders.length,
+    };
+  }, [orders]);
 
   const handleCreateOrder = async (orderData: Partial<OrderData>) => {
     try {
@@ -159,12 +162,21 @@ function TrackerContent() {
             </div>
           </div>
 
-          {/* Top 5 Metrics */}
-          <MetricsOverview stats={stats} isLoading={loading} />
+          {/* Date Range Filter Pills (Defaults to Today) */}
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <DateFilterPills
+              selected={dateFilter}
+              onChange={setDateFilter}
+              counts={dateCounts}
+            />
+          </div>
 
-          {/* Live Dynamic Table */}
+          {/* Top 5 Metrics Filtered Dynamically */}
+          <MetricsOverview stats={dynamicStats} isLoading={loading} />
+
+          {/* Live Dynamic Table Filtered by Date */}
           <LiveTrackerTable
-            orders={orders}
+            orders={filteredOrders}
             onOpenNewOrder={() => setIsOrderModalOpen(true)}
             onSelectInvoice={(order) => setSelectedInvoice(order)}
             onUpdateStatus={handleUpdateStatus}

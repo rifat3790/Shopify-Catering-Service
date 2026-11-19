@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Sidebar from '@/components/Sidebar';
 import AuthGuard from '@/components/AuthGuard';
 import LuxuryLoader from '@/components/LuxuryLoader';
@@ -8,9 +8,12 @@ import MetricsOverview from '@/components/MetricsOverview';
 import LiveTrackerTable from '@/components/LiveTrackerTable';
 import QuickOrderModal from '@/components/QuickOrderModal';
 import InvoiceModal from '@/components/InvoiceModal';
+import OrderControlCard from '@/components/OrderControlCard';
+import DateFilterPills from '@/components/DateFilterPills';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { OrderData, MenuItemData, UserRecord, PasswordResetRequest } from '@/lib/types';
+import { filterOrdersByDate, calculateStatsFromOrders, DateFilterType } from '@/lib/dateFilterUtils';
 import Link from 'next/link';
 import { 
   ShieldCheck, 
@@ -53,7 +56,30 @@ function AdminPageContent() {
   const [loading, setLoading] = useState(true);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<OrderData | null>(null);
-  const [activeTab, setActiveTab] = useState<'orders' | 'menu' | 'balance' | 'resets'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'menu' | 'balance' | 'resets' | 'timing'>('orders');
+  const [dateFilter, setDateFilter] = useState<DateFilterType>('today');
+
+  // Filter orders by date range
+  const filteredByDateOrders = useMemo(() => {
+    return filterOrdersByDate(orders, dateFilter);
+  }, [orders, dateFilter]);
+
+  // Dynamic calculated stats for the selected date range
+  const dynamicStats = useMemo(() => {
+    return calculateStatsFromOrders(filteredByDateOrders);
+  }, [filteredByDateOrders]);
+
+  // Counts for date filter pills
+  const dateCounts = useMemo(() => {
+    return {
+      today: filterOrdersByDate(orders, 'today').length,
+      yesterday: filterOrdersByDate(orders, 'yesterday').length,
+      '7days': filterOrdersByDate(orders, '7days').length,
+      '30days': filterOrdersByDate(orders, '30days').length,
+      '1year': filterOrdersByDate(orders, '1year').length,
+      lifetime: orders.length,
+    };
+  }, [orders]);
 
   // Password reset requests state
   const [resetRequests, setResetRequests] = useState<PasswordResetRequest[]>([]);
@@ -330,19 +356,41 @@ function AdminPageContent() {
                 </span>
               )}
             </button>
+            <button
+              onClick={() => setActiveTab('timing')}
+              className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                activeTab === 'timing' ? 'bg-amber-400 text-slate-950 shadow' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Clock className="w-3.5 h-3.5" />
+              <span>{language === 'bn' ? 'অর্ডার কাট-অফ ও টাইমিং' : 'Order Cutoff & Timing'}</span>
+            </button>
           </div>
 
           {activeTab === 'orders' ? (
             <div className="space-y-6">
-              <MetricsOverview stats={stats} isLoading={loading} />
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <DateFilterPills
+                  selected={dateFilter}
+                  onChange={setDateFilter}
+                  counts={dateCounts}
+                />
+              </div>
+
+              <MetricsOverview stats={dynamicStats} isLoading={loading} />
+              
               <LiveTrackerTable
-                orders={orders}
+                orders={filteredByDateOrders}
                 onOpenNewOrder={() => setIsOrderModalOpen(true)}
                 onSelectInvoice={(order) => setSelectedInvoice(order)}
                 onUpdateStatus={handleUpdateStatus}
                 onDeleteOrder={handleDeleteOrder}
                 isLoading={loading}
               />
+            </div>
+          ) : activeTab === 'timing' ? (
+            <div className="space-y-6">
+              <OrderControlCard />
             </div>
           ) : activeTab === 'menu' ? (
             <div className="space-y-4">

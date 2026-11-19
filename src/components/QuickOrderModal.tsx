@@ -14,7 +14,9 @@ import {
   Sparkles, 
   User, 
   PlusSquare,
-  Trash2
+  Trash2,
+  Lock,
+  AlertCircle
 } from 'lucide-react';
 
 interface QuickOrderModalProps {
@@ -58,6 +60,16 @@ export default function QuickOrderModal({
   const [liveBalance, setLiveBalance] = useState<number>(user?.balance || 0);
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [orderControl, setOrderControl] = useState<{
+    ordersEnabled: boolean;
+    dailyCutoffTime: string;
+    cutoffEnabled: boolean;
+    isOrderAllowedNow: boolean;
+    evaluation?: any;
+  } | null>(null);
+
+  const isSuperOrAdmin = user?.role === 'super_admin' || user?.role === 'admin';
+  const isOrderAllowedForMe = isSuperOrAdmin || (orderControl ? orderControl.isOrderAllowedNow : true);
 
   useEffect(() => {
     if (isOpen) {
@@ -91,6 +103,16 @@ export default function QuickOrderModal({
         .then(data => {
           if (data.success && data.data && data.data.length > 0) {
             setMenuItems(data.data);
+          }
+        })
+        .catch(() => {});
+
+      // Fetch order control status & cutoff timing
+      fetch('/api/settings/orders')
+        .then(r => r.json())
+        .then(res => {
+          if (res.success && res.data) {
+            setOrderControl(res.data);
           }
         })
         .catch(() => {});
@@ -195,6 +217,15 @@ export default function QuickOrderModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!isOrderAllowedForMe) {
+      toast.warning(
+        orderControl?.evaluation?.messageBn || (language === 'bn' ? 'আজকের খাবার অর্ডারের নির্ধারিত সময় শেষ হয়ে গেছে।' : 'Daily order cutoff has passed.'),
+        language === 'bn' ? 'অর্ডার গ্রহণ বন্ধ' : 'Orders Closed'
+      );
+      return;
+    }
+
     const finalCust = customerName.trim() || prefillCustomer || user?.displayName || user?.name || user?.email?.split('@')[0] || 'Member';
     const finalAvatar = customerAvatar || user?.photoURL || user?.avatar || '';
 
@@ -309,6 +340,30 @@ export default function QuickOrderModal({
 
         {/* Modal Form Body */}
         <form onSubmit={handleSubmit} className="p-5 sm:p-6 overflow-y-auto space-y-5">
+          
+          {/* Order Cutoff Status Banner */}
+          {!isOrderAllowedForMe && orderControl && (
+            <div className="p-3.5 rounded-2xl bg-rose-950/60 border border-rose-500/50 text-rose-200 text-xs flex items-center gap-2.5">
+              <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />
+              <div>
+                <p className="font-bold">{language === 'bn' ? 'অর্ডার গ্রহণ বন্ধ রয়েছে' : 'Orders Closed'}</p>
+                <p className="text-[11px] text-rose-300/80">
+                  {orderControl.evaluation?.messageBn || (language === 'bn' ? 'আজকের খাবার অর্ডারের নির্ধারিত সময় শেষ হয়ে গেছে।' : 'Daily order cutoff has passed.')}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {isSuperOrAdmin && orderControl && !orderControl.isOrderAllowedNow && (
+            <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+              <span>
+                {language === 'bn' 
+                  ? '⚡ অ্যাডমিন ওভাররাইড: সাধারণ ইউজারদের অর্ডার বন্ধ থাকলেও আপনি অ্যাডমিন হিসেবে অর্ডার করতে পারবেন।'
+                  : '⚡ Admin Override: You can place orders as an administrator.'}
+              </span>
+            </div>
+          )}
           
           {/* Customer Selection */}
           <div className="space-y-2">
@@ -717,13 +772,22 @@ export default function QuickOrderModal({
             </button>
             <button
               type="submit"
-              disabled={submitting}
-              className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-950/50 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2"
+              disabled={submitting || !isOrderAllowedForMe}
+              className={`px-6 py-2.5 rounded-xl font-bold text-xs shadow-lg transition-all flex items-center gap-2 ${
+                isOrderAllowedForMe
+                  ? 'bg-gradient-to-r from-emerald-600 via-emerald-500 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-slate-950 shadow-emerald-950/50 hover:scale-[1.02] active:scale-[0.98]'
+                  : 'bg-slate-800 border border-rose-500/50 text-rose-300 opacity-60 cursor-not-allowed'
+              }`}
             >
               {submitting ? (
                 <>
                   <div className="w-3.5 h-3.5 rounded-full border-2 border-slate-950 border-t-transparent animate-spin" />
                   <span>Saving...</span>
+                </>
+              ) : !isOrderAllowedForMe ? (
+                <>
+                  <Lock className="w-4 h-4 text-rose-400" />
+                  <span>{language === 'bn' ? 'অর্ডার গ্রহণ বন্ধ (সময় শেষ)' : 'Orders Closed'}</span>
                 </>
               ) : (
                 <>

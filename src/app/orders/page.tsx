@@ -1,15 +1,17 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Sidebar from '@/components/Sidebar';
 import AuthGuard from '@/components/AuthGuard';
 import LuxuryLoader from '@/components/LuxuryLoader';
 import QuickOrderModal from '@/components/QuickOrderModal';
 import InvoiceModal from '@/components/InvoiceModal';
+import DateFilterPills from '@/components/DateFilterPills';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/context/ToastContext';
 import { OrderData } from '@/lib/types';
+import { filterOrdersByDate, DateFilterType } from '@/lib/dateFilterUtils';
 import { 
   ClipboardList, 
   Search, 
@@ -186,6 +188,7 @@ function OrdersPageContent() {
   const { language } = useLanguage();
   const { toast } = useToast();
   const [orders, setOrders] = useState<OrderData[]>([]);
+  const [dateFilter, setDateFilter] = useState<DateFilterType>('today');
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -284,8 +287,25 @@ function OrdersPageContent() {
     }
   };
 
-  // Filtered orders
-  const filteredOrders = orders.filter((o) => {
+  // Filter orders by date range
+  const ordersInDateRange = useMemo(() => {
+    return filterOrdersByDate(orders, dateFilter);
+  }, [orders, dateFilter]);
+
+  // Counts for date filter pills
+  const dateCounts = useMemo(() => {
+    return {
+      today: filterOrdersByDate(orders, 'today').length,
+      yesterday: filterOrdersByDate(orders, 'yesterday').length,
+      '7days': filterOrdersByDate(orders, '7days').length,
+      '30days': filterOrdersByDate(orders, '30days').length,
+      '1year': filterOrdersByDate(orders, '1year').length,
+      lifetime: orders.length,
+    };
+  }, [orders]);
+
+  // Filtered orders within selected date period
+  const filteredOrders = ordersInDateRange.filter((o) => {
     const matchesSearch = 
       (o.orderNumber && o.orderNumber.toLowerCase().includes(search.toLowerCase())) ||
       (o.customerName && o.customerName.toLowerCase().includes(search.toLowerCase())) ||
@@ -296,11 +316,11 @@ function OrdersPageContent() {
     return matchesSearch && matchesStatus;
   });
 
-  // Summary Metrics
-  const totalOrdersCount = orders.length;
-  const totalBilled = orders.reduce((sum, o) => sum + (o.totalBill || 0), 0);
-  const totalPaid = orders.reduce((sum, o) => sum + (o.paidAmount || 0), 0);
-  const totalDue = orders.filter(o => o.status === 'Due' || o.changeDue < 0).length;
+  // Summary Metrics calculated dynamically for the selected date period
+  const totalOrdersCount = ordersInDateRange.length;
+  const totalBilled = ordersInDateRange.reduce((sum, o) => sum + (o.totalBill || 0), 0);
+  const totalPaid = ordersInDateRange.reduce((sum, o) => sum + (o.paidAmount || 0), 0);
+  const totalDue = ordersInDateRange.filter(o => o.status === 'Due' || o.changeDue < 0).length;
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col lg:flex-row">
@@ -345,6 +365,15 @@ function OrdersPageContent() {
               </button>
             )}
           </div>
+        </div>
+
+        {/* Date Range Filter Pills (Defaults to Today) */}
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <DateFilterPills
+            selected={dateFilter}
+            onChange={setDateFilter}
+            counts={dateCounts}
+          />
         </div>
 
         {/* Metrics Grid */}

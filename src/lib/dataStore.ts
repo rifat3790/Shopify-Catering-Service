@@ -68,7 +68,7 @@ export function applyUserOverridesAndUsername(user: UserRecord): UserRecord {
     avatar: ov.avatar || user.avatar,
     department: ov.department || user.department,
     phone: ov.phone !== undefined ? ov.phone : user.phone,
-    balance: ov.balance !== undefined ? ov.balance : user.balance,
+    balance: user.balance !== undefined ? user.balance : (ov.balance !== undefined ? ov.balance : 0),
     role: isSuper ? 'super_admin' : (ov.role || user.role),
   };
 }
