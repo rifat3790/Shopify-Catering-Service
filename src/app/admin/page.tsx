@@ -724,6 +724,9 @@ function AdminPageContent() {
                     onChange={e => setDishCategory(e.target.value as any)}
                     className="w-full px-3.5 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white"
                   >
+                    {dishCategory && !['Refreshments', 'Lunch', 'Beverages', 'Executive Catering', 'Dessert'].includes(dishCategory) && (
+                      <option value={dishCategory}>{dishCategory}</option>
+                    )}
                     <option value="Refreshments">Refreshments</option>
                     <option value="Lunch">Lunch</option>
                     <option value="Beverages">Beverages</option>

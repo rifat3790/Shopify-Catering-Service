@@ -323,6 +323,9 @@ export default function ProfileModal({ isOpen, onClose, onSaved }: ProfileModalP
                   onChange={e => setDepartment(e.target.value)}
                   className="w-full pl-9 pr-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500 appearance-none"
                 >
+                  {department && !['Executive Management', 'Development', 'Marketing', 'Design & UX', 'Engineering', 'Operations', 'Support', 'Logistics'].includes(department) && (
+                    <option value={department}>{department}</option>
+                  )}
                   <option value="Executive Management">Executive Management</option>
                   <option value="Development">Development</option>
                   <option value="Marketing">Marketing</option>

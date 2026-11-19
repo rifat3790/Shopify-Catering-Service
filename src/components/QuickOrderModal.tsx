@@ -47,6 +47,7 @@ export default function QuickOrderModal({
   const [customerName, setCustomerName] = useState(prefillCustomer || user?.displayName || user?.name || '');
   const [customerAvatar, setCustomerAvatar] = useState(user?.photoURL || user?.avatar || '');
   const [department, setDepartment] = useState('Shopify Team');
+  const [allMembers, setAllMembers] = useState<any[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItemData[]>([]);
   const [itemQuantities, setItemQuantities] = useState<Record<string, number>>({});
   const [customItems, setCustomItems] = useState<CustomItem[]>([]);
@@ -82,17 +83,34 @@ export default function QuickOrderModal({
 
       setLiveBalance(user?.balance || 0);
 
-      // Fetch fresh balance live
+      // Fetch fresh members & live balance from database
       fetch('/api/users')
         .then(r => r.json())
         .then(res => {
           if (res.success && Array.isArray(res.data)) {
-            const found = res.data.find((u: any) => 
-              u.email?.toLowerCase() === (user?.email || '').toLowerCase() || 
-              u.id === user?.uid
-            );
-            if (found && found.balance !== undefined) {
-              setLiveBalance(Number(found.balance) || 0);
+            setAllMembers(res.data);
+            if (prefillCustomer) {
+              const target = res.data.find((u: any) => 
+                u.name?.toLowerCase() === prefillCustomer.toLowerCase() || 
+                u.id === prefillCustomer || 
+                u.email?.toLowerCase() === prefillCustomer.toLowerCase()
+              );
+              if (target) {
+                setCustomerName(target.name);
+                if (target.department) setDepartment(target.department);
+                if (target.avatar) setCustomerAvatar(target.avatar);
+                if (target.balance !== undefined) setLiveBalance(Number(target.balance) || 0);
+              }
+            } else {
+              const found = res.data.find((u: any) => 
+                u.email?.toLowerCase() === (user?.email || '').toLowerCase() || 
+                u.id === user?.uid
+              );
+              if (found) {
+                if (found.balance !== undefined) setLiveBalance(Number(found.balance) || 0);
+                if (found.department) setDepartment(found.department);
+                if (found.avatar) setCustomerAvatar(found.avatar);
+              }
             }
           }
         })
@@ -416,11 +434,28 @@ export default function QuickOrderModal({
               <input
                 type="text"
                 required
+                list="quickorder-members-datalist"
                 value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setCustomerName(val);
+                  const match = allMembers.find((u: any) => u.name?.toLowerCase() === val.toLowerCase());
+                  if (match) {
+                    if (match.department) setDepartment(match.department);
+                    if (match.avatar) setCustomerAvatar(match.avatar);
+                    if (match.balance !== undefined) setLiveBalance(Number(match.balance) || 0);
+                  }
+                }}
                 placeholder={language === 'bn' ? 'গ্রাহকের নাম লিখুন' : 'Enter customer name'}
                 className="w-full pl-10 pr-4 py-2 bg-slate-950 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
               />
+              <datalist id="quickorder-members-datalist">
+                {allMembers.map((m: any) => (
+                  <option key={m.id} value={m.name}>
+                    {m.department} (৳{m.balance})
+                  </option>
+                ))}
+              </datalist>
             </div>
           </div>
 

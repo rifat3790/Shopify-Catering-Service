@@ -101,6 +101,19 @@ function PosPageContent() {
       return;
     }
 
+    if (paymentMethod === 'Wallet') {
+      const selectedMember = members.find(m => m.name === customer);
+      if (selectedMember && selectedMember.balance < totalBill) {
+        toast.error(
+          language === 'bn' 
+            ? `অপর্যাপ্ত ওয়ালেট ব্যালেন্স! বর্তমান ব্যালেন্স: ৳${selectedMember.balance.toFixed(2)}` 
+            : `Insufficient wallet balance! Current balance: ৳${selectedMember.balance.toFixed(2)}`,
+          'Wallet Error'
+        );
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       const itemsText = Object.values(cart).map(i => `${i.qty} ta ${i.name.split(' ')[0]}`).join(' + ');
@@ -110,6 +123,10 @@ function PosPageContent() {
         unitPrice: i.price,
         subtotal: i.qty * i.price
       }));
+
+      const isWallet = paymentMethod === 'Wallet';
+      const effectivePaid = isWallet ? totalBill : (tenderedCash > 0 ? tenderedCash : totalBill);
+      const effectiveChange = isWallet ? 0 : (tenderedCash >= totalBill ? tenderedCash - totalBill : 0);
 
       const res = await fetch('/api/orders', {
         method: 'POST',
@@ -122,9 +139,9 @@ function PosPageContent() {
           itemsText,
           items: itemsList,
           totalBill,
-          paidAmount: tenderedCash,
-          changeDue: tenderedCash - totalBill,
-          status: tenderedCash >= totalBill ? 'Paid' : 'Due',
+          paidAmount: effectivePaid,
+          changeDue: effectiveChange,
+          status: (isWallet || tenderedCash >= totalBill) ? 'Paid' : 'Due',
           paymentMethod,
         })
       });

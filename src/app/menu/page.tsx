@@ -66,7 +66,11 @@ function MenuPageContent() {
     loadMenu();
   }, []);
 
-  const categories = ['All', 'Refreshments', 'Lunch', 'Beverages', 'Executive Catering', 'Dessert'];
+  const categories = React.useMemo(() => {
+    const baseCats = ['Refreshments', 'Lunch', 'Beverages', 'Executive Catering', 'Dessert'];
+    const dbCats = menuItems.map(m => m.category).filter(Boolean);
+    return ['All', ...Array.from(new Set([...baseCats, ...dbCats]))];
+  }, [menuItems]);
 
   const filteredItems = menuItems.filter((item) =>
     selectedCategory === 'All' ? true : item.category === selectedCategory
@@ -476,6 +480,9 @@ function MenuPageContent() {
                     onChange={e => setDishCategory(e.target.value as any)}
                     className="w-full px-3.5 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white"
                   >
+                    {dishCategory && !['Refreshments', 'Lunch', 'Beverages', 'Executive Catering', 'Dessert'].includes(dishCategory) && (
+                      <option value={dishCategory}>{dishCategory}</option>
+                    )}
                     <option value="Refreshments">Refreshments</option>
                     <option value="Lunch">Lunch</option>
                     <option value="Beverages">Beverages</option>
