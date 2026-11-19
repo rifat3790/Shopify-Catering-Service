@@ -21,7 +21,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { userId, role, balanceDelta, action } = body;
+    const { userId, role, balanceDelta, balanceAmount, action } = body;
 
     if (!userId) {
       return NextResponse.json({ success: false, error: 'User ID is required' }, { status: 400 });
@@ -32,9 +32,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, data: updated, message: `Role updated to ${role}` });
     }
 
-    if (balanceDelta !== undefined) {
-      const updated = await updateUserBalance(userId, Number(balanceDelta), action || 'add');
-      return NextResponse.json({ success: true, data: updated, message: `Balance updated` });
+    const amount = balanceAmount !== undefined ? balanceAmount : balanceDelta;
+    if (amount !== undefined) {
+      const act = action === 'deduct' ? 'deduct' : (action === 'set' ? 'set' : 'add');
+      const updated = await updateUserBalance(userId, Number(amount), act);
+      return NextResponse.json({ 
+        success: true, 
+        data: updated, 
+        message: `Balance successfully ${act === 'set' ? 'set' : (act === 'deduct' ? 'deducted' : 'added')}` 
+      });
     }
 
     return NextResponse.json({ success: false, error: 'No valid action provided' }, { status: 400 });
@@ -45,4 +51,3 @@ export async function POST(request: Request) {
     );
   }
 }
-

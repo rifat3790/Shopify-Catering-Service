@@ -8,18 +8,20 @@ import { useLanguage } from '@/context/LanguageContext';
 import { UserRecord, UserRole, SUPER_ADMIN_EMAIL } from '@/lib/types';
 import Link from 'next/link';
 import { 
-  ShieldAlert, 
   Crown, 
   Users, 
   Wallet, 
   Check, 
   PlusCircle, 
+  MinusCircle,
+  Edit3,
   Search,
   KeyRound,
   TrendingUp,
   ShieldCheck,
   RefreshCw,
-  UserPlus
+  UserPlus,
+  Coins
 } from 'lucide-react';
 
 function SuperAdminDashboardContent() {
@@ -30,7 +32,10 @@ function SuperAdminDashboardContent() {
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  // Balance Management Modal
   const [balanceModalUser, setBalanceModalUser] = useState<UserRecord | null>(null);
+  const [balanceAction, setBalanceAction] = useState<'add' | 'deduct' | 'set'>('add');
   const [balanceAmount, setBalanceAmount] = useState<number>(500);
 
   // New user registration modal
@@ -83,9 +88,9 @@ function SuperAdminDashboardContent() {
     }
   };
 
-  const handleAddBalance = async (e: React.FormEvent) => {
+  const handleBalanceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!balanceModalUser || balanceAmount <= 0) return;
+    if (!balanceModalUser || balanceAmount < 0) return;
 
     try {
       const res = await fetch('/api/users', {
@@ -93,17 +98,28 @@ function SuperAdminDashboardContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: balanceModalUser.id,
-          balanceDelta: balanceAmount,
-          action: 'add'
+          balanceAmount: balanceAmount,
+          action: balanceAction
         })
       });
       if (res.ok) {
-        setUsers(prev => prev.map(u => u.id === balanceModalUser.id ? { ...u, balance: u.balance + balanceAmount } : u));
+        const json = await res.json();
+        if (json.success && json.data) {
+          setUsers(prev => prev.map(u => u.id === balanceModalUser.id ? json.data : u));
+        } else {
+          fetchUsers();
+        }
         setBalanceModalUser(null);
       }
     } catch (e) {
       console.error(e);
     }
+  };
+
+  const openBalanceModal = (u: UserRecord, defaultAction: 'add' | 'deduct' | 'set' = 'add') => {
+    setBalanceModalUser(u);
+    setBalanceAction(defaultAction);
+    setBalanceAmount(defaultAction === 'set' ? u.balance : (defaultAction === 'deduct' ? Math.min(100, u.balance) : 500));
   };
 
   const handleCreateNewUser = async (e: React.FormEvent) => {
@@ -122,7 +138,6 @@ function SuperAdminDashboardContent() {
       if (res.ok) {
         const json = await res.json();
         if (json.success && json.data) {
-          // If custom role or balance was set, update it
           if (newUserRole !== 'user') {
             await fetch('/api/users', {
               method: 'POST',
@@ -134,7 +149,7 @@ function SuperAdminDashboardContent() {
             await fetch('/api/users', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ userId: json.data.id, balanceDelta: newUserBalance, action: 'add' })
+              body: JSON.stringify({ userId: json.data.id, balanceAmount: newUserBalance, action: 'set' })
             });
           }
           fetchUsers();
@@ -187,8 +202,8 @@ function SuperAdminDashboardContent() {
                 </div>
                 <p className="text-xs text-slate-400 mt-1">
                   {language === 'bn'
-                    ? 'যেকোনো ব্যবহারকারীকে Super Admin, Admin, Staff বা সাধারণ ইউজার রোল দিন এবং ব্যালেন্স নিয়ন্ত্রণ করুন'
-                    : 'Assign any role to any user, manage company balances, and oversee all system records'}
+                    ? 'যেকোনো ব্যবহারকারীকে Super Admin, Admin, Staff বা সাধারণ ইউজার রোল দিন এবং সবার ব্যালেন্স যোগ, কর্তন ও এডিট করুন'
+                    : 'Assign any role to any user, add, deduct, and edit user balances dynamically'}
                 </p>
               </div>
             </div>
@@ -199,7 +214,7 @@ function SuperAdminDashboardContent() {
                 className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-md transition-all flex items-center gap-1.5"
               >
                 <UserPlus className="w-4 h-4 text-slate-950" />
-                <span>{language === 'bn' ? '+ নতুন ইউজার' : '+ Add User'}</span>
+                <span>{language === 'bn' ? '+ নতুন মেম্বার যুক্ত' : '+ Add User'}</span>
               </button>
 
               <button
@@ -223,11 +238,11 @@ function SuperAdminDashboardContent() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="p-5 rounded-2xl bg-slate-900/80 border border-amber-500/30 shadow-lg">
               <div className="flex items-center justify-between text-xs text-slate-400 mb-2 font-medium">
-                <span>{language === 'bn' ? 'মোট ব্যবহারকারী' : 'Total Registered Users'}</span>
+                <span>{language === 'bn' ? 'মোট আসল ব্যবহারকারী' : 'Real Logged-In Users'}</span>
                 <Users className="w-4 h-4 text-amber-400" />
               </div>
               <p className="text-2xl font-bold font-serif text-white">{users.length}</p>
-              <p className="text-[11px] text-amber-400 mt-1 font-mono">Dynamic Database Accounts</p>
+              <p className="text-[11px] text-amber-400 mt-1 font-mono">Zero Dummy Accounts</p>
             </div>
 
             <div className="p-5 rounded-2xl bg-slate-900/80 border border-emerald-500/30 shadow-lg">
@@ -250,14 +265,14 @@ function SuperAdminDashboardContent() {
 
             <div className="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-lg">
               <div className="flex items-center justify-between text-xs text-slate-400 mb-2 font-medium">
-                <span>{language === 'bn' ? 'সিকিউরিটি পলিসি' : 'Role Access Control'}</span>
-                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                <span>{language === 'bn' ? 'ব্যালেন্স কন্ট্রোল' : 'Balance Manager'}</span>
+                <Coins className="w-4 h-4 text-amber-400" />
               </div>
               <p className="text-sm font-bold text-white flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span>Strict RBAC Active</span>
+                <span>Add / Deduct / Edit Active</span>
               </p>
-              <p className="text-[11px] text-slate-400 mt-1">Only Authorized Views Allowed</p>
+              <p className="text-[11px] text-slate-400 mt-1">Full Admin Privileges</p>
             </div>
           </div>
 
@@ -269,12 +284,12 @@ function SuperAdminDashboardContent() {
               <div>
                 <h2 className="text-lg font-bold font-serif text-white flex items-center gap-2">
                   <KeyRound className="w-5 h-5 text-amber-400" />
-                  <span>{language === 'bn' ? 'রোল নির্ধারণ ও ব্যালেন্স কন্ট্রোল' : 'Role Assignment & Balance Management'}</span>
+                  <span>{language === 'bn' ? 'রোল নির্ধারণ ও ব্যালেন্স কন্ট্রোল (Add, Deduct, Edit)' : 'Role Assignment & Balance Management'}</span>
                 </h2>
                 <p className="text-xs text-slate-400">
                   {language === 'bn' 
-                    ? 'সুপার অ্যাডমিন যেকাউকে Super Admin, Admin, Staff বা সাধারণ ইউজার রোল দিতে পারেন' 
-                    : 'Super Admin can assign or promote any member to Super Admin, Admin, Staff or User'}
+                    ? 'সুপার অ্যাডমিন যেকাউকে Super Admin, Admin, Staff বা সাধারণ ইউজার রোল দিতে পারেন এবং ব্যালেন্স যোগ, কর্তন ও এডিট করতে পারেন' 
+                    : 'Assign roles to any user and manage balances (Add, Deduct, or directly Edit)'}
                 </p>
               </div>
 
@@ -307,15 +322,15 @@ function SuperAdminDashboardContent() {
 
             {/* Dynamic User Table */}
             <div className="w-full overflow-x-auto border border-slate-800/50">
-              <table className="w-full min-w-[900px] text-left border-collapse text-xs">
+              <table className="w-full min-w-[920px] text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-950 border-b border-slate-800 text-slate-400 font-semibold uppercase tracking-wider">
-                    <th className="py-3.5 px-4 sm:px-6">Employee / Customer</th>
+                    <th className="py-3.5 px-4 sm:px-6">Real User / Member</th>
                     <th className="py-3.5 px-4 sm:px-6">Department</th>
                     <th className="py-3.5 px-4 sm:px-6 text-right">Catering Balance (৳)</th>
                     <th className="py-3.5 px-4 sm:px-6 text-right">Lifetime Spent (৳)</th>
                     <th className="py-3.5 px-4 sm:px-6 text-center">Assigned Role (রোল)</th>
-                    <th className="py-3.5 px-4 sm:px-6 text-right whitespace-nowrap">Actions</th>
+                    <th className="py-3.5 px-4 sm:px-6 text-right whitespace-nowrap">Balance Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/80">
@@ -328,7 +343,7 @@ function SuperAdminDashboardContent() {
                   ) : filteredUsers.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="py-12 text-center text-slate-400">
-                        কোনো ব্যবহারকারী পাওয়া যায়নি। উপরে &quot;+ নতুন ইউজার&quot; ক্লিক করে যুক্ত করুন।
+                        কোনো ডামি ব্যবহারকারী নেই। কোনো মেম্বার লগইন করলে বা উপরে &quot;+ নতুন মেম্বার যুক্ত&quot; বাটনে ক্লিক করলে রিয়েল ইউজার হিসেবে দেখা যাবে।
                       </td>
                     </tr>
                   ) : (
@@ -352,7 +367,7 @@ function SuperAdminDashboardContent() {
                                   <p className="font-bold text-white tracking-wide">{u.name}</p>
                                   {isSuperAccount && (
                                     <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                                      Primary Super Admin
+                                      Root Super Admin
                                     </span>
                                   )}
                                 </div>
@@ -397,15 +412,36 @@ function SuperAdminDashboardContent() {
                             </select>
                           </td>
 
-                          {/* Add Balance Action */}
+                          {/* Balance Actions: Add, Deduct, Edit */}
                           <td className="py-3.5 px-4 sm:px-6 text-right whitespace-nowrap">
-                            <button
-                              onClick={() => setBalanceModalUser(u)}
-                              className="px-3 py-1.5 rounded-lg bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/60 text-xs font-semibold transition-colors inline-flex items-center gap-1.5"
-                            >
-                              <PlusCircle className="w-3.5 h-3.5" />
-                              <span>+ ব্যালেন্স</span>
-                            </button>
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={() => openBalanceModal(u, 'add')}
+                                title="ব্যালেন্স যোগ করুন (Add Balance)"
+                                className="px-2.5 py-1 rounded-lg bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/60 text-xs font-semibold transition-colors inline-flex items-center gap-1"
+                              >
+                                <PlusCircle className="w-3.5 h-3.5" />
+                                <span>+ যোগ</span>
+                              </button>
+
+                              <button
+                                onClick={() => openBalanceModal(u, 'deduct')}
+                                title="ব্যালেন্স কর্তন করুন (Deduct Balance)"
+                                className="px-2.5 py-1 rounded-lg bg-rose-950/60 hover:bg-rose-900 text-rose-300 border border-rose-800/60 text-xs font-semibold transition-colors inline-flex items-center gap-1"
+                              >
+                                <MinusCircle className="w-3.5 h-3.5" />
+                                <span>- কর্তন</span>
+                              </button>
+
+                              <button
+                                onClick={() => openBalanceModal(u, 'set')}
+                                title="সরাসরি ব্যালেন্স নির্ধারণ করুন (Edit Exact Balance)"
+                                className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 text-xs font-semibold transition-colors inline-flex items-center gap-1"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                                <span>এডিট</span>
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -419,14 +455,17 @@ function SuperAdminDashboardContent() {
         </main>
       </div>
 
-      {/* Add Balance Modal */}
+      {/* Complete Balance Management Modal (Add, Deduct, Edit Exact) */}
       {balanceModalUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
-          <div className="w-full max-w-sm bg-slate-900 border border-emerald-700/80 rounded-3xl p-6 shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
+          <div className="w-full max-w-md bg-slate-900 border border-amber-500/50 rounded-3xl p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <h3 className="font-bold text-white text-base">
-                {language === 'bn' ? 'ব্যালেন্স রিচার্জ / অ্যাড করুন' : 'Add Catering Balance'}
-              </h3>
+              <div className="flex items-center gap-2">
+                <Coins className="w-5 h-5 text-amber-400" />
+                <h3 className="font-bold text-white text-base">
+                  ব্যালেন্স নিয়ন্ত্রণ (Manage Balance)
+                </h3>
+              </div>
               <button
                 onClick={() => setBalanceModalUser(null)}
                 className="text-slate-400 hover:text-white"
@@ -435,37 +474,102 @@ function SuperAdminDashboardContent() {
               </button>
             </div>
 
-            <p className="text-xs text-slate-300">
-              গ্রাহক: <strong className="text-amber-300">{balanceModalUser.name}</strong> ({balanceModalUser.email})
-            </p>
+            <div className="p-3 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
+              <p className="text-xs text-slate-300">
+                গ্রাহক: <strong className="text-amber-300">{balanceModalUser.name}</strong> ({balanceModalUser.email})
+              </p>
+              <p className="text-xs text-slate-400">
+                বর্তমান ব্যালেন্স: <span className="font-mono font-bold text-emerald-400 text-sm">৳{balanceModalUser.balance.toFixed(2)}</span>
+              </p>
+            </div>
 
-            <form onSubmit={handleAddBalance} className="space-y-4">
+            {/* Action Tabs: Add | Deduct | Set Exact */}
+            <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-950 rounded-2xl border border-slate-800">
+              <button
+                type="button"
+                onClick={() => setBalanceAction('add')}
+                className={`py-2 text-xs font-bold rounded-xl transition-all ${
+                  balanceAction === 'add'
+                    ? 'bg-emerald-600 text-slate-950 shadow-md'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                + যোগ (Add)
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setBalanceAction('deduct')}
+                className={`py-2 text-xs font-bold rounded-xl transition-all ${
+                  balanceAction === 'deduct'
+                    ? 'bg-rose-600 text-white shadow-md'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                - কর্তন (Deduct)
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setBalanceAction('set');
+                  setBalanceAmount(balanceModalUser.balance);
+                }}
+                className={`py-2 text-xs font-bold rounded-xl transition-all ${
+                  balanceAction === 'set'
+                    ? 'bg-amber-400 text-slate-950 shadow-md'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                ✏️ এডিট (Set)
+              </button>
+            </div>
+
+            <form onSubmit={handleBalanceSubmit} className="space-y-4">
               <div>
                 <label className="block text-[11px] font-semibold text-slate-400 uppercase mb-1">
-                  টাকার পরিমাণ (BDT ৳)
+                  {balanceAction === 'add' 
+                    ? 'কত টাকা যোগ করতে চান? (BDT ৳)' 
+                    : (balanceAction === 'deduct' ? 'কত টাকা কর্তন করতে চান? (BDT ৳)' : 'নতুন মোট ব্যালেন্স কত নির্ধারণ করতে চান? (BDT ৳)')}
                 </label>
-                <div className="grid grid-cols-3 gap-1.5 mb-2">
-                  {[200, 500, 1000].map(amt => (
-                    <button
-                      type="button"
-                      key={amt}
-                      onClick={() => setBalanceAmount(amt)}
-                      className={`py-1 text-xs font-bold rounded-lg ${
-                        balanceAmount === amt ? 'bg-amber-400 text-slate-950' : 'bg-slate-800 text-slate-300'
-                      }`}
-                    >
-                      ৳{amt}
-                    </button>
-                  ))}
-                </div>
+
+                {balanceAction !== 'set' && (
+                  <div className="grid grid-cols-4 gap-1.5 mb-2">
+                    {[100, 200, 500, 1000].map(amt => (
+                      <button
+                        type="button"
+                        key={amt}
+                        onClick={() => setBalanceAmount(amt)}
+                        className={`py-1 text-xs font-bold rounded-lg ${
+                          balanceAmount === amt ? 'bg-amber-400 text-slate-950' : 'bg-slate-800 text-slate-300'
+                        }`}
+                      >
+                        ৳{amt}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 <input
                   type="number"
-                  min="10"
-                  step="10"
+                  min="0"
+                  step="1"
                   value={balanceAmount}
                   onChange={e => setBalanceAmount(Number(e.target.value))}
                   className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl font-mono text-emerald-400 font-bold text-base focus:outline-none focus:border-amber-400"
                 />
+              </div>
+
+              {/* Preview of new balance */}
+              <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-between text-xs">
+                <span className="text-slate-400">নতুন ব্যালেন্স দাঁড়াবে:</span>
+                <span className="font-mono font-bold text-amber-300 text-sm">
+                  ৳{balanceAction === 'add' 
+                    ? (balanceModalUser.balance + Number(balanceAmount)).toFixed(2)
+                    : (balanceAction === 'deduct' 
+                        ? Math.max(0, balanceModalUser.balance - Number(balanceAmount)).toFixed(2)
+                        : Number(balanceAmount).toFixed(2))}
+                </span>
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-2">
@@ -478,9 +582,13 @@ function SuperAdminDashboardContent() {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 text-slate-950 font-bold text-xs"
+                  className={`px-5 py-2 rounded-xl font-bold text-xs shadow-lg ${
+                    balanceAction === 'deduct'
+                      ? 'bg-rose-600 text-white hover:bg-rose-500'
+                      : 'bg-gradient-to-r from-emerald-600 to-amber-600 text-slate-950'
+                  }`}
                 >
-                  ব্যালেন্স যোগ করুন
+                  {balanceAction === 'add' ? 'ব্যালেন্স যোগ করুন' : (balanceAction === 'deduct' ? 'ব্যালেন্স কর্তন করুন' : 'ব্যালেন্স পরিবর্তন করুন')}
                 </button>
               </div>
             </form>

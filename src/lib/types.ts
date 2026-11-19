@@ -58,23 +58,7 @@ export interface UserRecord {
 // System Super Admin configuration
 export const SUPER_ADMIN_EMAIL = 'mdrifayethossen@gmail.com';
 
-// Authentic clean initial users: Only the verified Super Admin
-export const initialUsers: UserRecord[] = [
-  {
-    id: "usr-superadmin",
-    name: "Md Refayet Hossen",
-    email: SUPER_ADMIN_EMAIL,
-    role: "super_admin",
-    balance: 0,
-    currentDue: 0,
-    totalSpent: 0,
-    department: "Executive Management & Super Admin",
-    avatar: "https://ui-avatars.com/api/?name=Md+Refayet+Hossen&background=047857&color=fff",
-    phone: "+880 1700-000000",
-    createdAt: new Date().toISOString()
-  }
-];
-
-// Clean dynamic initial state - NO dummy items
+// Clean dynamic state - ZERO dummy users, items, or orders
+export const initialUsers: UserRecord[] = [];
 export const initialOrders: OrderData[] = [];
 export const initialMenuItems: MenuItemData[] = [];

@@ -33,8 +33,10 @@ export async function PUT(
       return NextResponse.json({ success: true, data: updated });
     }
 
-    if (body.balanceDelta !== undefined) {
-      const updated = await updateUserBalance(id, Number(body.balanceDelta), body.action || 'add');
+    const amount = body.balanceAmount !== undefined ? body.balanceAmount : body.balanceDelta;
+    if (amount !== undefined) {
+      const act = body.action === 'deduct' ? 'deduct' : (body.action === 'set' ? 'set' : 'add');
+      const updated = await updateUserBalance(id, Number(amount), act);
       return NextResponse.json({ success: true, data: updated });
     }
 
@@ -46,4 +48,3 @@ export async function PUT(
     );
   }
 }
-

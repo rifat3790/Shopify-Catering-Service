@@ -25,31 +25,16 @@ export {
   initialUsers 
 };
 
-// In-memory fallback caches
-let ordersCache: OrderData[] = [...initialOrders];
-let menuItemsCache: MenuItemData[] = [...initialMenuItems];
-let usersCache: UserRecord[] = [...initialUsers];
+// In-memory fallback caches - completely clean, no dummy users
+let ordersCache: OrderData[] = [];
+let menuItemsCache: MenuItemData[] = [];
+let usersCache: UserRecord[] = [];
 
-// User & Member Management
+// User Management - ONLY REAL LOGGED-IN USERS
 export async function getAllUsers(): Promise<UserRecord[]> {
   try {
     await connectToDatabase();
     if (User) {
-      // Ensure super admin exists
-      const superAdminCount = await User.countDocuments({ email: SUPER_ADMIN_EMAIL.toLowerCase() });
-      if (superAdminCount === 0) {
-        await User.create({
-          name: "Md Refayet Hossen",
-          email: SUPER_ADMIN_EMAIL.toLowerCase(),
-          role: "super_admin",
-          balance: 0,
-          currentDue: 0,
-          totalSpent: 0,
-          department: "Super Admin & Management",
-          avatar: "https://ui-avatars.com/api/?name=Md+Refayet+Hossen&background=047857&color=fff",
-        });
-      }
-
       const docs = await User.find().sort({ createdAt: -1 }).lean();
       if (docs && docs.length > 0) {
         const mapped = docs.map((d: any) => ({
@@ -99,7 +84,7 @@ export async function syncUser(userData: {
     if (User) {
       let doc = await User.findOne({ email: emailClean });
       if (!doc) {
-        // Create new user
+        // Create new real authenticated user in MongoDB
         doc = await User.create({
           uid: userData.uid || '',
           name: userData.name || emailClean.split('@')[0],
@@ -108,11 +93,11 @@ export async function syncUser(userData: {
           balance: 0,
           currentDue: 0,
           totalSpent: 0,
-          department: isSuper ? 'Executive Management' : 'Shopify Member',
+          department: isSuper ? 'Super Admin & Executive' : 'Shopify Member',
           avatar: userData.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.name || 'User')}&background=047857&color=fff`,
         });
       } else {
-        // Enforce super admin role if email matches
+        // If super admin email, enforce super_admin role
         if (isSuper && doc.role !== 'super_admin') {
           doc.role = 'super_admin';
           await doc.save();
@@ -133,7 +118,6 @@ export async function syncUser(userData: {
         createdAt: doc.createdAt?.toISOString?.() || new Date().toISOString()
       };
 
-      // Update in memory cache
       const idx = usersCache.findIndex(u => u.email.toLowerCase() === emailClean);
       if (idx !== -1) {
         usersCache[idx] = syncedRecord;
@@ -162,7 +146,7 @@ export async function syncUser(userData: {
     balance: 0,
     currentDue: 0,
     totalSpent: 0,
-    department: isSuper ? 'Executive Management' : 'Shopify Member',
+    department: isSuper ? 'Super Admin & Executive' : 'Shopify Member',
     avatar: userData.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.name || 'User')}&background=047857&color=fff`,
     phone: '',
     createdAt: new Date().toISOString()
@@ -183,7 +167,7 @@ export async function createUser(data: Partial<UserRecord>): Promise<UserRecord>
     balance: Number(data.balance) || 0,
     currentDue: Number(data.currentDue) || 0,
     totalSpent: 0,
-    department: data.department || 'General Team',
+    department: data.department || 'Shopify Member',
     avatar: data.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(data.name || 'User')}&background=047857&color=fff`,
     phone: data.phone || '',
     createdAt: new Date().toISOString()
@@ -216,7 +200,7 @@ export async function createUser(data: Partial<UserRecord>): Promise<UserRecord>
 export async function updateUserRole(idOrEmail: string, newRole: UserRole): Promise<UserRecord | null> {
   const search = idOrEmail.toLowerCase().trim();
   
-  // Super admin mdrifayethossen@gmail.com cannot be accidentally demoted
+  // Primary super admin cannot be demoted
   if (search === SUPER_ADMIN_EMAIL.toLowerCase() && newRole !== 'super_admin') {
     newRole = 'super_admin';
   }
@@ -257,7 +241,12 @@ export async function updateUserRole(idOrEmail: string, newRole: UserRole): Prom
   return null;
 }
 
-export async function updateUserBalance(idOrEmail: string, amount: number, action: 'add' | 'deduct' = 'add'): Promise<UserRecord | null> {
+// Balance Add, Remove, and Edit (Direct Set)
+export async function updateUserBalance(
+  idOrEmail: string, 
+  amount: number, 
+  action: 'add' | 'deduct' | 'set' = 'add'
+): Promise<UserRecord | null> {
   const search = idOrEmail.toLowerCase().trim();
   const amt = Number(amount) || 0;
 
@@ -270,9 +259,10 @@ export async function updateUserBalance(idOrEmail: string, amount: number, actio
       if (userDoc) {
         if (action === 'add') {
           userDoc.balance = (userDoc.balance || 0) + amt;
-        } else {
+        } else if (action === 'deduct') {
           userDoc.balance = Math.max(0, (userDoc.balance || 0) - amt);
-          userDoc.totalSpent = (userDoc.totalSpent || 0) + amt;
+        } else if (action === 'set') {
+          userDoc.balance = Math.max(0, amt);
         }
         await userDoc.save();
         const updated: UserRecord = {
@@ -300,16 +290,17 @@ export async function updateUserBalance(idOrEmail: string, amount: number, actio
   if (idx !== -1) {
     if (action === 'add') {
       usersCache[idx].balance += amt;
-    } else {
+    } else if (action === 'deduct') {
       usersCache[idx].balance = Math.max(0, usersCache[idx].balance - amt);
-      usersCache[idx].totalSpent += amt;
+    } else if (action === 'set') {
+      usersCache[idx].balance = Math.max(0, amt);
     }
     return usersCache[idx];
   }
   return null;
 }
 
-// Order Management APIs (Clean, Dynamic)
+// Order Management APIs
 export async function getAllOrders(): Promise<OrderData[]> {
   try {
     await connectToDatabase();
@@ -348,7 +339,7 @@ export async function createOrder(data: Partial<OrderData>): Promise<OrderData> 
   const newOrder: OrderData = {
     _id: `ord-${Date.now()}`,
     orderNumber: data.orderNumber || newOrderNumber,
-    customerName: data.customerName || "Anonymous Customer",
+    customerName: data.customerName || "Customer",
     customerPhone: data.customerPhone || "",
     customerDepartment: data.customerDepartment || "General",
     customerEmail: data.customerEmail || "",
@@ -377,7 +368,7 @@ export async function createOrder(data: Partial<OrderData>): Promise<OrderData> 
       }
     }
   } catch (err) {
-    // cached fallback
+    // fallback
   }
 
   // Update user balance/spent dynamically
@@ -388,8 +379,8 @@ export async function createOrder(data: Partial<OrderData>): Promise<OrderData> 
       user.totalSpent += totalBill;
       if (data.paymentMethod === 'Wallet') {
         user.balance = Math.max(0, user.balance - totalBill);
+        updateUserBalance(user.id, totalBill, 'deduct').catch(() => {});
       }
-      updateUserBalance(user.id, totalBill, data.paymentMethod === 'Wallet' ? 'deduct' : 'add').catch(() => {});
     }
   }
 
@@ -442,7 +433,7 @@ export async function deleteOrder(id: string): Promise<boolean> {
   return true;
 }
 
-// Menu Management APIs (Pure Dynamic - Empty initially until added)
+// Menu Management APIs
 export async function getAllMenuItems(): Promise<MenuItemData[]> {
   try {
     await connectToDatabase();

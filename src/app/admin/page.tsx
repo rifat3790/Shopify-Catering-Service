@@ -9,7 +9,7 @@ import QuickOrderModal from '@/components/QuickOrderModal';
 import InvoiceModal from '@/components/InvoiceModal';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
-import { OrderData, MenuItemData } from '@/lib/types';
+import { OrderData, MenuItemData, UserRecord } from '@/lib/types';
 import Link from 'next/link';
 import { 
   ShieldCheck, 
@@ -18,9 +18,13 @@ import {
   Plus, 
   RefreshCw,
   PlusCircle,
-  Eye,
-  EyeOff,
-  Trash2
+  MinusCircle,
+  Edit3,
+  Trash2,
+  Wallet,
+  Users,
+  Coins,
+  Search
 } from 'lucide-react';
 
 function AdminPageContent() {
@@ -28,6 +32,8 @@ function AdminPageContent() {
   const { language } = useLanguage();
   const [orders, setOrders] = useState<OrderData[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItemData[]>([]);
+  const [members, setMembers] = useState<UserRecord[]>([]);
+  const [memberSearch, setMemberSearch] = useState('');
   const [stats, setStats] = useState({
     ordersCount: 0,
     completedOrdersCount: 0,
@@ -42,7 +48,7 @@ function AdminPageContent() {
   const [loading, setLoading] = useState(true);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<OrderData | null>(null);
-  const [activeTab, setActiveTab] = useState<'orders' | 'menu'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'menu' | 'balance'>('orders');
 
   // Menu item modal
   const [isDishModalOpen, setIsDishModalOpen] = useState(false);
@@ -52,12 +58,18 @@ function AdminPageContent() {
   const [dishCategory, setDishCategory] = useState<MenuItemData['category']>('Refreshments');
   const [dishImageUrl, setDishImageUrl] = useState('');
 
+  // Balance modal for Admin (Add, Deduct, Set)
+  const [balanceModalUser, setBalanceModalUser] = useState<UserRecord | null>(null);
+  const [balanceAction, setBalanceAction] = useState<'add' | 'deduct' | 'set'>('add');
+  const [balanceAmount, setBalanceAmount] = useState<number>(500);
+
   const fetchAdminData = async () => {
     try {
-      const [ordRes, statRes, menuRes] = await Promise.all([
+      const [ordRes, statRes, menuRes, userRes] = await Promise.all([
         fetch('/api/orders'),
         fetch('/api/stats'),
-        fetch('/api/menu')
+        fetch('/api/menu'),
+        fetch('/api/users')
       ]);
 
       if (ordRes.ok) {
@@ -71,6 +83,10 @@ function AdminPageContent() {
       if (menuRes.ok) {
         const m = await menuRes.json();
         if (m.success && m.data) setMenuItems(m.data);
+      }
+      if (userRes.ok) {
+        const u = await userRes.json();
+        if (u.success && u.data) setMembers(u.data);
       }
     } catch (e) {
       console.warn('Using live state');
@@ -149,6 +165,47 @@ function AdminPageContent() {
     }
   };
 
+  // Balance actions
+  const openBalanceModal = (u: UserRecord, action: 'add' | 'deduct' | 'set' = 'add') => {
+    setBalanceModalUser(u);
+    setBalanceAction(action);
+    setBalanceAmount(action === 'set' ? u.balance : (action === 'deduct' ? Math.min(100, u.balance) : 500));
+  };
+
+  const handleBalanceSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!balanceModalUser || balanceAmount < 0) return;
+
+    try {
+      const res = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: balanceModalUser.id,
+          balanceAmount: balanceAmount,
+          action: balanceAction
+        })
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data) {
+          setMembers(prev => prev.map(m => m.id === balanceModalUser.id ? json.data : m));
+        } else {
+          fetchAdminData();
+        }
+        setBalanceModalUser(null);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const filteredMembers = members.filter(m => 
+    (m.name || '').toLowerCase().includes(memberSearch.toLowerCase()) ||
+    (m.email || '').toLowerCase().includes(memberSearch.toLowerCase()) ||
+    (m.department || '').toLowerCase().includes(memberSearch.toLowerCase())
+  );
+
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col lg:flex-row text-slate-100">
       <Sidebar onOpenNewOrder={() => setIsOrderModalOpen(true)} />
@@ -174,7 +231,7 @@ function AdminPageContent() {
                   </span>
                 </div>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  {language === 'bn' ? 'দৈনিক অর্ডার প্রস্তুত, মেনু ম্যানেজমেন্ট ও ক্যাশিয়ার হিসাব নিকাশ' : 'Kitchen workflow, menu pricing control, and daily customer accounts'}
+                  {language === 'bn' ? 'দৈনিক অর্ডার প্রস্তুত, মেনু কন্ট্রোল ও মেম্বারদের ব্যালেন্স অ্যাড/রিমুভ/এডিট' : 'Kitchen workflow, menu pricing control, and member balance management'}
                 </p>
               </div>
             </div>
@@ -197,8 +254,8 @@ function AdminPageContent() {
             </div>
           </div>
 
-          {/* Tab switch */}
-          <div className="flex items-center gap-2 p-1 bg-slate-900 rounded-2xl w-fit border border-slate-800">
+          {/* 3 Tab Switcher */}
+          <div className="flex flex-wrap items-center gap-2 p-1 bg-slate-900 rounded-2xl w-fit border border-slate-800">
             <button
               onClick={() => setActiveTab('orders')}
               className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${
@@ -215,6 +272,14 @@ function AdminPageContent() {
             >
               🍲 {language === 'bn' ? 'মেনু ক্যাটালগ কন্ট্রোল' : 'Menu Management'}
             </button>
+            <button
+              onClick={() => setActiveTab('balance')}
+              className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                activeTab === 'balance' ? 'bg-amber-500 text-slate-950 shadow' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              💳 {language === 'bn' ? 'মেম্বার ব্যালেন্স কন্ট্রোল (Add/Edit)' : 'Member Balances'}
+            </button>
           </div>
 
           {activeTab === 'orders' ? (
@@ -229,7 +294,7 @@ function AdminPageContent() {
                 isLoading={loading}
               />
             </div>
-          ) : (
+          ) : activeTab === 'menu' ? (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <p className="text-xs text-slate-400">
@@ -289,12 +354,106 @@ function AdminPageContent() {
                 </div>
               )}
             </div>
+          ) : (
+            /* Balance Management Tab for Admin */
+            <div className="rounded-3xl bg-slate-900/90 border border-amber-500/40 p-6 shadow-2xl space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+                <div>
+                  <h3 className="font-serif font-bold text-lg text-white flex items-center gap-2">
+                    <Coins className="w-5 h-5 text-amber-400" />
+                    <span>মেম্বারদের ক্যাটারিং ব্যালেন্স কন্ট্রোল (Add, Deduct, Edit)</span>
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    অ্যাডমিন হিসেবে যেকোনো মেম্বারের অ্যাকাউন্টে ব্যালেন্স যোগ করতে, কাটতে বা সরাসরি এডিট করতে পারবেন
+                  </p>
+                </div>
+
+                <div className="relative min-w-[220px]">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                  <input
+                    type="text"
+                    value={memberSearch}
+                    onChange={e => setMemberSearch(e.target.value)}
+                    placeholder="Search member..."
+                    className="w-full pl-9 pr-3 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white"
+                  />
+                </div>
+              </div>
+
+              {filteredMembers.length === 0 ? (
+                <div className="text-center py-12 text-slate-400 text-xs">
+                  কোনো মেম্বার অ্যাকাউন্ট পাওয়া যায়নি। মেম্বাররা লগইন করলে তাদের লাইভ ব্যালেন্স এখানে দেখা যাবে।
+                </div>
+              ) : (
+                <div className="w-full overflow-x-auto">
+                  <table className="w-full min-w-[800px] text-left text-xs">
+                    <thead>
+                      <tr className="bg-slate-950 border-b border-slate-800 text-slate-400 uppercase tracking-wider font-semibold">
+                        <th className="py-3 px-4">Member Name</th>
+                        <th className="py-3 px-4">Department</th>
+                        <th className="py-3 px-4 text-right">Current Balance (৳)</th>
+                        <th className="py-3 px-4 text-center">Role</th>
+                        <th className="py-3 px-4 text-right">Manage Balance</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800">
+                      {filteredMembers.map(m => (
+                        <tr key={m.id} className="hover:bg-slate-800/40">
+                          <td className="py-3 px-4 font-bold text-white flex items-center gap-2">
+                            <img
+                              src={m.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(m.name)}&background=047857&color=fff`}
+                              alt={m.name}
+                              className="w-7 h-7 rounded-lg object-cover"
+                            />
+                            <div>
+                              <span>{m.name}</span>
+                              <p className="text-[10px] text-slate-400 font-mono font-normal">{m.email}</p>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 text-slate-300">{m.department}</td>
+                          <td className="py-3 px-4 text-right font-mono font-bold text-emerald-400 text-sm">
+                            ৳{m.balance.toFixed(2)}
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-300 uppercase">
+                              {m.role}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-right whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={() => openBalanceModal(m, 'add')}
+                                className="px-2.5 py-1 rounded-lg bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/60 text-xs font-semibold"
+                              >
+                                + যোগ
+                              </button>
+                              <button
+                                onClick={() => openBalanceModal(m, 'deduct')}
+                                className="px-2.5 py-1 rounded-lg bg-rose-950/60 hover:bg-rose-900 text-rose-300 border border-rose-800/60 text-xs font-semibold"
+                              >
+                                - কর্তন
+                              </button>
+                              <button
+                                onClick={() => openBalanceModal(m, 'set')}
+                                className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 text-xs font-semibold"
+                              >
+                                এডিট
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           )}
 
         </main>
       </div>
 
-      {/* Add Dish Modal */}
+      {/* Admin Add Dish Modal */}
       {isDishModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
           <div className="w-full max-w-md bg-slate-900 border border-emerald-700/80 rounded-3xl p-6 shadow-2xl space-y-4">
@@ -382,6 +541,145 @@ function AdminPageContent() {
                   className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 text-slate-950 font-bold text-xs"
                 >
                   সংরক্ষণ করুন
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Admin Balance Modal (Add, Deduct, Set) */}
+      {balanceModalUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
+          <div className="w-full max-w-md bg-slate-900 border border-amber-500/50 rounded-3xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <Coins className="w-5 h-5 text-amber-400" />
+                <h3 className="font-bold text-white text-base">
+                  ব্যালেন্স নিয়ন্ত্রণ (Manage Balance)
+                </h3>
+              </div>
+              <button
+                onClick={() => setBalanceModalUser(null)}
+                className="text-slate-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-3 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
+              <p className="text-xs text-slate-300">
+                গ্রাহক: <strong className="text-amber-300">{balanceModalUser.name}</strong> ({balanceModalUser.email})
+              </p>
+              <p className="text-xs text-slate-400">
+                বর্তমান ব্যালেন্স: <span className="font-mono font-bold text-emerald-400 text-sm">৳{balanceModalUser.balance.toFixed(2)}</span>
+              </p>
+            </div>
+
+            <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-950 rounded-2xl border border-slate-800">
+              <button
+                type="button"
+                onClick={() => setBalanceAction('add')}
+                className={`py-2 text-xs font-bold rounded-xl transition-all ${
+                  balanceAction === 'add'
+                    ? 'bg-emerald-600 text-slate-950 shadow-md'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                + যোগ (Add)
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setBalanceAction('deduct')}
+                className={`py-2 text-xs font-bold rounded-xl transition-all ${
+                  balanceAction === 'deduct'
+                    ? 'bg-rose-600 text-white shadow-md'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                - কর্তন (Deduct)
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setBalanceAction('set');
+                  setBalanceAmount(balanceModalUser.balance);
+                }}
+                className={`py-2 text-xs font-bold rounded-xl transition-all ${
+                  balanceAction === 'set'
+                    ? 'bg-amber-400 text-slate-950 shadow-md'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                ✏️ এডিট (Set)
+              </button>
+            </div>
+
+            <form onSubmit={handleBalanceSubmit} className="space-y-4">
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-400 uppercase mb-1">
+                  {balanceAction === 'add' 
+                    ? 'কত টাকা যোগ করতে চান? (BDT ৳)' 
+                    : (balanceAction === 'deduct' ? 'কত টাকা কর্তন করতে চান? (BDT ৳)' : 'নতুন মোট ব্যালেন্স কত নির্ধারণ করতে চান? (BDT ৳)')}
+                </label>
+
+                {balanceAction !== 'set' && (
+                  <div className="grid grid-cols-4 gap-1.5 mb-2">
+                    {[100, 200, 500, 1000].map(amt => (
+                      <button
+                        type="button"
+                        key={amt}
+                        onClick={() => setBalanceAmount(amt)}
+                        className={`py-1 text-xs font-bold rounded-lg ${
+                          balanceAmount === amt ? 'bg-amber-400 text-slate-950' : 'bg-slate-800 text-slate-300'
+                        }`}
+                      >
+                        ৳{amt}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={balanceAmount}
+                  onChange={e => setBalanceAmount(Number(e.target.value))}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl font-mono text-emerald-400 font-bold text-base focus:outline-none focus:border-amber-400"
+                />
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-between text-xs">
+                <span className="text-slate-400">নতুন ব্যালেন্স দাঁড়াবে:</span>
+                <span className="font-mono font-bold text-amber-300 text-sm">
+                  ৳{balanceAction === 'add' 
+                    ? (balanceModalUser.balance + Number(balanceAmount)).toFixed(2)
+                    : (balanceAction === 'deduct' 
+                        ? Math.max(0, balanceModalUser.balance - Number(balanceAmount)).toFixed(2)
+                        : Number(balanceAmount).toFixed(2))}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setBalanceModalUser(null)}
+                  className="px-4 py-2 rounded-xl bg-slate-800 text-xs text-slate-300"
+                >
+                  বাতিল
+                </button>
+                <button
+                  type="submit"
+                  className={`px-5 py-2 rounded-xl font-bold text-xs shadow-lg ${
+                    balanceAction === 'deduct'
+                      ? 'bg-rose-600 text-white hover:bg-rose-500'
+                      : 'bg-gradient-to-r from-emerald-600 to-amber-600 text-slate-950'
+                  }`}
+                >
+                  {balanceAction === 'add' ? 'ব্যালেন্স যোগ করুন' : (balanceAction === 'deduct' ? 'ব্যালেন্স কর্তন করুন' : 'ব্যালেন্স পরিবর্তন করুন')}
                 </button>
               </div>
             </form>
