@@ -149,7 +149,7 @@ export default function InvoiceModal({ order, onClose }: InvoiceModalProps) {
       ctx.font = '13px sans-serif';
       ctx.fillText('Total Bill (মোট বিল):', 60, calcY + 40);
       ctx.fillText('Cash Received (মোট জমা):', 60, calcY + 80);
-      ctx.fillText('Change Returned (ফেরত বাকি):', 60, calcY + 120);
+      ctx.fillText(order.depositChangeToWallet ? 'Credited to Wallet (ওয়ালেটে জমা):' : 'Change Returned (ফেরত বাকি):', 60, calcY + 120);
 
       ctx.textAlign = 'right';
       ctx.fillStyle = '#fbbf24';
@@ -276,8 +276,15 @@ export default function InvoiceModal({ order, onClose }: InvoiceModalProps) {
                 ৳{Number(order.paidAmount).toFixed(2)}
               </span>
             </div>
-            <div className="flex justify-between text-emerald-400 font-bold">
-              <span>{language === 'bn' ? 'ফেরত দেওয়া হয়েছে (Change):' : 'Change Returned:'}</span>
+            <div className="flex justify-between items-center text-emerald-400 font-bold border-t border-slate-800/80 pt-2">
+              <span className="flex items-center gap-1.5">
+                <span>{order.depositChangeToWallet ? (language === 'bn' ? 'ওয়ালেটে জমা হয়েছে (Wallet):' : 'Credited to Wallet:') : (language === 'bn' ? 'ফেরত দেওয়া হয়েছে (Change):' : 'Change Returned:')}</span>
+                {order.depositChangeToWallet && (
+                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                    Wallet +
+                  </span>
+                )}
+              </span>
               <span className="font-mono text-sm">
                 ৳{Math.max(0, Number(order.changeDue)).toFixed(2)}
               </span>

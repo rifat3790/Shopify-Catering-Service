@@ -432,9 +432,16 @@ function OrdersPageContent() {
                         <p className="font-bold text-white text-xs truncate">{order.customerName}</p>
                         <p className="text-[10px] text-slate-400 font-mono truncate">{order.customerDepartment || 'Shopify Team'}</p>
                       </div>
-                      <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">
-                        {order.paymentMethod}
-                      </span>
+                      <div className="flex flex-col items-end">
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">
+                          {order.paymentMethod}
+                        </span>
+                        {order.depositChangeToWallet && Number(order.changeDue) > 0 && (
+                          <span className="text-[9px] text-emerald-400 font-mono font-bold mt-0.5">
+                            +৳{Number(order.changeDue).toFixed(0)} Wallet
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     {/* Ordered Dishes */}
@@ -576,6 +583,11 @@ function OrdersPageContent() {
                           <span className={order.paidAmount >= order.totalBill ? 'text-emerald-400 font-bold' : 'text-slate-400'}>
                             ৳{order.paidAmount.toFixed(2)}
                           </span>
+                          {order.depositChangeToWallet && Number(order.changeDue) > 0 && (
+                            <span className="block text-[10px] text-emerald-400/90 font-medium">
+                              (৳{Number(order.changeDue).toFixed(0)} credited)
+                            </span>
+                          )}
                         </td>
 
                         {/* Payment Method */}
@@ -583,6 +595,11 @@ function OrdersPageContent() {
                           <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">
                             {order.paymentMethod}
                           </span>
+                          {order.depositChangeToWallet && Number(order.changeDue) > 0 && (
+                            <div className="text-[10px] text-emerald-400 font-mono font-bold mt-0.5">
+                              +৳{Number(order.changeDue).toFixed(0)} Wallet
+                            </div>
+                          )}
                         </td>
 
                         {/* Status Badge */}

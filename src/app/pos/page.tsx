@@ -6,6 +6,7 @@ import AuthGuard from '@/components/AuthGuard';
 import InvoiceModal from '@/components/InvoiceModal';
 import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/context/ToastContext';
+import { useAuth } from '@/context/AuthContext';
 import { MenuItemData, OrderData, UserRecord } from '@/lib/types';
 import { getClientCache, setClientCache, clearClientCache } from '@/lib/clientCache';
 import {
@@ -26,6 +27,7 @@ const cashPresets = [20, 30, 50, 100, 200, 500, 1000];
 function PosPageContent() {
   const { language } = useLanguage();
   const { toast } = useToast();
+  const { user: authUser, refreshUser } = useAuth();
   const [customer, setCustomer] = useState('Customer');
   const [members, setMembers] = useState<UserRecord[]>(() => {
     return getClientCache<UserRecord[]>('members_list') || [];
@@ -36,6 +38,7 @@ function PosPageContent() {
   const [cart, setCart] = useState<{ [id: string]: { name: string; price: number; qty: number } }>({});
   const [tenderedCash, setTenderedCash] = useState<number>(0);
   const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'bKash' | 'Nagad' | 'Wallet'>('Cash');
+  const [depositChangeToWallet, setDepositChangeToWallet] = useState<boolean>(true);
   const [savedOrder, setSavedOrder] = useState<OrderData | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -64,6 +67,10 @@ function PosPageContent() {
   const totalBill = Object.values(cart).reduce((sum, item) => sum + item.price * item.qty, 0);
   const changeToReturn = tenderedCash >= totalBill ? tenderedCash - totalBill : 0;
   const dueAmount = totalBill > tenderedCash ? totalBill - tenderedCash : 0;
+  const selectedMember = members.find(m => 
+    m.name.toLowerCase() === customer.toLowerCase() || 
+    m.email.toLowerCase() === customer.toLowerCase()
+  );
 
   const handleAddItem = (id: string, name: string, price: number) => {
     setCart(prev => {
@@ -111,13 +118,17 @@ function PosPageContent() {
       return;
     }
 
+    const selectedMember = members.find(m => 
+      m.name.toLowerCase() === customer.toLowerCase() || 
+      m.email.toLowerCase() === customer.toLowerCase()
+    );
+
     if (paymentMethod === 'Wallet') {
-      const selectedMember = members.find(m => m.name === customer);
-      if (selectedMember && selectedMember.balance < totalBill) {
+      if (selectedMember && (selectedMember.balance || 0) < totalBill) {
         toast.error(
           language === 'bn'
-            ? `অপর্যাপ্ত ওয়ালেট ব্যালেন্স! বর্তমান ব্যালেন্স: ৳${selectedMember.balance.toFixed(2)}`
-            : `Insufficient wallet balance! Current balance: ৳${selectedMember.balance.toFixed(2)}`,
+            ? `অপর্যাপ্ত ওয়ালেট ব্যালেন্স! বর্তমান ব্যালেন্স: ৳${(selectedMember.balance || 0).toFixed(2)}`
+            : `Insufficient wallet balance! Current balance: ৳${(selectedMember.balance || 0).toFixed(2)}`,
           'Wallet Error'
         );
         return;
@@ -137,15 +148,17 @@ function PosPageContent() {
       const isWallet = paymentMethod === 'Wallet';
       const effectivePaid = isWallet ? totalBill : (tenderedCash > 0 ? tenderedCash : totalBill);
       const effectiveChange = isWallet ? 0 : (tenderedCash >= totalBill ? tenderedCash - totalBill : 0);
+      const willDepositChange = Boolean(paymentMethod === 'Cash' && selectedMember && depositChangeToWallet && effectiveChange > 0);
 
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          customerName: customer,
-          customerDepartment: members.find(m => m.name === customer)?.department || 'Shopify Team',
-          customerEmail: members.find(m => m.name === customer)?.email || '',
-          customerAvatar: members.find(m => m.name === customer)?.avatar || '',
+          customerName: selectedMember?.name || customer,
+          customerDepartment: selectedMember?.department || 'Shopify Team',
+          customerEmail: selectedMember?.email || '',
+          customerAvatar: selectedMember?.avatar || '',
+          userId: selectedMember?.id || '',
           itemsText,
           items: itemsList,
           totalBill,
@@ -153,6 +166,7 @@ function PosPageContent() {
           changeDue: effectiveChange,
           status: (isWallet || tenderedCash >= totalBill) ? 'Paid' : 'Due',
           paymentMethod,
+          depositChangeToWallet: willDepositChange,
         })
       });
 
@@ -162,11 +176,29 @@ function PosPageContent() {
         handleClearCart();
         clearClientCache('orders_list');
         clearClientCache('members_list');
+
+        if (refreshUser) {
+          await refreshUser().catch(() => {});
+        }
+        try {
+          const uRes = await fetch('/api/users').then(r => r.json());
+          if (uRes?.success && Array.isArray(uRes.data)) {
+            setMembers(uRes.data);
+            setClientCache('members_list', uRes.data);
+          }
+        } catch {}
+
+        const balanceBonusText = willDepositChange
+          ? (language === 'bn'
+              ? ` • অবশিষ্ট ৳${effectiveChange.toFixed(2)} ওয়ালেটে জমা হয়েছে!`
+              : ` • ৳${effectiveChange.toFixed(2)} credited to wallet!`)
+          : '';
+
         toast.success(
           language === 'bn'
-            ? `অর্ডার #${json.data.orderNumber} সফলভাবে গ্রহণ করা হয়েছে!`
-            : `Order #${json.data.orderNumber} created successfully!`,
-          'Order Completed 🎉'
+            ? `অর্ডার #${json.data.orderNumber} সফলভাবে গ্রহণ করা হয়েছে!${balanceBonusText}`
+            : `Order #${json.data.orderNumber} created successfully!${balanceBonusText}`,
+          willDepositChange ? 'Order Completed • Wallet Credited 💰' : 'Order Completed 🎉'
         );
       } else {
         throw new Error(json.error);
@@ -235,7 +267,7 @@ function PosPageContent() {
                 value={customItemPrice || ''}
                 onChange={e => setCustomItemPrice(Number(e.target.value))}
                 placeholder="Price"
-                className="w-24 pl-6 pr-2.5 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs font-mono font-bold text-amber-300 focus:outline-none focus:border-amber-400"
+                className="w-24 pl-6 pr-2.5 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs font-mono font-bold text-amber-300 focus:outline-none focus:border-amber-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               />
             </div>
             <button type="submit" className="px-4 py-1.5 rounded-xl bg-amber-500 text-slate-950 font-bold text-xs">
@@ -255,25 +287,35 @@ function PosPageContent() {
               <div className="flex items-center justify-between text-xs font-semibold text-slate-300 uppercase tracking-wider">
                 <span className="flex items-center gap-1.5">
                   <User className="w-3.5 h-3.5 text-amber-400" />
-                  {language === 'bn' ? 'গ্রাহক সিলেক্ট করুন' : 'Select Customer'}
+                  <span>{language === 'bn' ? 'গ্রাহক সিলেক্ট করুন' : 'Select Customer'}</span>
                 </span>
                 <span className="text-amber-400 font-bold">{customer}</span>
               </div>
 
               <div className="flex flex-wrap gap-2 pt-1">
                 {members.length > 0 ? (
-                  members.map((m) => (
-                    <button
-                      key={m.id}
-                      onClick={() => setCustomer(m.name)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${customer === m.name
-                        ? 'bg-gradient-to-r from-emerald-600 to-amber-500 text-slate-950 shadow-md ring-2 ring-amber-400'
-                        : 'bg-slate-950 text-slate-300 hover:bg-slate-800 border border-slate-700/80'
+                  members.map((m) => {
+                    const isSelected = customer === m.name;
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => setCustomer(m.name)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                          isSelected
+                            ? 'bg-gradient-to-r from-emerald-600 to-amber-500 text-slate-950 shadow-md ring-2 ring-amber-400'
+                            : 'bg-slate-950 text-slate-300 hover:bg-slate-800 border border-slate-700/80'
                         }`}
-                    >
-                      {m.name}
-                    </button>
-                  ))
+                      >
+                        <span>{m.name}</span>
+                        <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded font-semibold ${
+                          isSelected ? 'bg-slate-950/20 text-slate-950' : 'bg-emerald-950/80 text-emerald-300 border border-emerald-800/50'
+                        }`}>
+                          ৳{(m.balance || 0).toFixed(0)}
+                        </span>
+                      </button>
+                    );
+                  })
                 ) : (
                   <input
                     type="text"
@@ -338,10 +380,17 @@ function PosPageContent() {
                     <ShoppingBag className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-white text-sm">
-                      {customer}&apos;s Order
+                    <h3 className="font-bold text-white text-sm flex items-center gap-2">
+                      <span>{customer}&apos;s Order</span>
+                      {selectedMember && (
+                        <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                          Wallet: ৳{(selectedMember.balance || 0).toFixed(2)}
+                        </span>
+                      )}
                     </h3>
-                    <p className="text-[11px] text-emerald-400 font-medium">Shopify Catering Register</p>
+                    <p className="text-[11px] text-emerald-400 font-medium">
+                      {selectedMember?.department || 'Shopify Team'} • Catering POS
+                    </p>
                   </div>
                 </div>
 
@@ -389,7 +438,7 @@ function PosPageContent() {
                 )}
               </div>
 
-              {/* Bill & Cash Presets */}
+              {/* Bill & Payment Presets */}
               <div className="p-4 rounded-2xl bg-slate-950 border border-emerald-950 space-y-3">
 
                 {/* Total Bill Row */}
@@ -402,63 +451,145 @@ function PosPageContent() {
                   </span>
                 </div>
 
-                {/* Cash Note Buttons */}
+                {/* Payment Method Selector */}
                 <div>
-                  <p className="text-[11px] text-slate-400 mb-2 font-medium flex items-center gap-1">
-                    <Banknote className="w-3.5 h-3.5 text-emerald-400" />
-                    {language === 'bn' ? 'গ্রাহক কত টাকার নোট দিয়েছেন?' : 'Cash Handed by Customer:'}
-                  </p>
-
+                  <label className="text-[11px] text-slate-400 mb-1.5 block font-medium">
+                    {language === 'bn' ? 'পেমেন্ট মাধ্যম:' : 'Payment Method:'}
+                  </label>
                   <div className="grid grid-cols-4 gap-1.5">
-                    {cashPresets.map((preset) => (
-                      <button
-                        key={preset}
-                        onClick={() => setTenderedCash(preset)}
-                        className={`py-1.5 rounded-xl font-mono text-xs font-bold transition-all ${tenderedCash === preset
-                          ? 'bg-amber-400 text-slate-950 ring-2 ring-amber-300 scale-105'
-                          : 'bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800'
+                    {(['Cash', 'Wallet', 'bKash', 'Nagad'] as const).map((method) => {
+                      const isSelected = paymentMethod === method;
+                      return (
+                        <button
+                          key={method}
+                          type="button"
+                          onClick={() => {
+                            setPaymentMethod(method);
+                            if (method === 'Wallet') {
+                              setTenderedCash(totalBill);
+                            }
+                          }}
+                          className={`py-1.5 px-2 rounded-xl text-xs font-bold transition-all ${
+                            isSelected
+                              ? 'bg-gradient-to-r from-emerald-600 to-amber-500 text-slate-950 shadow-md ring-2 ring-amber-400'
+                              : 'bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800'
                           }`}
-                      >
-                        ৳{preset}
-                      </button>
-                    ))}
-                    <button
-                      onClick={() => setTenderedCash(totalBill)}
-                      className="py-1.5 rounded-xl text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30"
-                    >
-                      Exact (সমান)
-                    </button>
+                        >
+                          {method === 'Cash' ? (language === 'bn' ? 'ক্যাশ' : 'Cash')
+                            : method === 'Wallet' ? (language === 'bn' ? 'ওয়ালেট' : 'Wallet')
+                            : method}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
-                {/* Tendered Input */}
-                <div className="pt-2 flex items-center justify-between text-xs">
-                  <span className="text-slate-400">{language === 'bn' ? 'জমা পরিমাণ:' : 'Cash Tendered:'}</span>
-                  <input
-                    type="number"
-                    value={tenderedCash || ''}
-                    onChange={(e) => setTenderedCash(Number(e.target.value))}
-                    className="w-28 px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded-xl font-mono font-bold text-right text-teal-300 text-sm focus:outline-none focus:border-amber-400"
-                  />
-                </div>
-
-                {/* Change or Due Result Box */}
-                <div className={`p-3 rounded-xl border flex items-center justify-between ${dueAmount > 0
-                  ? 'bg-rose-950/40 border-rose-800 text-rose-300'
-                  : 'bg-emerald-950/60 border-emerald-500/60 text-emerald-300'
+                {/* Wallet Balance Display when Wallet Selected */}
+                {paymentMethod === 'Wallet' && (
+                  <div className={`p-3 rounded-xl border flex items-center justify-between text-xs ${
+                    selectedMember && (selectedMember.balance || 0) >= totalBill
+                      ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300'
+                      : 'bg-rose-950/40 border-rose-800 text-rose-300'
                   }`}>
-                  <div className="flex items-center gap-2">
-                    <Coins className="w-5 h-5 text-amber-400" />
-                    <span className="text-xs font-semibold">
-                      {dueAmount > 0
-                        ? (language === 'bn' ? 'বকেয়া রয়েছে (Due):' : 'Due Amount:')
-                        : (language === 'bn' ? 'গ্রাহককে ফেরত দিন (Change):' : 'Change to Return:')}
+                    <span className="flex items-center gap-1.5">
+                      <Banknote className="w-3.5 h-3.5 text-emerald-400" />
+                      {language === 'bn' ? 'কাস্টমার ওয়ালেট ব্যালেন্স:' : 'Available Wallet Balance:'}
                     </span>
+                    <span className="font-mono font-bold text-sm">৳{(selectedMember?.balance || 0).toFixed(2)}</span>
                   </div>
-                  <span className="text-lg font-mono font-bold">
-                    ৳{dueAmount > 0 ? dueAmount.toFixed(2) : changeToReturn.toFixed(2)}
-                  </span>
-                </div>
+                )}
+
+                {/* Cash Tender Presets & Input (When Cash Selected) */}
+                {paymentMethod === 'Cash' && (
+                  <>
+                    <div>
+                      <p className="text-[11px] text-slate-400 mb-2 font-medium flex items-center gap-1">
+                        <Banknote className="w-3.5 h-3.5 text-emerald-400" />
+                        {language === 'bn' ? 'গ্রাহক কত টাকার নোট দিয়েছেন?' : 'Cash Handed by Customer:'}
+                      </p>
+
+                      <div className="grid grid-cols-4 gap-1.5">
+                        {cashPresets.map((preset) => (
+                          <button
+                            key={preset}
+                            type="button"
+                            onClick={() => setTenderedCash(preset)}
+                            className={`py-1.5 rounded-xl font-mono text-xs font-bold transition-all ${tenderedCash === preset
+                              ? 'bg-amber-400 text-slate-950 ring-2 ring-amber-300 scale-105'
+                              : 'bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800'
+                              }`}
+                          >
+                            ৳{preset}
+                          </button>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() => setTenderedCash(totalBill)}
+                          className="py-1.5 rounded-xl text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30"
+                        >
+                          Exact (সমান)
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Tendered Input */}
+                    <div className="pt-2 flex items-center justify-between text-xs">
+                      <span className="text-slate-400">{language === 'bn' ? 'জমা পরিমাণ:' : 'Cash Tendered:'}</span>
+                      <input
+                        type="number"
+                        value={tenderedCash || ''}
+                        onChange={(e) => setTenderedCash(Number(e.target.value))}
+                        className="w-28 px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded-xl font-mono font-bold text-right text-teal-300 text-sm focus:outline-none focus:border-amber-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                    </div>
+
+                    {/* Change or Due Result Box */}
+                    <div className={`p-3 rounded-xl border flex items-center justify-between ${dueAmount > 0
+                      ? 'bg-rose-950/40 border-rose-800 text-rose-300'
+                      : 'bg-emerald-950/60 border-emerald-500/60 text-emerald-300'
+                      }`}>
+                      <div className="flex items-center gap-2">
+                        <Coins className="w-5 h-5 text-amber-400" />
+                        <span className="text-xs font-semibold">
+                          {dueAmount > 0
+                            ? (language === 'bn' ? 'বকেয়া রয়েছে (Due):' : 'Due Amount:')
+                            : (language === 'bn' ? 'গ্রাহককে ফেরত দিন (Change):' : 'Change to Return:')}
+                        </span>
+                      </div>
+                      <span className="text-lg font-mono font-bold">
+                        ৳{dueAmount > 0 ? dueAmount.toFixed(2) : changeToReturn.toFixed(2)}
+                      </span>
+                    </div>
+
+                    {/* Credit Change to Member Wallet Toggle */}
+                    {dueAmount === 0 && changeToReturn > 0 && selectedMember && (
+                      <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-950/80 via-slate-900 to-amber-950/40 border border-amber-500/40 flex items-center justify-between gap-3 shadow-lg">
+                        <label className="flex items-center gap-2.5 cursor-pointer text-xs select-none">
+                          <input
+                            type="checkbox"
+                            checked={depositChangeToWallet}
+                            onChange={(e) => setDepositChangeToWallet(e.target.checked)}
+                            className="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-400 bg-slate-950 border-slate-700 cursor-pointer"
+                          />
+                          <span className="text-amber-200 font-medium">
+                            {language === 'bn'
+                              ? `অবশিষ্ট ৳${changeToReturn.toFixed(2)} ক্যাটারিং ওয়ালেটে জমা করুন`
+                              : `Credit change ৳${changeToReturn.toFixed(2)} to Customer Wallet`}
+                          </span>
+                        </label>
+                        <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-lg border shrink-0 ${
+                          depositChangeToWallet
+                            ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                            : 'bg-slate-800 text-slate-400 border-slate-700'
+                        }`}>
+                          {depositChangeToWallet 
+                            ? `+৳${changeToReturn.toFixed(2)} Wallet` 
+                            : (language === 'bn' ? 'নগদ ফেরত' : 'Cash Back')}
+                        </span>
+                      </div>
+                    )}
+                  </>
+                )}
 
               </div>
 

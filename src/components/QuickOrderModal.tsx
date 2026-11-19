@@ -512,7 +512,7 @@ export default function QuickOrderModal({
                       value={newCustomPrice || ''}
                       onChange={e => setNewCustomPrice(Number(e.target.value))}
                       placeholder={language === 'bn' ? 'মূল্য' : 'Price'}
-                      className="w-24 pl-6 pr-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs font-mono font-bold text-amber-300 focus:outline-none focus:border-amber-400"
+                      className="w-24 pl-6 pr-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs font-mono font-bold text-amber-300 focus:outline-none focus:border-amber-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
                   </div>
 
@@ -532,7 +532,7 @@ export default function QuickOrderModal({
                         min="1"
                         value={newCustomQty}
                         onChange={e => setNewCustomQty(Math.max(1, parseInt(e.target.value) || 1))}
-                        className="w-8 bg-transparent text-center text-xs font-mono font-bold text-white outline-none"
+                        className="w-8 bg-transparent text-center text-xs font-mono font-bold text-white outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
                     </div>
                     <button
@@ -724,7 +724,7 @@ export default function QuickOrderModal({
                     value={paidAmount || ''}
                     onChange={(e) => setPaidAmount(Number(e.target.value))}
                     placeholder="0.00"
-                    className="w-full pl-8 pr-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-sm font-mono text-teal-300 font-bold focus:outline-none focus:border-amber-400 transition-colors"
+                    className="w-full pl-8 pr-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-sm font-mono text-teal-300 font-bold focus:outline-none focus:border-amber-400 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                 </div>
               </div>

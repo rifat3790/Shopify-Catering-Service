@@ -1265,6 +1265,15 @@ export async function deleteOrder(id: string): Promise<boolean> {
     }
   }
 
+  // 1b. If cash change was credited to user wallet, reverse that change credit upon order cancellation/delete
+  if (existing?.depositChangeToWallet && Number(existing?.changeDue) > 0 && (custUserId || custEmail || custName)) {
+    try {
+      await updateUserBalance(custUserId || custEmail || custName, Number(existing.changeDue), 'deduct');
+    } catch (dedErr) {
+      console.warn('Error reversing change deposit on order delete:', dedErr);
+    }
+  }
+
   // 2. Remove order from MongoDB Atlas
   try {
     const db = await connectToDatabase();
