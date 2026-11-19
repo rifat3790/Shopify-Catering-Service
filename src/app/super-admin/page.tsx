@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import AuthGuard from '@/components/AuthGuard';
+import LuxuryLoader from '@/components/LuxuryLoader';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { UserRecord, UserRole, SUPER_ADMIN_EMAIL } from '@/lib/types';
@@ -336,14 +337,21 @@ function SuperAdminDashboardContent() {
                 <tbody className="divide-y divide-slate-800/80">
                   {loading ? (
                     <tr>
-                      <td colSpan={6} className="py-12 text-center text-slate-400">
-                        লোড হচ্ছে...
+                      <td colSpan={6} className="py-12">
+                        <LuxuryLoader message="Loading member directory..." subMessage="Fetching dynamic balances & real accounts" />
                       </td>
                     </tr>
                   ) : filteredUsers.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="py-12 text-center text-slate-400">
-                        কোনো ডামি ব্যবহারকারী নেই। কোনো মেম্বার লগইন করলে বা উপরে &quot;+ নতুন মেম্বার যুক্ত&quot; বাটনে ক্লিক করলে রিয়েল ইউজার হিসেবে দেখা যাবে।
+                        <div className="max-w-md mx-auto space-y-2">
+                          <p className="text-white font-semibold">No real members found</p>
+                          <p className="text-xs text-slate-400">
+                            {language === 'bn' 
+                              ? 'কোনো ডামি অ্যাকাউন্ট নেই। মেম্বাররা লগইন করলে বা উপরে "+ Add User" দিয়ে যোগ করলে এখানে প্রদর্শিত হবে।' 
+                              : 'Zero dummy accounts. Real users appear dynamically upon Google/Email sign-in or via "+ Add User" above.'}
+                          </p>
+                        </div>
                       </td>
                     </tr>
                   ) : (
@@ -417,29 +425,29 @@ function SuperAdminDashboardContent() {
                             <div className="flex items-center justify-end gap-1.5">
                               <button
                                 onClick={() => openBalanceModal(u, 'add')}
-                                title="ব্যালেন্স যোগ করুন (Add Balance)"
+                                title="Add Balance (+)"
                                 className="px-2.5 py-1 rounded-lg bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/60 text-xs font-semibold transition-colors inline-flex items-center gap-1"
                               >
                                 <PlusCircle className="w-3.5 h-3.5" />
-                                <span>+ যোগ</span>
+                                <span>+ Add</span>
                               </button>
 
                               <button
                                 onClick={() => openBalanceModal(u, 'deduct')}
-                                title="ব্যালেন্স কর্তন করুন (Deduct Balance)"
+                                title="Deduct Balance (-)"
                                 className="px-2.5 py-1 rounded-lg bg-rose-950/60 hover:bg-rose-900 text-rose-300 border border-rose-800/60 text-xs font-semibold transition-colors inline-flex items-center gap-1"
                               >
                                 <MinusCircle className="w-3.5 h-3.5" />
-                                <span>- কর্তন</span>
+                                <span>- Deduct</span>
                               </button>
 
                               <button
                                 onClick={() => openBalanceModal(u, 'set')}
-                                title="সরাসরি ব্যালেন্স নির্ধারণ করুন (Edit Exact Balance)"
+                                title="Set Exact Balance (Edit)"
                                 className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 text-xs font-semibold transition-colors inline-flex items-center gap-1"
                               >
                                 <Edit3 className="w-3.5 h-3.5" />
-                                <span>এডিট</span>
+                                <span>Edit</span>
                               </button>
                             </div>
                           </td>

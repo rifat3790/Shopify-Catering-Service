@@ -306,8 +306,12 @@ export default function InvoiceModal({ order, onClose }: InvoiceModalProps) {
               disabled={downloading}
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-slate-950 font-bold text-xs shadow-md transition-all hover:scale-105 active:scale-95"
             >
-              <Download className="w-4 h-4" />
-              <span>{downloading ? 'জেনারেট হচ্ছে...' : (language === 'bn' ? 'ইমেজ ডাউনলোড (PNG)' : 'Download Image')}</span>
+              {downloading ? (
+                <div className="w-4 h-4 rounded-full border-2 border-slate-950 border-t-transparent animate-spin" />
+              ) : (
+                <Download className="w-4 h-4" />
+              )}
+              <span>{downloading ? 'Generating PNG...' : (language === 'bn' ? 'ইমেজ ডাউনলোড (PNG)' : 'Download Image (PNG)')}</span>
             </button>
 
             {/* Print Receipt Button */}

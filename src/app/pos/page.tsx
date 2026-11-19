@@ -430,8 +430,17 @@ function PosPageContent() {
                 disabled={loading || totalBill === 0}
                 className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-slate-950 font-bold text-sm shadow-xl shadow-emerald-950/60 hover:scale-[1.01] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Check className="w-5 h-5" />
-                <span>{loading ? 'সংরক্ষণ হচ্ছে...' : (language === 'bn' ? 'অর্ডার সম্পন্ন করুন ও রসিদ তৈরি' : 'Complete Order & Print')}</span>
+                {loading ? (
+                  <>
+                    <div className="w-4 h-4 rounded-full border-2 border-slate-950 border-t-transparent animate-spin" />
+                    <span>Saving Order & Printing...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-5 h-5" />
+                    <span>{language === 'bn' ? 'অর্ডার সম্পন্ন করুন ও রসিদ তৈরি' : 'Complete Order & Print'}</span>
+                  </>
+                )}
               </button>
 
             </div>

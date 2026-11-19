@@ -106,19 +106,22 @@ interface LanguageContextType {
 }
 
 const LanguageContext = createContext<LanguageContextType>({
-  language: 'bn',
+  language: 'en',
   setLanguage: () => {},
   toggleLanguage: () => {},
   t: () => '',
 });
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguage] = useState<Language>('bn');
+  const [language, setLanguage] = useState<Language>('en');
 
   useEffect(() => {
     const saved = localStorage.getItem('shopify_lang') as Language;
     if (saved === 'en' || saved === 'bn') {
       setLanguage(saved);
+    } else {
+      setLanguage('en');
+      localStorage.setItem('shopify_lang', 'en');
     }
   }, []);
 

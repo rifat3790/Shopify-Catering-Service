@@ -456,8 +456,17 @@ export default function QuickOrderModal({
               disabled={submitting}
               className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-950/50 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2"
             >
-              <Check className="w-4 h-4" />
-              <span>{submitting ? 'সংরক্ষণ হচ্ছে...' : (language === 'bn' ? 'অর্ডার কনফার্ম করুন' : 'Confirm Order')}</span>
+              {submitting ? (
+                <>
+                  <div className="w-3.5 h-3.5 rounded-full border-2 border-slate-950 border-t-transparent animate-spin" />
+                  <span>Saving...</span>
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4" />
+                  <span>{language === 'bn' ? 'অর্ডার কনফার্ম করুন' : 'Confirm Order'}</span>
+                </>
+              )}
             </button>
           </div>
         </form>

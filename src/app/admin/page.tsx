@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import AuthGuard from '@/components/AuthGuard';
+import LuxuryLoader from '@/components/LuxuryLoader';
 import MetricsOverview from '@/components/MetricsOverview';
 import LiveTrackerTable from '@/components/LiveTrackerTable';
 import QuickOrderModal from '@/components/QuickOrderModal';
@@ -309,15 +310,17 @@ function AdminPageContent() {
                 </button>
               </div>
 
-              {menuItems.length === 0 ? (
+              {loading ? (
+                <LuxuryLoader message="Loading catering dishes..." subMessage="Fetching active menu" />
+              ) : menuItems.length === 0 ? (
                 <div className="text-center py-12 rounded-3xl bg-slate-900/50 border border-slate-800 text-slate-400">
                   <Utensils className="w-8 h-8 mx-auto mb-2 text-slate-600" />
-                  <p>মেনুতে এখনও কোনো খাবার যুক্ত করা হয়নি।</p>
+                  <p>{language === 'bn' ? 'মেনুতে এখনও কোনো খাবার যুক্ত করা হয়নি।' : 'No dishes added to the menu yet.'}</p>
                   <button
                     onClick={() => setIsDishModalOpen(true)}
                     className="mt-3 px-4 py-2 rounded-xl bg-emerald-600 text-slate-950 font-bold text-xs"
                   >
-                    + প্রথম খাবার যুক্ত করুন
+                    + {language === 'bn' ? 'প্রথম খাবার যুক্ত করুন' : 'Add First Dish'}
                   </button>
                 </div>
               ) : (
@@ -361,10 +364,12 @@ function AdminPageContent() {
                 <div>
                   <h3 className="font-serif font-bold text-lg text-white flex items-center gap-2">
                     <Coins className="w-5 h-5 text-amber-400" />
-                    <span>মেম্বারদের ক্যাটারিং ব্যালেন্স কন্ট্রোল (Add, Deduct, Edit)</span>
+                    <span>Member Catering Balances (Add, Deduct, Edit)</span>
                   </h3>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    অ্যাডমিন হিসেবে যেকোনো মেম্বারের অ্যাকাউন্টে ব্যালেন্স যোগ করতে, কাটতে বা সরাসরি এডিট করতে পারবেন
+                    {language === 'bn' 
+                      ? 'অ্যাডমিন হিসেবে যেকোনো মেম্বারের অ্যাকাউন্টে ব্যালেন্স যোগ করতে, কাটতে বা সরাসরি এডিট করতে পারবেন'
+                      : 'As an admin, you can add funds, deduct spent balances, or set exact amounts for any member.'}
                   </p>
                 </div>
 
@@ -380,9 +385,13 @@ function AdminPageContent() {
                 </div>
               </div>
 
-              {filteredMembers.length === 0 ? (
+              {loading ? (
+                <LuxuryLoader message="Loading member balances..." subMessage="Fetching dynamic ledger" />
+              ) : filteredMembers.length === 0 ? (
                 <div className="text-center py-12 text-slate-400 text-xs">
-                  কোনো মেম্বার অ্যাকাউন্ট পাওয়া যায়নি। মেম্বাররা লগইন করলে তাদের লাইভ ব্যালেন্স এখানে দেখা যাবে।
+                  {language === 'bn' 
+                    ? 'কোনো মেম্বার অ্যাকাউন্ট পাওয়া যায়নি। মেম্বাররা লগইন করলে তাদের লাইভ ব্যালেন্স এখানে দেখা যাবে।'
+                    : 'No real members found yet. Real users appear dynamically upon Google/Email sign-in.'}
                 </div>
               ) : (
                 <div className="w-full overflow-x-auto">
@@ -425,19 +434,19 @@ function AdminPageContent() {
                                 onClick={() => openBalanceModal(m, 'add')}
                                 className="px-2.5 py-1 rounded-lg bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/60 text-xs font-semibold"
                               >
-                                + যোগ
+                                + Add
                               </button>
                               <button
                                 onClick={() => openBalanceModal(m, 'deduct')}
                                 className="px-2.5 py-1 rounded-lg bg-rose-950/60 hover:bg-rose-900 text-rose-300 border border-rose-800/60 text-xs font-semibold"
                               >
-                                - কর্তন
+                                - Deduct
                               </button>
                               <button
                                 onClick={() => openBalanceModal(m, 'set')}
                                 className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 text-xs font-semibold"
                               >
-                                এডিট
+                                Edit
                               </button>
                             </div>
                           </td>

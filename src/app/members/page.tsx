@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import AuthGuard from '@/components/AuthGuard';
+import LuxuryLoader from '@/components/LuxuryLoader';
 import QuickOrderModal from '@/components/QuickOrderModal';
 import { useLanguage } from '@/context/LanguageContext';
 import { UserRecord } from '@/lib/types';
@@ -254,12 +255,12 @@ function MembersPageContent() {
 
         {/* Member Grid Cards */}
         {loading ? (
-          <div className="text-center py-16 text-slate-400 text-xs">
-            মেম্বার লোড হচ্ছে...
-          </div>
+          <LuxuryLoader message="Loading team members..." subMessage="Fetching dynamic balances & profiles" />
         ) : filteredMembers.length === 0 ? (
           <div className="text-center py-16 text-slate-400 text-xs">
-            কোনো মেম্বার অ্যাকাউন্ট পাওয়া যায়নি। মেম্বাররা লগইন করলে বা উপরে &quot;+ নতুন মেম্বার যুক্ত&quot; বাটনে ক্লিক করলে দেখতে পাবেন।
+            {language === 'bn' 
+              ? 'কোনো মেম্বার অ্যাকাউন্ট পাওয়া যায়নি। মেম্বাররা লগইন করলে বা উপরে "+ Add Member" বাটনে ক্লিক করলে দেখতে পাবেন।'
+              : 'Zero dummy accounts. Real users appear automatically upon login or via "+ Add Member" above.'}
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -305,21 +306,21 @@ function MembersPageContent() {
                       className="py-1.5 px-1 rounded-lg bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/60 font-semibold text-[11px] flex items-center justify-center gap-0.5"
                     >
                       <PlusCircle className="w-3 h-3" />
-                      <span>+ যোগ</span>
+                      <span>+ Add</span>
                     </button>
                     <button
                       onClick={() => openBalanceModal(member, 'deduct')}
                       className="py-1.5 px-1 rounded-lg bg-rose-950/60 hover:bg-rose-900 text-rose-300 border border-rose-800/60 font-semibold text-[11px] flex items-center justify-center gap-0.5"
                     >
                       <MinusCircle className="w-3 h-3" />
-                      <span>- কাটুন</span>
+                      <span>- Deduct</span>
                     </button>
                     <button
                       onClick={() => openBalanceModal(member, 'set')}
                       className="py-1.5 px-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 font-semibold text-[11px] flex items-center justify-center gap-0.5"
                     >
                       <Edit3 className="w-3 h-3" />
-                      <span>এডিট</span>
+                      <span>Edit</span>
                     </button>
                   </div>
 

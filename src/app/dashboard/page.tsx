@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { Sparkles } from 'lucide-react';
+import LuxuryLoader from '@/components/LuxuryLoader';
 
 export default function DashboardRedirect() {
   const router = useRouter();
@@ -24,11 +24,10 @@ export default function DashboardRedirect() {
   }, [user, loading, router]);
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400">
-      <div className="text-center space-y-3">
-        <div className="w-8 h-8 border-2 border-emerald-500 border-t-amber-400 rounded-full animate-spin mx-auto" />
-        <p className="text-xs">Connecting to authorized catering portal...</p>
-      </div>
-    </div>
+    <LuxuryLoader 
+      size="fullscreen" 
+      message="Routing to authorized dashboard..." 
+      subMessage="Role-based clearance verified"
+    />
   );
 }

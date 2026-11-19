@@ -46,17 +46,36 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<AuthUser | null>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('shopify_cached_user');
+        if (cached) return JSON.parse(cached);
+      } catch (e) {
+        // ignore parse error
+      }
+    }
+    return null;
+  });
+  const [loading, setLoading] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return !localStorage.getItem('shopify_cached_user');
+    }
+    return true;
+  });
 
-  // Sync user with MongoDB backend
+  // Sync user with MongoDB backend with low-latency timeout
   const syncWithBackend = async (firebaseUser: User): Promise<AuthUser> => {
     const isSuper = firebaseUser.email?.toLowerCase().trim() === SUPER_ADMIN_EMAIL.toLowerCase();
 
     try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 3500);
+
       const res = await fetch('/api/users/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({
           uid: firebaseUser.uid,
           name: firebaseUser.displayName,
@@ -64,12 +83,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           avatar: firebaseUser.photoURL,
         }),
       });
+      clearTimeout(timer);
 
       if (res.ok) {
         const json = await res.json();
         if (json.success && json.data) {
           const dbUser = json.data;
-          return {
+          const freshUser: AuthUser = {
             uid: firebaseUser.uid,
             email: firebaseUser.email,
             displayName: dbUser.name || firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Member',
@@ -80,14 +100,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             totalSpent: Number(dbUser.totalSpent) || 0,
             department: dbUser.department || (isSuper ? 'Executive Management' : 'Shopify Member'),
           };
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('shopify_cached_user', JSON.stringify(freshUser));
+          }
+          return freshUser;
         }
       }
     } catch (e) {
-      console.warn('Backend sync error:', e);
+      console.warn('Backend sync error (resilient fallback active):', e);
     }
 
     // Local fallback if backend is unreachable
-    return {
+    const fallbackUser: AuthUser = {
       uid: firebaseUser.uid,
       email: firebaseUser.email,
       displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Member',
@@ -98,6 +122,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       totalSpent: 0,
       department: isSuper ? 'Executive Management' : 'Shopify Member',
     };
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('shopify_cached_user', JSON.stringify(fallbackUser));
+    }
+    return fallbackUser;
   };
 
   const refreshUser = async () => {
@@ -115,12 +143,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: User | null) => {
       if (firebaseUser && firebaseUser.email) {
+        const isSuper = firebaseUser.email?.toLowerCase().trim() === SUPER_ADMIN_EMAIL.toLowerCase();
+        // Optimistic fast state
+        setUser(prev => prev || {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Member',
+          photoURL: firebaseUser.photoURL,
+          role: isSuper ? 'super_admin' : 'user',
+          balance: 0,
+          currentDue: 0,
+          totalSpent: 0,
+        });
+        setLoading(false);
+
+        // Background sync with database
         const syncedUser = await syncWithBackend(firebaseUser);
         setUser(syncedUser);
       } else {
         setUser(null);
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('shopify_cached_user');
+        }
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => unsubscribe();
@@ -177,6 +223,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('shopify_demo_user');
+      localStorage.removeItem('shopify_cached_user');
     }
     await signOut(auth);
     setUser(null);

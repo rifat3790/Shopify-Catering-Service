@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import AuthGuard from '@/components/AuthGuard';
+import LuxuryLoader from '@/components/LuxuryLoader';
 import InvoiceModal from '@/components/InvoiceModal';
 import QuickOrderModal from '@/components/QuickOrderModal';
 import { useAuth } from '@/context/AuthContext';
@@ -244,9 +245,7 @@ function UserDashboardContent() {
 
             <div className="p-4 sm:p-6 space-y-3">
               {loading ? (
-                <div className="text-center py-12 text-slate-400 text-xs">
-                  লোড হচ্ছে...
-                </div>
+                <LuxuryLoader message="Loading your personal orders..." subMessage="Fetching dynamic ledger" />
               ) : myOrders.length === 0 ? (
                 <div className="text-center py-12 text-slate-400">
                   <UtensilsCrossed className="w-8 h-8 mx-auto mb-2 text-slate-600" />
@@ -255,7 +254,7 @@ function UserDashboardContent() {
                     onClick={() => setIsOrderModalOpen(true)}
                     className="mt-3 px-4 py-2 rounded-xl bg-emerald-600 text-slate-950 font-bold text-xs"
                   >
-                    + খাবার অর্ডার করুন
+                    + {language === 'bn' ? 'খাবার অর্ডার করুন' : 'Order Food Now'}
                   </button>
                 </div>
               ) : (

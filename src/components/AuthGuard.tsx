@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { UserRole } from '@/lib/types';
 import Link from 'next/link';
-import { ShieldAlert, Lock, ArrowRight, Sparkles } from 'lucide-react';
+import { ShieldAlert, Lock, ArrowRight } from 'lucide-react';
+import LuxuryLoader from '@/components/LuxuryLoader';
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -22,23 +23,14 @@ export default function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
     }
   }, [user, loading, router]);
 
-  // Loading state
+  // Luxury Fast Loading state
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
-        <div className="text-center space-y-4 max-w-sm p-8 rounded-3xl bg-slate-900/80 border border-emerald-900/60 shadow-2xl backdrop-blur-xl">
-          <div className="relative w-14 h-14 mx-auto">
-            <div className="absolute inset-0 rounded-full border-2 border-emerald-500/20 border-t-emerald-400 animate-spin" />
-            <div className="w-full h-full flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-amber-400" />
-            </div>
-          </div>
-          <div>
-            <h3 className="font-serif font-bold text-white text-base">Shopify Catering</h3>
-            <p className="text-xs text-emerald-400/90 mt-1">নিরাপদ অ্যাক্সেস যাচাই করা হচ্ছে...</p>
-          </div>
-        </div>
-      </div>
+      <LuxuryLoader 
+        size="fullscreen" 
+        message="Authenticating session..." 
+        subMessage="Fast luxury access verification"
+      />
     );
   }
 
@@ -46,20 +38,20 @@ export default function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
   if (!user) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 text-slate-100">
-        <div className="text-center space-y-4 max-w-md p-8 rounded-3xl bg-slate-900/90 border border-rose-900/60 shadow-2xl">
+        <div className="text-center space-y-4 max-w-md p-8 rounded-3xl bg-slate-900/90 border border-rose-900/60 shadow-2xl backdrop-blur-xl">
           <div className="w-12 h-12 rounded-2xl bg-rose-950 border border-rose-700/60 flex items-center justify-center mx-auto text-rose-400">
             <Lock className="w-6 h-6" />
           </div>
-          <h2 className="font-serif font-bold text-xl text-white">লগইন প্রয়োজন (Login Required)</h2>
+          <h2 className="font-serif font-bold text-xl text-white">Authentication Required</h2>
           <p className="text-xs text-slate-400 leading-relaxed">
-            ড্যাশবোর্ড ব্যবহারের জন্য অনুগ্রহ করে আপনার অ্যাকাউন্টে লগইন করুন।
+            Please sign in to your catering account to access this private dashboard.
           </p>
           <div className="pt-2">
             <Link
               href="/login"
               className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 text-slate-950 font-bold text-xs shadow-lg hover:scale-105 transition-all"
             >
-              <span>লগইন পেজে যান</span>
+              <span>Go to Sign In</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
@@ -82,11 +74,11 @@ export default function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
 
           <div>
             <h2 className="font-serif font-bold text-xl text-white">
-              {isSuperOnly ? 'শুধুমাত্র সুপার অ্যাডমিন অ্যাক্সেস' : (isAdminOnly ? 'শুধুমাত্র অ্যাডমিন অ্যাক্সেস' : 'অননুমোদিত অ্যাক্সেস')}
+              {isSuperOnly ? 'Super Admin Access Only' : (isAdminOnly ? 'Admin Access Required' : 'Access Restricted')}
             </h2>
-            <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-              আপনার বর্তমান রোল (<strong className="text-amber-300 uppercase">{user.role}</strong>) দিয়ে এই ড্যাশবোর্ড দেখা সম্ভব নয়।
-              {isSuperOnly && ' এই পেজটি শুধুমাত্র সুপার অ্যাডমিন mdrifayethossen@gmail.com দেখতে পারবেন।'}
+            <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
+              Your account role (<strong className="text-amber-300 uppercase">{user.role}</strong>) does not have clearance for this command center.
+              {isSuperOnly && ' This portal is strictly reserved for the Super Admin.'}
             </p>
           </div>
 
@@ -95,14 +87,14 @@ export default function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
               href="/user"
               className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold text-xs transition-colors"
             >
-              আমার ড্যাশবোর্ডে যান (User Hub)
+              Go to My User Hub
             </Link>
             {user.role === 'admin' && (
               <Link
                 href="/admin"
                 className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs font-bold transition-colors"
               >
-                অ্যাডমিন ড্যাশবোর্ড
+                Admin Dashboard
               </Link>
             )}
           </div>

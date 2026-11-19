@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useLanguage } from '@/context/LanguageContext';
 import { OrderData } from '@/lib/types';
+import LuxuryLoader from '@/components/LuxuryLoader';
 import { 
   Search, 
   Filter, 
@@ -212,7 +213,13 @@ export default function LiveTrackerTable({
 
           {/* Table Body */}
           <tbody className="divide-y divide-slate-800/80 text-sm">
-            {filteredOrders.length === 0 ? (
+            {isLoading ? (
+              <tr>
+                <td colSpan={7} className="py-12">
+                  <LuxuryLoader message="Loading live orders..." subMessage="Synchronizing kitchen tracker" />
+                </td>
+              </tr>
+            ) : filteredOrders.length === 0 ? (
               <tr>
                 <td colSpan={7} className="py-12 text-center text-slate-400">
                   <Utensils className="w-8 h-8 mx-auto mb-2 text-slate-600" />

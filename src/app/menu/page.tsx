@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import AuthGuard from '@/components/AuthGuard';
+import LuxuryLoader from '@/components/LuxuryLoader';
 import QuickOrderModal from '@/components/QuickOrderModal';
 import InvoiceModal from '@/components/InvoiceModal';
 import { useAuth } from '@/context/AuthContext';
@@ -263,20 +264,24 @@ function MenuPageContent() {
 
         {/* Menu Grid / Empty State */}
         {loading ? (
-          <div className="text-center py-20 text-slate-400 text-xs">
-            মেনু লোড হচ্ছে...
-          </div>
+          <LuxuryLoader message="Loading catering dishes..." subMessage="Fetching available menu items" />
         ) : filteredItems.length === 0 ? (
           <div className="text-center py-20 rounded-3xl bg-slate-900/40 border border-slate-800/80 p-8 max-w-lg mx-auto space-y-4">
             <div className="w-16 h-16 rounded-3xl bg-slate-900 border border-slate-700 flex items-center justify-center mx-auto text-amber-400">
               <Utensils className="w-8 h-8" />
             </div>
             <div>
-              <h3 className="font-serif font-bold text-white text-lg">মেনুতে কোনো খাবার নেই</h3>
+              <h3 className="font-serif font-bold text-white text-lg">
+                {language === 'bn' ? 'মেনুতে কোনো খাবার নেই' : 'No Menu Items Available'}
+              </h3>
               <p className="text-xs text-slate-400 mt-1 leading-relaxed">
                 {isSuperOrAdmin
-                  ? 'মেনু বর্তমানে খালি। নতুন খাবার ও মূল্য নির্ধারণ করতে উপরের "+ নতুন খাবার যুক্ত করুন" বাটনে ক্লিক করুন।'
-                  : 'বর্তমানে কোনো খাবার তালিকায় নেই। কিচেন অ্যাডমিন খাবার যুক্ত করলে এখানে দেখতে পাবেন।'}
+                  ? (language === 'bn'
+                      ? 'মেনু বর্তমানে খালি। নতুন খাবার ও মূল্য নির্ধারণ করতে উপরের "+ নতুন খাবার যুক্ত করুন" বাটনে ক্লিক করুন।'
+                      : 'The menu is currently empty. Click "+ Add Dish" above to create dishes and set prices.')
+                  : (language === 'bn'
+                      ? 'বর্তমানে কোনো খাবার তালিকায় নেই। কিচেন অ্যাডমিন খাবার যুক্ত করলে এখানে দেখতে পাবেন।'
+                      : 'No dishes are listed right now. Check back shortly once the kitchen updates the menu.')}
               </p>
             </div>
             {isSuperOrAdmin && (
@@ -284,7 +289,7 @@ function MenuPageContent() {
                 onClick={handleOpenAddDish}
                 className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 text-slate-950 font-bold text-xs shadow-lg"
               >
-                + প্রথম খাবার যুক্ত করুন
+                + {language === 'bn' ? 'প্রথম খাবার যুক্ত করুন' : 'Add First Dish'}
               </button>
             )}
           </div>
