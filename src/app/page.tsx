@@ -27,7 +27,7 @@ export default function RootPage() {
     <LuxuryLoader 
       size="fullscreen" 
       message="Connecting to your dashboard..." 
-      subMessage="Fast luxury authentication"
+      subMessage="Fast authentication"
     />
   );
 }

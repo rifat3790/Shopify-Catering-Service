@@ -18,12 +18,16 @@ export interface AuthUser {
   uid: string;
   email: string | null;
   displayName: string | null;
+  name?: string;
+  username?: string;
   photoURL: string | null;
+  avatar?: string;
   role: UserRole;
   balance: number;
   currentDue: number;
   totalSpent: number;
   department?: string;
+  phone?: string;
 }
 
 interface AuthContextType {
@@ -34,6 +38,7 @@ interface AuthContextType {
   signUpWithEmail: (e: string, p: string, name?: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  updateLocalUserProfile: (data: Partial<AuthUser>) => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -44,6 +49,7 @@ const AuthContext = createContext<AuthContextType>({
   signUpWithEmail: async () => {},
   logout: async () => {},
   refreshUser: async () => {},
+  updateLocalUserProfile: () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -90,16 +96,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const json = await res.json();
         if (json.success && json.data) {
           const dbUser = json.data;
+          const defaultUsername = '@' + (firebaseUser.email || 'member').split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '');
+          const nameVal = dbUser.name || firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Member';
+          const avatarVal = dbUser.avatar || firebaseUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(nameVal)}&background=047857&color=fff`;
           const freshUser: AuthUser = {
             uid: firebaseUser.uid,
             email: firebaseUser.email,
-            displayName: dbUser.name || firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Member',
-            photoURL: dbUser.avatar || firebaseUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(dbUser.name || 'User')}&background=047857&color=fff`,
+            displayName: nameVal,
+            name: nameVal,
+            username: dbUser.username || defaultUsername,
+            photoURL: avatarVal,
+            avatar: avatarVal,
             role: isSuper ? 'super_admin' : (dbUser.role || 'user'),
             balance: Number(dbUser.balance) || 0,
             currentDue: Number(dbUser.currentDue) || 0,
             totalSpent: Number(dbUser.totalSpent) || 0,
             department: dbUser.department || (isSuper ? 'Executive Management' : 'Shopify Member'),
+            phone: dbUser.phone || '',
           };
           if (typeof window !== 'undefined') {
             localStorage.setItem('shopify_cached_user', JSON.stringify(freshUser));
@@ -112,16 +125,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Local fallback if backend is unreachable
+    const fallbackUsername = '@' + (firebaseUser.email || 'member').split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '');
+    const fallbackName = firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Member';
+    const fallbackAvatar = firebaseUser.photoURL || `https://ui-avatars.com/api/?name=Member&background=047857&color=fff`;
     const fallbackUser: AuthUser = {
       uid: firebaseUser.uid,
       email: firebaseUser.email,
-      displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Member',
-      photoURL: firebaseUser.photoURL || `https://ui-avatars.com/api/?name=Member&background=047857&color=fff`,
+      displayName: fallbackName,
+      name: fallbackName,
+      username: fallbackUsername,
+      photoURL: fallbackAvatar,
+      avatar: fallbackAvatar,
       role: isSuper ? 'super_admin' : 'user',
       balance: 0,
       currentDue: 0,
       totalSpent: 0,
       department: isSuper ? 'Executive Management' : 'Shopify Member',
+      phone: '',
     };
     if (typeof window !== 'undefined') {
       localStorage.setItem('shopify_cached_user', JSON.stringify(fallbackUser));
@@ -232,6 +252,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const updateLocalUserProfile = (data: Partial<AuthUser>) => {
+    setUser(prev => {
+      if (!prev) return null;
+      const updated = { ...prev, ...data };
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('shopify_cached_user', JSON.stringify(updated));
+      }
+      return updated;
+    });
+  };
+
   const logout = async () => {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('shopify_demo_user');
@@ -251,6 +282,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signUpWithEmail,
         logout,
         refreshUser,
+        updateLocalUserProfile,
       }}
     >
       {children}

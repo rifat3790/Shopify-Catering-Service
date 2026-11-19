@@ -29,7 +29,7 @@ export default function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
       <LuxuryLoader 
         size="fullscreen" 
         message="Authenticating session..." 
-        subMessage="Fast luxury access verification"
+        subMessage="Fast access verification"
       />
     );
   }

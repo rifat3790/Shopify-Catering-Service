@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
+import ProfileModal from './ProfileModal';
 import { 
   UtensilsCrossed, 
   LayoutDashboard, 
@@ -23,7 +24,8 @@ import {
   X,
   ShieldCheck,
   LogIn,
-  MessageSquare
+  MessageSquare,
+  Edit3
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -35,6 +37,7 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
   const { user, logout } = useAuth();
   const { language, toggleLanguage } = useLanguage();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   const isSuper = user?.role === 'super_admin';
   const isAdmin = user?.role === 'admin' || isSuper;
@@ -137,30 +140,58 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
       {/* Dynamic User Balance Card */}
       <div className="px-5 py-4">
         {user ? (
-          <Link
-            href="/user"
-            className="block p-3.5 rounded-2xl bg-gradient-to-br from-emerald-950/80 via-slate-900 to-slate-950 border border-emerald-700/50 shadow-lg hover:border-amber-400/60 transition-all group"
-          >
-            <div className="flex items-center justify-between text-[11px] text-slate-400 mb-1">
-              <span className="flex items-center gap-1 font-semibold text-emerald-300">
-                <Wallet className="w-3.5 h-3.5 text-amber-400" />
-                <span>{language === 'bn' ? 'আমার ব্যালেন্স' : 'My Balance'}</span>
-              </span>
-              <span className="text-[9px] uppercase font-bold px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                {user.role}
-              </span>
+          <div className="p-3.5 rounded-2xl bg-gradient-to-br from-emerald-950/80 via-slate-900 to-slate-950 border border-emerald-700/50 shadow-lg transition-all group space-y-2.5">
+            {/* User Profile Header with @username and Edit Profile */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <img
+                  src={user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || 'User')}&background=047857&color=fff`}
+                  alt="Profile"
+                  className="w-8 h-8 rounded-full object-cover ring-2 ring-emerald-500/40 shrink-0"
+                />
+                <div className="min-w-0">
+                  <p className="font-bold text-xs text-white truncate leading-tight">
+                    {user.displayName || 'Member'}
+                  </p>
+                  <p className="text-[10px] text-amber-400 font-mono truncate leading-tight">
+                    {user.username || `@${user.email?.split('@')[0] || 'user'}`}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsProfileModalOpen(true)}
+                title={language === 'bn' ? 'প্রোফাইল এডিট করুন' : 'Edit Profile'}
+                className="p-1.5 rounded-lg bg-slate-800 hover:bg-emerald-900/60 text-slate-300 hover:text-amber-300 border border-slate-700 transition-all hover:scale-105 shrink-0"
+              >
+                <Edit3 className="w-3 h-3" />
+              </button>
             </div>
 
-            <div className="flex items-baseline justify-between">
-              <span className="text-xl font-extrabold font-mono text-emerald-400 group-hover:text-amber-300 transition-colors">
-                ৳{(user.balance || 0).toFixed(2)}
-              </span>
-              <span className="text-[11px] text-slate-400 flex items-center gap-0.5 group-hover:text-white truncate max-w-[110px]">
-                <span className="truncate">{user.displayName || 'Member'}</span>
-                <ChevronRight className="w-3 h-3 text-amber-400 shrink-0" />
-              </span>
-            </div>
-          </Link>
+            {/* Wallet Balance Link */}
+            <Link
+              href="/user"
+              className="flex items-center justify-between pt-2 border-t border-slate-800/80 hover:opacity-90 transition-opacity"
+            >
+              <div>
+                <span className="text-[10px] font-semibold text-emerald-300 uppercase tracking-wider flex items-center gap-1">
+                  <Wallet className="w-3 h-3 text-amber-400" />
+                  <span>{language === 'bn' ? 'ব্যালেন্স' : 'Balance'}</span>
+                </span>
+                <span className="text-lg font-extrabold font-mono text-emerald-400 group-hover:text-amber-300 transition-colors">
+                  ৳{(user.balance || 0).toFixed(2)}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1">
+                <span className="text-[9px] uppercase font-bold px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  {user.role}
+                </span>
+                <ChevronRight className="w-3.5 h-3.5 text-amber-400" />
+              </div>
+            </Link>
+          </div>
         ) : (
           <Link
             href="/login"
@@ -334,6 +365,12 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
           />
         </div>
       )}
+
+      {/* User Profile Settings Modal */}
+      <ProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+      />
     </>
   );
 }

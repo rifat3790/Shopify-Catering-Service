@@ -542,7 +542,13 @@ function SuperAdminDashboardContent() {
                                     </span>
                                   )}
                                 </div>
-                                <p className="text-[11px] text-slate-400 font-mono">{u.email}</p>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[10px] text-amber-300 font-mono font-semibold">
+                                    {u.username || `@${u.email.split('@')[0]}`}
+                                  </span>
+                                  <span className="text-slate-600">•</span>
+                                  <p className="text-[11px] text-slate-400 font-mono">{u.email}</p>
+                                </div>
                               </div>
                             </div>
                           </td>

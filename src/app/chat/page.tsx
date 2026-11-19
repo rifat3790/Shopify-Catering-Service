@@ -47,7 +47,7 @@ function ChatHubContent() {
   const [mobileView, setMobileView] = useState<'list' | 'chat'>('list');
 
   // Directory state
-  const [activeTab, setActiveTab] = useState<'members' | 'groups'>('members');
+  const [activeTab, setActiveTab] = useState<'active' | 'members' | 'groups'>('active');
   const [members, setMembers] = useState<UserRecord[]>([]);
   const [groups, setGroups] = useState<ChatGroup[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,7 +90,7 @@ function ChatHubContent() {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [togglingBlock, setTogglingBlock] = useState(false);
 
-  // Send periodic presence heartbeat
+  // Send periodic presence heartbeat (every 15s)
   useEffect(() => {
     if (!user) return;
 
@@ -103,7 +103,7 @@ function ChatHubContent() {
     };
 
     sendHeartbeat();
-    const interval = setInterval(sendHeartbeat, 25000);
+    const interval = setInterval(sendHeartbeat, 15000);
 
     return () => {
       clearInterval(interval);
@@ -160,7 +160,7 @@ function ChatHubContent() {
 
   useEffect(() => {
     loadDirectory();
-    const interval = setInterval(loadDirectory, 10000);
+    const interval = setInterval(loadDirectory, 5000);
     return () => clearInterval(interval);
   }, [user]);
 
@@ -182,7 +182,23 @@ function ChatHubContent() {
       if (res.ok) {
         const json = await res.json();
         if (json.success && json.data) {
-          setMessages(json.data);
+          const serverMsgs: ChatMessage[] = json.data;
+          // Merge with any local pending optimistic messages so messages NEVER vanish
+          setMessages(prev => {
+            const pending = prev.filter(m => m.id.startsWith('temp-'));
+            if (pending.length === 0) return serverMsgs;
+
+            const combined = [...serverMsgs];
+            for (const p of pending) {
+              const alreadyExists = serverMsgs.some(
+                s => s.senderId === p.senderId && s.text === p.text && Math.abs(new Date(s.createdAt).getTime() - new Date(p.createdAt).getTime()) < 15000
+              );
+              if (!alreadyExists) {
+                combined.push(p);
+              }
+            }
+            return combined;
+          });
         }
       }
     } catch (err) {
@@ -192,7 +208,7 @@ function ChatHubContent() {
 
   useEffect(() => {
     fetchMessages();
-    const msgInterval = setInterval(fetchMessages, 3500);
+    const msgInterval = setInterval(fetchMessages, 1500); // 1.5s realtime message sync
     return () => clearInterval(msgInterval);
   }, [selectedMember, selectedGroup, user]);
 
@@ -275,8 +291,9 @@ function ChatHubContent() {
       const json = await res.json();
       if (!res.ok || !json.success) {
         setSendError(json.error || 'Failed to send message');
-      } else {
-        fetchMessages();
+      } else if (json.data) {
+        // Swap temp ID with real persistent ID instantly
+        setMessages(prev => prev.map(m => m.id === optimisticMsg.id ? json.data : m));
       }
     } catch (err: any) {
       setSendError(err.message || 'Network error');
@@ -531,14 +548,28 @@ function ChatHubContent() {
 
   // Filtered members list (ALL registered users except current user)
   const otherMembers = members.filter(m => m.email.toLowerCase() !== user?.email?.toLowerCase());
+
+  // Active members (online now or seen within 3 minutes)
+  const activeMembers = otherMembers.filter(m => 
+    Boolean(m.isOnline || (m.lastSeen && (Date.now() - new Date(m.lastSeen).getTime() < 3 * 60 * 1000)))
+  );
+
+  const filteredActiveMembers = activeMembers.filter(m => 
+    (m.name || '').toLowerCase().includes(search.toLowerCase()) || 
+    (m.username || '').toLowerCase().includes(search.toLowerCase()) ||
+    (m.department || '').toLowerCase().includes(search.toLowerCase()) ||
+    (m.email || '').toLowerCase().includes(search.toLowerCase())
+  );
+
   const filteredMembers = otherMembers.filter(m => 
-    m.name.toLowerCase().includes(search.toLowerCase()) || 
-    m.department.toLowerCase().includes(search.toLowerCase()) ||
-    m.email.toLowerCase().includes(search.toLowerCase())
+    (m.name || '').toLowerCase().includes(search.toLowerCase()) || 
+    (m.username || '').toLowerCase().includes(search.toLowerCase()) ||
+    (m.department || '').toLowerCase().includes(search.toLowerCase()) ||
+    (m.email || '').toLowerCase().includes(search.toLowerCase())
   );
 
   const filteredGroups = groups.filter(g =>
-    g.name.toLowerCase().includes(search.toLowerCase()) ||
+    (g.name || '').toLowerCase().includes(search.toLowerCase()) ||
     (g.description || '').toLowerCase().includes(search.toLowerCase())
   );
 
@@ -601,8 +632,19 @@ function ChatHubContent() {
                 />
               </div>
 
-              {/* Telegram-style Segment Tabs */}
-              <div className="grid grid-cols-2 gap-1 p-1 bg-slate-900 rounded-xl border border-slate-800/80 text-xs font-semibold">
+              {/* Telegram-style 3 Segment Tabs: Active | Members | Groups */}
+              <div className="grid grid-cols-3 gap-1 p-1 bg-slate-900 rounded-xl border border-slate-800/80 text-[11px] font-semibold">
+                <button
+                  onClick={() => setActiveTab('active')}
+                  className={`py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                    activeTab === 'active'
+                      ? 'bg-emerald-500 text-slate-950 font-bold shadow'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                  <span>Active ({activeMembers.length})</span>
+                </button>
                 <button
                   onClick={() => setActiveTab('members')}
                   className={`py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
@@ -611,7 +653,7 @@ function ChatHubContent() {
                       : 'text-slate-400 hover:text-white'
                   }`}
                 >
-                  <Users className="w-3.5 h-3.5" />
+                  <Users className="w-3 h-3 shrink-0" />
                   <span>Members ({otherMembers.length})</span>
                 </button>
                 <button
@@ -622,7 +664,7 @@ function ChatHubContent() {
                       : 'text-slate-400 hover:text-white'
                   }`}
                 >
-                  <MessageSquare className="w-3.5 h-3.5" />
+                  <MessageSquare className="w-3 h-3 shrink-0" />
                   <span>Groups ({groups.length})</span>
                 </button>
               </div>
@@ -634,6 +676,88 @@ function ChatHubContent() {
                 <div className="py-12">
                   <LuxuryLoader message="Loading team directory..." size="sm" />
                 </div>
+              ) : activeTab === 'active' ? (
+                filteredActiveMembers.length === 0 ? (
+                  <div className="p-8 text-center text-xs text-slate-400 space-y-2">
+                    <div className="w-10 h-10 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-emerald-400 mx-auto">
+                      <span className="w-2.5 h-2.5 rounded-full bg-slate-600" />
+                    </div>
+                    <p className="font-semibold text-slate-300">No other colleagues online right now</p>
+                    <p className="text-[11px] text-slate-500">Colleagues will automatically appear online here in real time.</p>
+                  </div>
+                ) : (
+                  filteredActiveMembers.map(m => {
+                    const isSelected = selectedMember?.id === m.id && !selectedGroup;
+                    return (
+                      <div
+                        key={m.id}
+                        onClick={() => {
+                          setSelectedMember(m);
+                          setSelectedGroup(null);
+                          setMobileView('chat');
+                        }}
+                        className={`p-3.5 flex items-center justify-between gap-3 cursor-pointer transition-all ${
+                          isSelected
+                            ? 'bg-emerald-950/60 border-l-4 border-amber-400 text-white'
+                            : 'hover:bg-slate-900/60 text-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="relative shrink-0">
+                            <img
+                              src={m.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(m.name)}&background=047857&color=fff`}
+                              alt={m.name}
+                              className="w-10 h-10 rounded-full object-cover ring-2 ring-emerald-500/50"
+                            />
+                            <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 border-2 border-slate-950 animate-pulse" />
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5">
+                              <p className="font-bold text-xs text-white truncate">{m.name}</p>
+                              <span className="text-[10px] font-mono text-amber-300 font-semibold truncate">
+                                {m.username || `@${m.email.split('@')[0]}`}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-slate-400 truncate">{m.department}</p>
+                            <span className="text-[10px] text-emerald-400 font-medium flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                              Active Now
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* 1-Click Message & Call Actions */}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedMember(m);
+                              setSelectedGroup(null);
+                              setMobileView('chat');
+                            }}
+                            title={`Message ${m.name}`}
+                            className="p-2 rounded-xl bg-slate-900 hover:bg-emerald-600 text-slate-300 hover:text-slate-950 border border-slate-800 transition-all hover:scale-105"
+                          >
+                            <MessageSquare className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedMember(m);
+                              setSelectedGroup(null);
+                              setIsAudioCallOpen(true);
+                            }}
+                            title={`Audio Call ${m.name}`}
+                            className="p-2 rounded-xl bg-slate-900 hover:bg-amber-500 text-amber-300 hover:text-slate-950 border border-amber-500/40 transition-all hover:scale-105"
+                          >
+                            <Phone className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )
               ) : activeTab === 'members' ? (
                 filteredMembers.length === 0 ? (
                   <div className="p-8 text-center text-xs text-slate-400 space-y-1">
@@ -684,6 +808,9 @@ function ChatHubContent() {
                                 </span>
                               )}
                             </div>
+                            <p className="text-[10px] text-amber-300 font-mono truncate font-semibold">
+                              {m.username || `@${m.email.split('@')[0]}`}
+                            </p>
                             <p className="text-[11px] text-slate-400 truncate">{m.department}</p>
                             <span className="text-[10px] text-emerald-400 font-mono">
                               {formatLastSeen(m.lastSeen, m.isOnline)}

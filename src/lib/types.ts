@@ -12,6 +12,8 @@ export interface OrderData {
   customerPhone?: string;
   customerDepartment?: string;
   customerEmail?: string;
+  customerAvatar?: string;
+  userId?: string;
   itemsText: string;
   items?: OrderItem[];
   totalBill: number;
@@ -44,6 +46,7 @@ export type UserRole = 'super_admin' | 'admin' | 'staff' | 'user';
 export interface UserRecord {
   id: string;
   name: string;
+  username?: string;
   email: string;
   role: UserRole;
   balance: number;

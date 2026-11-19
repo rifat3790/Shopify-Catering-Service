@@ -6,6 +6,7 @@ import AuthGuard from '@/components/AuthGuard';
 import LuxuryLoader from '@/components/LuxuryLoader';
 import InvoiceModal from '@/components/InvoiceModal';
 import QuickOrderModal from '@/components/QuickOrderModal';
+import ProfileModal from '@/components/ProfileModal';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { OrderData, UserRecord } from '@/lib/types';
@@ -19,7 +20,8 @@ import {
   UtensilsCrossed, 
   Plus, 
   RefreshCw,
-  MessageSquare 
+  MessageSquare,
+  Edit3
 } from 'lucide-react';
 
 function UserDashboardContent() {
@@ -29,6 +31,7 @@ function UserDashboardContent() {
   const [orders, setOrders] = useState<OrderData[]>([]);
   const [selectedInvoice, setSelectedInvoice] = useState<OrderData | null>(null);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
   // Admin view switcher (only for super_admin and admin)
@@ -113,6 +116,9 @@ function UserDashboardContent() {
                     {user?.department || 'Shopify Member'}
                   </span>
                 </div>
+                <p className="text-xs font-mono text-amber-300 font-semibold mt-0.5">
+                  {user?.username || `@${user?.email?.split('@')[0] || 'user'}`}
+                </p>
                 <p className="text-xs text-slate-400 mt-0.5">
                   {language === 'bn' 
                     ? 'আপনার ব্যক্তিগত খাবার হিসাব, ওয়ালেট ব্যালেন্স ও রসিদ ডাউনলোড পোর্টাল'
@@ -122,6 +128,15 @@ function UserDashboardContent() {
             </div>
 
             <div className="flex items-center gap-2 self-start md:self-auto flex-wrap">
+              {/* Profile Edit Button */}
+              <button
+                onClick={() => setIsProfileModalOpen(true)}
+                className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-300 border border-amber-500/40 font-semibold text-xs flex items-center gap-1.5 transition-all hover:scale-105"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                <span>{language === 'bn' ? 'প্রোফাইল এডিট' : 'Edit Profile'}</span>
+              </button>
+
               {/* Only Super Admin & Admin can inspect other members */}
               {isElevated && elevatedMemberList.length > 0 && (
                 <div className="flex items-center gap-1.5 mr-2">
@@ -338,6 +353,15 @@ function UserDashboardContent() {
               customerEmail: user?.email || '',
             }),
           });
+          refreshUser();
+          loadUserData();
+        }}
+      />
+
+      <ProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        onSaved={() => {
           refreshUser();
           loadUserData();
         }}

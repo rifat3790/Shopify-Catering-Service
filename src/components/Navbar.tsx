@@ -60,8 +60,8 @@ export default function Navbar({ onOpenNewOrder }: NavbarProps) {
                 <span className="font-serif text-xl sm:text-2xl font-bold tracking-tight bg-gradient-to-r from-emerald-400 via-amber-200 to-amber-400 bg-clip-text text-transparent">
                   Shopify Catering
                 </span>
-                <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                  Luxury
+                <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                  Enterprise
                 </span>
               </div>
               <p className="text-[11px] text-emerald-400/80 font-medium tracking-wide">

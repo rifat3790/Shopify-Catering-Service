@@ -61,7 +61,7 @@ export default function InvoiceModal({ order, onClose }: InvoiceModalProps) {
 
       ctx.fillStyle = '#6ee7b7';
       ctx.font = '12px sans-serif';
-      ctx.fillText('Luxury Corporate Catering & Daily Refreshment Tracker', 300, 95);
+      ctx.fillText('Shopify Corporate Catering & Daily Refreshment Tracker', 300, 95);
 
       // Divider line
       ctx.strokeStyle = '#059669';
@@ -204,7 +204,7 @@ export default function InvoiceModal({ order, onClose }: InvoiceModalProps) {
               Shopify Catering Service
             </h2>
             <p className="text-[11px] text-emerald-400 font-medium">
-              Luxury Corporate Catering & Daily Refreshment
+              Corporate Catering & Daily Refreshment
             </p>
             <p className="text-[10px] text-slate-400 mt-1">
               Dhaka, Bangladesh • Hotline: +880 1700-000000

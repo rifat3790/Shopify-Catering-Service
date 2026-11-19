@@ -5,7 +5,7 @@ import { LanguageProvider } from '@/context/LanguageContext';
 
 export const metadata: Metadata = {
   title: 'Shopify Catering Service — Order & Payment Tracker',
-  description: 'Luxury catering and refreshment ordering system with real-time bill and collection ledger.',
+  description: 'Shopify catering and refreshment ordering system with real-time bill and collection ledger.',
   icons: {
     icon: '/favicon.ico',
   },

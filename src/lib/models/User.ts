@@ -4,6 +4,7 @@ import { UserRole } from '../types';
 export interface IUser extends Document {
   uid?: string;
   name: string;
+  username?: string;
   email: string;
   role: UserRole;
   balance: number;
@@ -23,6 +24,7 @@ const UserSchema = new Schema<IUser>(
   {
     uid: { type: String },
     name: { type: String, required: true },
+    username: { type: String, default: '' },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     role: {
       type: String,

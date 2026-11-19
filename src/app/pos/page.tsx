@@ -116,6 +116,7 @@ function PosPageContent() {
           customerName: customer,
           customerDepartment: members.find(m => m.name === customer)?.department || 'Shopify Team',
           customerEmail: members.find(m => m.name === customer)?.email || '',
+          customerAvatar: members.find(m => m.name === customer)?.avatar || '',
           itemsText,
           items: itemsList,
           totalBill,

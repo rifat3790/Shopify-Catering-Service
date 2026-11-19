@@ -1,5 +1,6 @@
 import { connectToDatabase } from './mongodb';
 import { adminAuth, getFirebaseUsersList } from './firebaseAdmin';
+import { persistentStore } from './persistentStore';
 import Order from './models/Order';
 import MenuItem from './models/MenuItem';
 import Customer from './models/Customer';
@@ -42,6 +43,35 @@ let usersCache: UserRecord[] = [];
 let messagesCache: ChatMessage[] = [];
 let groupsCache: ChatGroup[] = [];
 let resetRequestsCache: PasswordResetRequest[] = [];
+
+// Apply persistent overrides (name, username, avatar, department, etc.) and ensure @username exists
+export function applyUserOverridesAndUsername(user: UserRecord): UserRecord {
+  const overrides = persistentStore.getUserOverrides();
+  const emailKey = user.email.toLowerCase().trim();
+  const idKey = (user.id || '').toLowerCase().trim();
+  const ov = overrides[emailKey] || overrides[idKey] || {};
+
+  const cleanEmail = user.email.toLowerCase().trim();
+  const defaultUsername = '@' + cleanEmail.split('@')[0].replace(/[^a-z0-9_]/g, '');
+
+  let rawUsername = ov.username || user.username || defaultUsername;
+  if (!rawUsername.startsWith('@')) {
+    rawUsername = '@' + rawUsername;
+  }
+
+  const isSuper = cleanEmail === SUPER_ADMIN_EMAIL.toLowerCase();
+
+  return {
+    ...user,
+    name: ov.name || user.name,
+    username: rawUsername.toLowerCase(),
+    avatar: ov.avatar || user.avatar,
+    department: ov.department || user.department,
+    phone: ov.phone !== undefined ? ov.phone : user.phone,
+    balance: ov.balance !== undefined ? ov.balance : user.balance,
+    role: isSuper ? 'super_admin' : (ov.role || user.role),
+  };
+}
 
 // User Management - ALL REGISTERED USERS (FROM FIREBASE AUTH & DATABASE)
 export async function getAllUsers(): Promise<UserRecord[]> {
@@ -138,8 +168,9 @@ export async function getAllUsers(): Promise<UserRecord[]> {
       }
     }
 
-    usersCache = mapped;
-    return mapped;
+    const finalized = mapped.map(u => applyUserOverridesAndUsername(u));
+    usersCache = finalized;
+    return finalized;
   }
 
   // 4. If MongoDB is down or empty, construct from Firebase Auth + usersCache overlay
@@ -185,8 +216,9 @@ export async function getAllUsers(): Promise<UserRecord[]> {
     }
   }
 
-  usersCache = combinedList;
-  return combinedList;
+  const finalized = combinedList.map(u => applyUserOverridesAndUsername(u));
+  usersCache = finalized;
+  return finalized;
 }
 
 // Presence & Heartbeat update
@@ -210,6 +242,53 @@ export async function updateUserPresence(idOrEmail: string, isOnline: boolean = 
     usersCache[idx].lastSeen = now.toISOString();
     usersCache[idx].isOnline = isOnline;
   }
+}
+
+// Update User Profile (Name, @Username, Avatar, Department, Phone)
+export async function updateUserProfile(
+  userIdOrEmail: string,
+  updates: Partial<UserRecord>
+): Promise<UserRecord | null> {
+  if (updates.username) {
+    let un = updates.username.trim();
+    if (!un.startsWith('@')) un = '@' + un;
+    updates.username = un.toLowerCase().replace(/[^a-z0-9_@]/g, '');
+  }
+
+  // 1. Update persistentStore
+  persistentStore.updateUserProfile(userIdOrEmail, updates);
+
+  // 2. Also try MongoDB
+  try {
+    const db = await connectToDatabase();
+    if (db && User) {
+      const emailMatch = userIdOrEmail.toLowerCase().trim();
+      const isObjectId = userIdOrEmail.match(/^[0-9a-fA-F]{24}$/);
+      const query = isObjectId ? { _id: userIdOrEmail } : { email: emailMatch };
+      await User.findOneAndUpdate(query, { $set: updates });
+    }
+  } catch (e) {}
+
+  // 3. If Firebase user, update Firebase Auth profile
+  try {
+    if (adminAuth) {
+      const all = await getAllUsers();
+      const target = all.find(
+        u => u.id === userIdOrEmail || u.email.toLowerCase() === userIdOrEmail.toLowerCase()
+      );
+      if (target && target.id && !target.id.startsWith('usr-')) {
+        await adminAuth.updateUser(target.id, {
+          displayName: updates.name || undefined,
+          photoURL: updates.avatar || undefined,
+        });
+      }
+    }
+  } catch (e) {}
+
+  const all = await getAllUsers();
+  return all.find(
+    u => u.id === userIdOrEmail || u.email.toLowerCase() === userIdOrEmail.toLowerCase()
+  ) || null;
 }
 
 export async function getUserById(idOrEmailOrName: string): Promise<UserRecord | null> {
@@ -271,14 +350,15 @@ export async function syncUser(userData: {
         createdAt: doc.createdAt?.toISOString?.() || new Date().toISOString()
       };
 
+      const finalized = applyUserOverridesAndUsername(syncedRecord);
       const idx = usersCache.findIndex(u => u.email.toLowerCase() === emailClean);
       if (idx !== -1) {
-        usersCache[idx] = syncedRecord;
+        usersCache[idx] = finalized;
       } else {
-        usersCache = [syncedRecord, ...usersCache];
+        usersCache = [finalized, ...usersCache];
       }
 
-      return syncedRecord;
+      return finalized;
     }
   } catch (err) {
     console.error("MongoDB user sync failed, fallback to memory:", err);
@@ -288,10 +368,10 @@ export async function syncUser(userData: {
   const existing = usersCache.find(u => u.email.toLowerCase() === emailClean);
   if (existing) {
     if (isSuper) existing.role = 'super_admin';
-    return existing;
+    return applyUserOverridesAndUsername(existing);
   }
 
-  const newRec: UserRecord = {
+  const newRec: UserRecord = applyUserOverridesAndUsername({
     id: `usr-${Date.now()}`,
     name: userData.name || emailClean.split('@')[0],
     email: emailClean,
@@ -303,7 +383,7 @@ export async function syncUser(userData: {
     avatar: userData.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.name || 'User')}&background=047857&color=fff`,
     phone: '',
     createdAt: new Date().toISOString()
-  };
+  });
   usersCache = [newRec, ...usersCache];
   return newRec;
 }
@@ -566,17 +646,24 @@ export async function updateUserBalance(
 
 // Order Management APIs
 export async function getAllOrders(): Promise<OrderData[]> {
+  const stored = persistentStore.getOrders();
+  if (stored && stored.length > 0) {
+    return stored;
+  }
+
   try {
-    await connectToDatabase();
-    if (Order) {
+    const db = await connectToDatabase();
+    if (db && Order) {
       const docs = await Order.find().sort({ createdAt: -1 }).lean();
-      if (docs) {
-        return docs.map((d: any) => ({
+      if (docs && docs.length > 0) {
+        const mapped = docs.map((d: any) => ({
           ...d,
           _id: d._id.toString(),
           orderDate: d.orderDate?.toISOString?.() || new Date().toISOString(),
           createdAt: d.createdAt?.toISOString?.() || new Date().toISOString(),
         })) as unknown as OrderData[];
+        mapped.forEach(o => persistentStore.saveOrder(o));
+        return mapped;
       }
     }
     return ordersCache;
@@ -600,6 +687,20 @@ export async function createOrder(data: Partial<OrderData>): Promise<OrderData> 
     status = 'Due';
   }
 
+  // Auto-populate avatar and user id from known users if not provided
+  let custAvatar = data.customerAvatar || '';
+  let uId = data.userId || '';
+  if (!custAvatar && data.customerName) {
+    const matched = usersCache.find(
+      u => u.name.toLowerCase() === data.customerName?.toLowerCase() ||
+           u.email.toLowerCase() === data.customerEmail?.toLowerCase()
+    );
+    if (matched) {
+      custAvatar = matched.avatar;
+      uId = matched.id;
+    }
+  }
+
   const newOrder: OrderData = {
     _id: `ord-${Date.now()}`,
     orderNumber: data.orderNumber || newOrderNumber,
@@ -607,6 +708,8 @@ export async function createOrder(data: Partial<OrderData>): Promise<OrderData> 
     customerPhone: data.customerPhone || "",
     customerDepartment: data.customerDepartment || "General",
     customerEmail: data.customerEmail || "",
+    customerAvatar: custAvatar,
+    userId: uId,
     itemsText: data.itemsText || (data.items?.map(i => `${i.quantity} ta ${i.name}`).join(' + ') || "Quick Order"),
     items: data.items || [],
     totalBill,
@@ -619,23 +722,7 @@ export async function createOrder(data: Partial<OrderData>): Promise<OrderData> 
     createdAt: new Date().toISOString()
   };
 
-  try {
-    await connectToDatabase();
-    if (Order) {
-      const doc = await Order.create({
-        ...newOrder,
-        _id: undefined,
-        orderDate: new Date(newOrder.orderDate)
-      });
-      if (doc) {
-        newOrder._id = doc._id.toString();
-      }
-    }
-  } catch (err) {
-    // fallback
-  }
-
-  // Update user balance/spent dynamically
+  // 1. Update user balance/spent dynamically
   if (data.customerName || data.customerEmail) {
     const custSearch = (data.customerEmail || data.customerName || '').toLowerCase().trim();
     const user = usersCache.find(u => u.name.toLowerCase() === custSearch || u.email.toLowerCase() === custSearch);
@@ -648,7 +735,24 @@ export async function createOrder(data: Partial<OrderData>): Promise<OrderData> 
     }
   }
 
-  ordersCache = [newOrder, ...ordersCache];
+  // 2. Immediately persist to disk & memory (0ms)
+  persistentStore.saveOrder(newOrder);
+  ordersCache.unshift(newOrder);
+
+  // 3. Background async write to DB
+  connectToDatabase().then(async (db) => {
+    if (db && Order) {
+      try {
+        const doc = await Order.create({
+          ...newOrder,
+          _id: undefined,
+          orderDate: new Date(newOrder.orderDate)
+        });
+        if (doc) newOrder._id = doc._id.toString();
+      } catch (e) {}
+    }
+  }).catch(() => {});
+
   return newOrder;
 }
 
@@ -829,9 +933,16 @@ export async function getChatMessages(query: {
   userId2?: string; 
   groupId?: string 
 }): Promise<ChatMessage[]> {
+  // 1. Instantly return from persistentStore (0ms latency, persistent on disk)
+  const stored = persistentStore.getMessages(query);
+  if (stored && stored.length > 0) {
+    return stored;
+  }
+
+  // 2. Check MongoDB if persistentStore is empty
   try {
-    await connectToDatabase();
-    if (Message) {
+    const db = await connectToDatabase();
+    if (db && Message) {
       let filter: any = {};
       if (query.groupId) {
         filter = { groupId: query.groupId };
@@ -844,8 +955,8 @@ export async function getChatMessages(query: {
         };
       }
       const docs = await Message.find(filter).sort({ createdAt: 1 }).limit(100).lean();
-      if (docs) {
-        return docs.map((d: any) => ({
+      if (docs && docs.length > 0) {
+        const mapped: ChatMessage[] = docs.map((d: any) => ({
           id: d._id.toString(),
           senderId: d.senderId,
           senderName: d.senderName,
@@ -855,6 +966,8 @@ export async function getChatMessages(query: {
           text: d.text,
           createdAt: d.createdAt?.toISOString?.() || new Date().toISOString()
         }));
+        mapped.forEach(m => persistentStore.addMessage(m));
+        return mapped;
       }
     }
   } catch (err) {
@@ -896,7 +1009,7 @@ export async function sendChatMessage(data: {
   }
 
   const newMsg: ChatMessage = {
-    id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     senderId: data.senderId,
     senderName: data.senderName,
     senderAvatar: data.senderAvatar,
@@ -906,34 +1019,41 @@ export async function sendChatMessage(data: {
     createdAt: new Date().toISOString()
   };
 
-  try {
-    await connectToDatabase();
-    if (Message) {
-      const doc = await Message.create({
-        senderId: data.senderId,
-        senderName: data.senderName,
-        senderAvatar: data.senderAvatar,
-        receiverId: data.receiverId,
-        groupId: data.groupId,
-        text: data.text
-      });
-      if (doc) newMsg.id = doc._id.toString();
-    }
-  } catch (err) {
-    console.warn("Message save to DB failed, using memory:", err);
-  }
-
+  // 1. Instantly store to persistentStore & memory (0ms)
+  persistentStore.addMessage(newMsg);
   messagesCache.push(newMsg);
+
+  // 2. Non-blocking asynchronous background DB write
+  connectToDatabase().then(async (db) => {
+    if (db && Message) {
+      try {
+        await Message.create({
+          senderId: data.senderId,
+          senderName: data.senderName,
+          senderAvatar: data.senderAvatar,
+          receiverId: data.receiverId,
+          groupId: data.groupId,
+          text: data.text
+        });
+      } catch (e) {}
+    }
+  }).catch(() => {});
+
   return newMsg;
 }
 
 export async function getAllChatGroups(): Promise<ChatGroup[]> {
+  const stored = persistentStore.getGroups();
+  if (stored && stored.length > 0) {
+    return stored;
+  }
+
   try {
-    await connectToDatabase();
-    if (Group) {
+    const db = await connectToDatabase();
+    if (db && Group) {
       const docs = await Group.find().sort({ createdAt: -1 }).lean();
       if (docs && docs.length > 0) {
-        return docs.map((d: any) => ({
+        const mapped: ChatGroup[] = docs.map((d: any) => ({
           id: d._id.toString(),
           name: d.name,
           description: d.description || '',
@@ -945,6 +1065,8 @@ export async function getAllChatGroups(): Promise<ChatGroup[]> {
           createdAt: d.createdAt?.toISOString?.() || new Date().toISOString(),
           updatedAt: d.updatedAt?.toISOString?.() || new Date().toISOString()
         }));
+        persistentStore.setGroups(mapped);
+        return mapped;
       }
       return groupsCache;
     }
@@ -996,6 +1118,7 @@ export async function createChatGroup(data: {
     console.warn("Group save to DB failed, using memory:", err);
   }
 
+  persistentStore.addGroup(newGroup);
   groupsCache.unshift(newGroup);
   return newGroup;
 }

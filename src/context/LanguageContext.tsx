@@ -89,8 +89,8 @@ const translations: Translations = {
     bn: "শিট এক্সপোর্ট",
   },
   menuTitle: {
-    en: "Luxury Catering Menu",
-    bn: "লাক্সারি ক্যাটারিং মেনু",
+    en: "Catering Menu",
+    bn: "ক্যাটারিং মেনু",
   },
   posTitle: {
     en: "Counter POS Express",

@@ -211,7 +211,7 @@ function MenuPageContent() {
               <span>{language === 'bn' ? 'এক্সক্লুসিভ ক্যাটারিং মেনু ক্যাটালগ' : 'Curated Catering Menu & Management'}</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold font-serif text-white">
-              {language === 'bn' ? 'শপিফাই লাক্সারি ক্যাটারিং মেনু' : 'Shopify Luxury Catering Menu'}
+              {language === 'bn' ? 'শপিফাই ক্যাটারিং মেনু' : 'Shopify Catering Menu'}
             </h1>
             <p className="text-xs text-slate-400 mt-1">
               {language === 'bn'
@@ -528,8 +528,10 @@ function MenuPageContent() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               ...data,
-              customerName: user?.displayName || 'User',
+              customerName: data.customerName || user?.displayName || 'User',
               customerEmail: user?.email || '',
+              customerAvatar: data.customerAvatar || user?.photoURL || '',
+              userId: user?.uid || '',
             }),
           });
           setCart({});

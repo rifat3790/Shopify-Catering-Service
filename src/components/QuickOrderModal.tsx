@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { OrderData, MenuItemData } from '@/lib/types';
 import { 
@@ -37,8 +38,10 @@ export default function QuickOrderModal({
   onSubmit,
   prefillCustomer,
 }: QuickOrderModalProps) {
+  const { user } = useAuth();
   const { language } = useLanguage();
-  const [customerName, setCustomerName] = useState(prefillCustomer || '');
+  const [customerName, setCustomerName] = useState(prefillCustomer || user?.displayName || user?.name || '');
+  const [customerAvatar, setCustomerAvatar] = useState(user?.photoURL || user?.avatar || '');
   const [department, setDepartment] = useState('Shopify Team');
   const [menuItems, setMenuItems] = useState<MenuItemData[]>([]);
   const [itemQuantities, setItemQuantities] = useState<Record<string, number>>({});
@@ -53,6 +56,13 @@ export default function QuickOrderModal({
 
   useEffect(() => {
     if (isOpen) {
+      if (prefillCustomer) {
+        setCustomerName(prefillCustomer);
+      } else if (user?.displayName || user?.name) {
+        setCustomerName(user.displayName || user.name || '');
+        setCustomerAvatar(user.photoURL || user.avatar || '');
+      }
+
       fetch('/api/menu')
         .then(r => r.json())
         .then(data => {
@@ -60,7 +70,7 @@ export default function QuickOrderModal({
         })
         .catch(() => {});
     }
-  }, [isOpen]);
+  }, [isOpen, prefillCustomer, user]);
 
   if (!isOpen) return null;
 
@@ -134,12 +144,16 @@ export default function QuickOrderModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const finalCust = customerName.trim() || prefillCustomer || 'Member';
+    const finalCust = customerName.trim() || prefillCustomer || user?.displayName || user?.name || 'Member';
+    const finalAvatar = customerAvatar || user?.photoURL || user?.avatar || '';
 
     setSubmitting(true);
     try {
       await onSubmit({
         customerName: finalCust,
+        customerAvatar: finalAvatar,
+        customerEmail: user?.email || '',
+        userId: user?.uid || '',
         customerDepartment: department,
         itemsText: selectedItemsSummary.join(' + ') || (language === 'bn' ? 'সাধারণ ক্যাটারিং অর্ডার' : 'General Catering Order'),
         items: itemsList,
@@ -154,7 +168,7 @@ export default function QuickOrderModal({
       setItemQuantities({});
       setCustomItems([]);
       setPaidAmount(0);
-      setCustomerName('');
+      setCustomerName(user?.displayName || user?.name || '');
       onClose();
     } catch (err: any) {
       alert('Failed: ' + err.message);
@@ -194,10 +208,36 @@ export default function QuickOrderModal({
         <form onSubmit={handleSubmit} className="p-5 sm:p-6 overflow-y-auto space-y-5">
           
           {/* Customer Selection */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
-              {language === 'bn' ? 'গ্রাহক বা মেম্বার নাম *' : 'Customer / Team Member Name *'}
-            </label>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                {language === 'bn' ? 'গ্রাহক বা মেম্বার নাম *' : 'Customer / Team Member Name *'}
+              </label>
+              {user && (
+                <span className="text-[10px] text-emerald-400 font-medium">
+                  {language === 'bn' ? 'প্রোফাইল থেকে স্বয়ংক্রিয়' : 'Auto-synced from Profile'}
+                </span>
+              )}
+            </div>
+
+            {user && (
+              <div className="flex items-center gap-3 p-2.5 rounded-2xl bg-emerald-950/40 border border-emerald-800/60 shadow-inner">
+                <img
+                  src={customerAvatar || user.photoURL || user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(customerName || 'User')}&background=047857&color=fff`}
+                  alt="Profile"
+                  className="w-9 h-9 rounded-full object-cover ring-2 ring-emerald-500/40 shrink-0"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-white truncate flex items-center gap-1.5">
+                    <span>{customerName || user.displayName || 'Member'}</span>
+                    <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-mono">
+                      Profile Active
+                    </span>
+                  </p>
+                  <p className="text-[10px] text-slate-400 truncate font-mono">{user.email}</p>
+                </div>
+              </div>
+            )}
             
             <div className="relative">
               <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />

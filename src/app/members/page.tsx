@@ -170,7 +170,10 @@ function MembersPageContent() {
   const departments = ['All', 'Development', 'Marketing', 'Design & UX', 'Engineering', 'Operations', 'Support', 'Logistics'];
 
   const filteredMembers = members.filter(m => {
-    const matchSearch = (m.name || '').toLowerCase().includes(search.toLowerCase()) || (m.email || '').toLowerCase().includes(search.toLowerCase());
+    const matchSearch = 
+      (m.name || '').toLowerCase().includes(search.toLowerCase()) || 
+      (m.username || '').toLowerCase().includes(search.toLowerCase()) ||
+      (m.email || '').toLowerCase().includes(search.toLowerCase());
     const matchDept = departmentFilter === 'All' ? true : (m.department || '').toLowerCase().includes(departmentFilter.toLowerCase());
     return matchSearch && matchDept;
   });
@@ -318,6 +321,9 @@ function MembersPageContent() {
                         <h3 className="font-serif font-bold text-white text-base leading-snug truncate">
                           {member.name}
                         </h3>
+                        <p className="text-[11px] text-amber-300 font-mono font-semibold truncate">
+                          {member.username || `@${member.email.split('@')[0]}`}
+                        </p>
                         <span className="inline-block mt-0.5 px-2 py-0.2 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
                           {member.department}
                         </span>
