@@ -248,19 +248,20 @@ function SuperAdminDashboardContent() {
     setIsDeleting(true);
     setDeleteError('');
     try {
-      const res = await fetch(`/api/users/${deleteModalUser.id}`, {
+      const res = await fetch(`/api/users/${encodeURIComponent(deleteModalUser.id)}?email=${encodeURIComponent(deleteModalUser.email)}`, {
         method: 'DELETE',
       });
       const json = await res.json();
       if (json.success) {
-        setUsers(prev => prev.filter(u => u.id !== deleteModalUser.id));
+        setUsers(prev => prev.filter(u => u.id !== deleteModalUser.id && u.email !== deleteModalUser.email));
         toast.success(
           language === 'bn' 
-            ? `${deleteModalUser.name} কে ডাটাবেজ থেকে সফলভাবে রিমুভ করা হয়েছে।` 
-            : `${deleteModalUser.name} removed from database successfully.`,
+            ? `${deleteModalUser.name} কে ডাটাবেজ ও ফায়ারবেস থেকে স্থায়ীভাবে রিমুভ করা হয়েছে।` 
+            : `${deleteModalUser.name} permanently removed from database and auth.`,
           'Member Removed'
         );
         setDeleteModalUser(null);
+        fetchUsers();
       } else {
         setDeleteError(json.error || 'Failed to remove member from database');
         toast.error(json.error || 'Failed to remove member', 'Error');
@@ -284,6 +285,7 @@ function SuperAdminDashboardContent() {
         body: JSON.stringify({
           name: newUserName.trim(),
           email: newUserEmail.trim(),
+          allowRevive: true,
         })
       });
       if (res.ok) {

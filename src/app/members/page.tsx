@@ -84,6 +84,7 @@ function MembersPageContent() {
         body: JSON.stringify({
           name: newName.trim(),
           email: newEmail.trim(),
+          allowRevive: true,
         })
       });
 
@@ -150,13 +151,14 @@ function MembersPageContent() {
     setIsDeleting(true);
     setDeleteError('');
     try {
-      const res = await fetch(`/api/users/${deleteModalUser.id}`, {
+      const res = await fetch(`/api/users/${encodeURIComponent(deleteModalUser.id)}?email=${encodeURIComponent(deleteModalUser.email)}`, {
         method: 'DELETE',
       });
       const json = await res.json();
       if (json.success) {
-        setMembers(prev => prev.filter(m => m.id !== deleteModalUser.id));
+        setMembers(prev => prev.filter(m => m.id !== deleteModalUser.id && m.email !== deleteModalUser.email));
         setDeleteModalUser(null);
+        fetchMembers();
       } else {
         setDeleteError(json.error || 'Failed to delete member from database');
       }

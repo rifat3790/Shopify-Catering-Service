@@ -119,6 +119,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
           return freshUser;
         }
+      } else {
+        const errJson = await res.json().catch(() => null);
+        if (errJson?.error && (errJson.error.includes('removed') || errJson.error.includes('deleted'))) {
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('shopify_cached_user');
+            localStorage.removeItem('shopify_demo_user');
+          }
+          await signOut(auth).catch(() => {});
+          setUser(null);
+          return null as any;
+        }
       }
     } catch (e) {
       console.warn('Backend sync error (resilient fallback active):', e);

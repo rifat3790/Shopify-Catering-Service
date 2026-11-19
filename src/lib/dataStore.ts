@@ -8,6 +8,7 @@ import User from './models/User';
 import Message from './models/Message';
 import Group from './models/Group';
 import PasswordReset from './models/PasswordReset';
+import Setting from './models/Setting';
 import { 
   OrderData, 
   MenuItemData, 
@@ -87,13 +88,34 @@ export async function getAllUsers(): Promise<UserRecord[]> {
 
   // 2. Try MongoDB
   let mongoDocs: any[] = [];
+  let deletedSet = new Set<string>();
+
   try {
     await connectToDatabase();
+
+    // Read deleted_users tombstone list
+    if (Setting) {
+      const delDoc = await Setting.findOne({ key: 'deleted_users' }).lean();
+      if (delDoc && Array.isArray((delDoc as any).value)) {
+        deletedSet = new Set((delDoc as any).value.map((x: any) => String(x).toLowerCase().trim()));
+      }
+    }
+
     if (User) {
-      // Sync any missing Firebase user into MongoDB
+      // Sync any missing Firebase user into MongoDB (EXCLUDING permanently deleted users)
       for (const fb of fbUsers) {
         if (!fb.email) continue;
         const emailClean = fb.email.toLowerCase().trim();
+        const uidClean = (fb.uid || '').toLowerCase().trim();
+
+        // If user was removed, do NOT sync back and ensure deleted from Firebase Auth
+        if (deletedSet.has(emailClean) || (uidClean && deletedSet.has(uidClean))) {
+          if (adminAuth && fb.uid) {
+            adminAuth.deleteUser(fb.uid).catch(() => {});
+          }
+          continue;
+        }
+
         const exists = await User.findOne({ email: emailClean });
         if (!exists) {
           const isSuper = emailClean === SUPER_ADMIN_EMAIL.toLowerCase();
@@ -115,7 +137,17 @@ export async function getAllUsers(): Promise<UserRecord[]> {
         }
       }
 
-      mongoDocs = await User.find().sort({ createdAt: -1 }).lean();
+      const rawDocs = await User.find().sort({ createdAt: -1 }).lean();
+      // Ensure no tombstoned deleted user is returned
+      mongoDocs = rawDocs.filter((d: any) => {
+        const mEmail = (d.email || '').toLowerCase().trim();
+        const mUid = (d.uid || '').toLowerCase().trim();
+        if (deletedSet.has(mEmail) || (mUid && deletedSet.has(mUid))) {
+          User.deleteOne({ _id: d._id }).catch(() => {});
+          return false;
+        }
+        return true;
+      });
     }
   } catch (err) {
     console.warn("MongoDB connection fallback to Firebase users & memory:", err);
@@ -147,10 +179,16 @@ export async function getAllUsers(): Promise<UserRecord[]> {
       };
     });
 
-    // Ensure any Firebase user not yet in MongoDB is also included
+    // Ensure any Firebase user not yet in MongoDB is also included (EXCLUDING deleted users)
     for (const fb of fbUsers) {
       if (!fb.email) continue;
-      const found = mapped.find(m => m.email.toLowerCase() === fb.email.toLowerCase());
+      const emailClean = fb.email.toLowerCase().trim();
+      const uidClean = (fb.uid || '').toLowerCase().trim();
+      if (deletedSet.has(emailClean) || (uidClean && deletedSet.has(uidClean))) {
+        continue;
+      }
+
+      const found = mapped.find(m => m.email.toLowerCase() === emailClean);
       if (!found) {
         const isSuper = fb.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase();
         mapped.push({
@@ -353,12 +391,37 @@ export async function syncUser(userData: {
   name?: string | null;
   email: string;
   avatar?: string | null;
+  allowRevive?: boolean;
 }): Promise<UserRecord> {
   const emailClean = userData.email.toLowerCase().trim();
+  const uidClean = (userData.uid || '').toLowerCase().trim();
   const isSuper = emailClean === SUPER_ADMIN_EMAIL.toLowerCase();
 
   try {
     await connectToDatabase();
+
+    // Check if account is in deleted tombstone list
+    if (Setting) {
+      if (userData.allowRevive) {
+        // Admin is intentionally recreating/reviving this account
+        await Setting.findOneAndUpdate(
+          { key: 'deleted_users' },
+          { $pull: { value: { $in: [emailClean, uidClean].filter(Boolean) } } }
+        );
+      } else {
+        const delDoc = await Setting.findOne({ key: 'deleted_users' }).lean();
+        if (delDoc && Array.isArray((delDoc as any).value)) {
+          const deletedSet = new Set((delDoc as any).value.map((x: any) => String(x).toLowerCase().trim()));
+          if (deletedSet.has(emailClean) || (uidClean && deletedSet.has(uidClean))) {
+            if (adminAuth && userData.uid) {
+              await adminAuth.deleteUser(userData.uid).catch(() => {});
+            }
+            throw new Error('This account has been permanently removed by an administrator.');
+          }
+        }
+      }
+    }
+
     if (User) {
       let doc = await User.findOne({ email: emailClean });
       if (!doc) {
@@ -576,18 +639,20 @@ export async function updateUserRole(
   return null;
 }
 
-// Delete Member permanently from Database & Memory Cache
-export async function deleteUser(idOrEmail: string): Promise<boolean> {
+// Delete Member permanently from Database, Firebase Auth & Memory Cache
+export async function deleteUser(idOrEmail: string, fallbackEmail?: string): Promise<boolean> {
   const search = idOrEmail.toLowerCase().trim();
+  const cleanFallback = fallbackEmail ? fallbackEmail.toLowerCase().trim() : '';
 
   // Root Super Admin account cannot be deleted!
-  if (search === SUPER_ADMIN_EMAIL.toLowerCase()) {
+  if (search === SUPER_ADMIN_EMAIL.toLowerCase() || cleanFallback === SUPER_ADMIN_EMAIL.toLowerCase()) {
     throw new Error('Primary Root Super Admin account cannot be deleted');
   }
 
   // Check if target user in cache is root super admin
   const cachedUser = usersCache.find(u => 
     u.id === idOrEmail || 
+    (cleanFallback && u.email.toLowerCase() === cleanFallback) ||
     u.email.toLowerCase() === search || 
     u.name.toLowerCase() === search
   );
@@ -596,27 +661,67 @@ export async function deleteUser(idOrEmail: string): Promise<boolean> {
   }
 
   let deleted = false;
+  let targetEmail = cachedUser?.email?.toLowerCase().trim() || cleanFallback || (search.includes('@') ? search : '');
+  let targetUid = (cachedUser && !cachedUser.id.startsWith('usr-') ? cachedUser.id : '') || (idOrEmail.length > 20 && !idOrEmail.includes('@') ? idOrEmail : '');
 
   try {
     await connectToDatabase();
     if (User) {
       const isObjectId = idOrEmail.match(/^[0-9a-fA-F]{24}$/);
-      const query = isObjectId 
-        ? { _id: idOrEmail } 
-        : { $or: [{ uid: idOrEmail }, { email: search }, { name: search }] };
+      const orList: any[] = [{ uid: idOrEmail }, { email: search }];
+      if (isObjectId) orList.push({ _id: idOrEmail });
+      if (targetEmail) orList.push({ email: targetEmail });
+      if (cleanFallback) orList.push({ email: cleanFallback });
+      if (targetUid) orList.push({ uid: targetUid });
+      orList.push({ name: search });
 
+      const query = { $or: orList };
       const target = await User.findOne(query);
-      if (target && target.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) {
-        throw new Error('Primary Root Super Admin account cannot be deleted');
+      if (target) {
+        if (target.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) {
+          throw new Error('Primary Root Super Admin account cannot be deleted');
+        }
+        if (!targetEmail) targetEmail = target.email.toLowerCase().trim();
+        if (!targetUid && target.uid) targetUid = target.uid;
       }
 
-      const res = await User.findOneAndDelete(query);
-      if (res) {
+      const res = await User.deleteMany(query);
+      if (res && res.deletedCount && res.deletedCount > 0) {
         deleted = true;
-        if (adminAuth && res.uid) {
-          await adminAuth.deleteUser(res.uid).catch(() => {});
+      }
+    }
+
+    // 1. Permanently remove from Firebase Authentication
+    if (adminAuth) {
+      if (targetUid) {
+        try {
+          await adminAuth.deleteUser(targetUid);
+          console.log('✅ User deleted from Firebase Authentication by UID:', targetUid);
+        } catch (fbErr: any) {
+          console.warn('Firebase deleteUser by UID error:', fbErr.message);
         }
       }
+      if (targetEmail) {
+        try {
+          const fbUser = await adminAuth.getUserByEmail(targetEmail);
+          if (fbUser && fbUser.uid) {
+            await adminAuth.deleteUser(fbUser.uid);
+            console.log('✅ User deleted from Firebase Authentication by email lookup:', fbUser.uid);
+          }
+        } catch (fbErr: any) {
+          // User already not in Firebase
+        }
+      }
+    }
+
+    // 2. Add to deleted_users tombstone in MongoDB Setting to guarantee they never sync back on refresh
+    if (Setting && (targetEmail || targetUid)) {
+      const identifiers = [targetEmail, targetUid, search, cleanFallback].filter(Boolean);
+      await Setting.findOneAndUpdate(
+        { key: 'deleted_users' },
+        { $addToSet: { value: { $each: identifiers } } },
+        { upsert: true, new: true }
+      );
     }
   } catch (err: any) {
     if (err.message?.includes('Super Admin')) {
@@ -625,17 +730,27 @@ export async function deleteUser(idOrEmail: string): Promise<boolean> {
     console.warn("MongoDB delete user failed, using cache fallback:", err);
   }
 
+  // 3. Purge from persistentStore
+  persistentStore.deleteUser(search);
+  if (targetEmail) persistentStore.deleteUser(targetEmail);
+  if (cleanFallback) persistentStore.deleteUser(cleanFallback);
+  if (targetUid) persistentStore.deleteUser(targetUid);
+
+  // 4. Purge from in-memory cache
   const initialLen = usersCache.length;
   usersCache = usersCache.filter(u => 
     u.id !== idOrEmail && 
+    (targetUid ? u.id !== targetUid : true) &&
     u.email.toLowerCase() !== search && 
+    (cleanFallback ? u.email.toLowerCase() !== cleanFallback : true) &&
+    (targetEmail ? u.email.toLowerCase() !== targetEmail : true) &&
     u.name.toLowerCase() !== search
   );
   if (usersCache.length < initialLen) {
     deleted = true;
   }
 
-  return deleted;
+  return true;
 }
 
 // Block / Unblock a User
@@ -1177,13 +1292,7 @@ export async function getChatMessages(query: {
   userId2?: string; 
   groupId?: string 
 }): Promise<ChatMessage[]> {
-  // 1. Instantly return from persistentStore (0ms latency, persistent on disk)
-  const stored = persistentStore.getMessages(query);
-  if (stored && stored.length > 0) {
-    return stored;
-  }
-
-  // 2. Check MongoDB if persistentStore is empty
+  // 1. Query MongoDB first to get live, real-time messages across all clients
   try {
     const db = await connectToDatabase();
     if (db && Message) {
@@ -1198,7 +1307,7 @@ export async function getChatMessages(query: {
           ]
         };
       }
-      const docs = await Message.find(filter).sort({ createdAt: 1 }).limit(100).lean();
+      const docs = await Message.find(filter).sort({ createdAt: 1 }).limit(200).lean();
       if (docs && docs.length > 0) {
         const mapped: ChatMessage[] = docs.map((d: any) => ({
           id: d._id.toString(),
@@ -1215,7 +1324,13 @@ export async function getChatMessages(query: {
       }
     }
   } catch (err) {
-    // fallback to cache
+    console.warn("MongoDB getChatMessages error, using cache fallback:", err);
+  }
+
+  // 2. Fallback to persistentStore and in-memory cache
+  const stored = persistentStore.getMessages(query);
+  if (stored && stored.length > 0) {
+    return stored;
   }
 
   if (query.groupId) {
@@ -1263,35 +1378,32 @@ export async function sendChatMessage(data: {
     createdAt: new Date().toISOString()
   };
 
-  // 1. Instantly store to persistentStore & memory (0ms)
+  // 1. Instantly store to persistentStore & memory
   persistentStore.addMessage(newMsg);
   messagesCache.push(newMsg);
 
-  // 2. Non-blocking asynchronous background DB write
-  connectToDatabase().then(async (db) => {
+  // 2. Await MongoDB persistence to guarantee message is saved in serverless environments
+  try {
+    const db = await connectToDatabase();
     if (db && Message) {
-      try {
-        await Message.create({
-          senderId: data.senderId,
-          senderName: data.senderName,
-          senderAvatar: data.senderAvatar,
-          receiverId: data.receiverId,
-          groupId: data.groupId,
-          text: data.text
-        });
-      } catch (e) {}
+      const doc = await Message.create({
+        senderId: data.senderId,
+        senderName: data.senderName,
+        senderAvatar: data.senderAvatar,
+        receiverId: data.receiverId,
+        groupId: data.groupId,
+        text: data.text
+      });
+      if (doc) newMsg.id = doc._id.toString();
     }
-  }).catch(() => {});
+  } catch (e) {
+    console.warn("MongoDB Message.create error:", e);
+  }
 
   return newMsg;
 }
 
 export async function getAllChatGroups(): Promise<ChatGroup[]> {
-  const stored = persistentStore.getGroups();
-  if (stored && stored.length > 0) {
-    return stored;
-  }
-
   try {
     const db = await connectToDatabase();
     if (db && Group) {
@@ -1310,13 +1422,19 @@ export async function getAllChatGroups(): Promise<ChatGroup[]> {
           updatedAt: d.updatedAt?.toISOString?.() || new Date().toISOString()
         }));
         persistentStore.setGroups(mapped);
+        groupsCache = mapped;
         return mapped;
       }
-      return groupsCache;
     }
   } catch (err) {
-    console.warn("MongoDB groups fetch failed, using memory:", err);
+    console.warn("MongoDB groups fetch failed, using fallback:", err);
   }
+
+  const stored = persistentStore.getGroups();
+  if (stored && stored.length > 0) {
+    return stored;
+  }
+
   return groupsCache;
 }
 

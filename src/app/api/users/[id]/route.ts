@@ -55,13 +55,15 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const deleted = await deleteUser(id);
+    const url = new URL(request.url);
+    const email = url.searchParams.get('email');
+    const deleted = await deleteUser(id, email || undefined);
     if (!deleted) {
       return NextResponse.json({ success: false, error: 'User not found or already deleted' }, { status: 404 });
     }
     return NextResponse.json({ 
       success: true, 
-      message: 'Member profile permanently deleted from database' 
+      message: 'Member profile permanently deleted from database and auth' 
     });
   } catch (error: any) {
     return NextResponse.json(

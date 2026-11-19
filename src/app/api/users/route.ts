@@ -57,17 +57,20 @@ export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     let userId = searchParams.get('userId') || searchParams.get('id');
+    let email = searchParams.get('email');
 
-    if (!userId) {
+    if (!userId && !email) {
       const body = await request.json().catch(() => ({}));
       userId = body.userId || body.id;
+      email = body.email;
     }
 
-    if (!userId) {
-      return NextResponse.json({ success: false, error: 'User ID is required' }, { status: 400 });
+    const idOrEmail = userId || email;
+    if (!idOrEmail) {
+      return NextResponse.json({ success: false, error: 'User ID or Email is required' }, { status: 400 });
     }
 
-    const deleted = await deleteUser(userId);
+    const deleted = await deleteUser(idOrEmail, email || undefined);
     if (!deleted) {
       return NextResponse.json({ success: false, error: 'User not found or already deleted' }, { status: 404 });
     }

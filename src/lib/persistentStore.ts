@@ -199,6 +199,15 @@ export const persistentStore = {
     return memoryData.userOverrides[key];
   },
 
+  deleteUser: (userIdOrEmail: string) => {
+    loadStorage();
+    const key = userIdOrEmail.toLowerCase().trim();
+    if (memoryData.userOverrides[key]) {
+      delete memoryData.userOverrides[key];
+      persistStorage();
+    }
+  },
+
   // Orders
   getOrders: (): OrderData[] => {
     loadStorage();
