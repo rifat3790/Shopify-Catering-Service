@@ -420,8 +420,12 @@ function UserDashboardContent() {
                   </button>
                 )}
               </div>
-              <p className="text-[11px] text-emerald-300/80 mt-2 flex items-center gap-1">
-                <span>● {language === 'bn' ? 'যেকোনো খাবার অর্ডারের জন্য প্রস্তুত' : 'Available for immediate food ordering'}</span>
+              <p className={`text-[11px] mt-2 flex items-center gap-1 ${displayBalance > 0 ? 'text-emerald-300/90' : 'text-slate-400'}`}>
+                <span>
+                  {displayBalance > 0
+                    ? (language === 'bn' ? '● যেকোনো খাবার অর্ডারের জন্য প্রস্তুত' : '● Available for immediate food ordering')
+                    : (language === 'bn' ? '● কোনো ব্যালেন্স নেই (শূন্য)' : '● Zero available balance (৳0.00)')}
+                </span>
               </p>
             </div>
 

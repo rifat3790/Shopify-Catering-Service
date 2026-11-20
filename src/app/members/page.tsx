@@ -266,7 +266,11 @@ function MembersPageContent() {
               <Wallet className="w-4 h-4 text-emerald-400" />
             </div>
             <p className="text-2xl font-extrabold font-mono text-emerald-400">৳{totalMembersBalance.toFixed(2)}</p>
-            <p className="text-xs text-slate-300 font-medium mt-1">Available for refreshments</p>
+            <p className="text-xs text-slate-300 font-medium mt-1">
+              {totalMembersBalance > 0
+                ? (language === 'bn' ? 'রিফ্রেশমেন্টের জন্য ব্যালেন্স প্রস্তুত' : 'Available for refreshments')
+                : (language === 'bn' ? 'সকল ওয়ালেট ব্যালেন্স শূন্য' : 'Zero Available Funds (৳0.00)')}
+            </p>
           </div>
 
           <div className="p-5 rounded-2xl bg-slate-900/90 border border-amber-500/30 shadow-lg">

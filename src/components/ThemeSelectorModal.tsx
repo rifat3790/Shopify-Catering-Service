@@ -366,9 +366,17 @@ export default function ThemeSelectorModal() {
 
                 <div className="p-4 rounded-xl bg-slate-900/90 border border-emerald-500/30 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
                   <div>
-                    <span className="text-xs text-slate-400 block mb-0.5">Total Catering Balance</span>
-                    <p className="text-xl font-bold font-mono text-emerald-400">৳2,540.00</p>
-                    <span className="text-[10px] text-amber-400 font-medium">Available for orders</span>
+                    <span className="text-xs text-slate-400 block mb-0.5">
+                      {language === 'bn' ? 'ব্যক্তিগত ক্যাটারিং ব্যালেন্স' : 'Current Catering Balance'}
+                    </span>
+                    <p className="text-xl font-bold font-mono text-emerald-400">
+                      ৳{(Number(user?.balance) || 0).toFixed(2)}
+                    </p>
+                    <span className={`text-[10px] font-medium ${(Number(user?.balance) || 0) > 0 ? 'text-emerald-400' : 'text-slate-400'}`}>
+                      {(Number(user?.balance) || 0) > 0
+                        ? (language === 'bn' ? '● অর্ডারের জন্য প্রস্তুত' : '● Available for orders')
+                        : (language === 'bn' ? '● ওয়ালেট ব্যালেন্স শূন্য' : '● Zero available balance')}
+                    </span>
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -376,13 +384,13 @@ export default function ThemeSelectorModal() {
                       type="button"
                       className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 text-slate-950 font-bold text-xs shadow-md transition-all hover:scale-105"
                     >
-                      + Add New Order
+                      + {language === 'bn' ? 'খাবার অর্ডার' : 'Add New Order'}
                     </button>
                     <button
                       type="button"
                       className="px-3 py-2 rounded-xl bg-slate-800 text-amber-300 font-semibold text-xs border border-amber-500/30"
                     >
-                      Audit
+                      {language === 'bn' ? 'হিসাব অডিট' : 'Audit'}
                     </button>
                   </div>
                 </div>

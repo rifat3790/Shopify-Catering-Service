@@ -103,8 +103,7 @@ function TrackerContent() {
           language === 'bn' ? 'অর্ডার সফলভাবে ডাটাবেজে যুক্ত হয়েছে!' : 'Order created successfully!',
           'Order Added 🎉'
         );
-        clearClientCache('orders_list');
-        clearClientCache('members_list');
+        clearClientCache();
         await fetchTrackerData();
       } else {
         toast.error(data.error || 'Failed to create order', 'Error');
@@ -139,8 +138,7 @@ function TrackerContent() {
       const res = await fetch(`/api/orders/${id}`, { method: 'DELETE' });
       if (res.ok) {
         toast.success('Order removed from tracker', 'Order Deleted');
-        clearClientCache('orders_list');
-        clearClientCache('members_list');
+        clearClientCache();
         fetchTrackerData();
       } else {
         toast.error('Failed to delete order', 'Error');

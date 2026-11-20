@@ -35,7 +35,7 @@ import {
 } from 'lucide-react';
 
 function OrdersPageContent() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const { language } = useLanguage();
   const { toast } = useToast();
   
@@ -145,12 +145,9 @@ function OrdersPageContent() {
         method: 'DELETE',
       });
       if (res.ok) {
-        setOrders(prev => {
-          const next = prev.filter(o => o._id !== targetId && o.orderNumber !== targetId);
-          setClientCache('orders_list', next);
-          return next;
-        });
-        clearClientCache('members_list');
+        clearClientCache();
+        setOrders(prev => prev.filter(o => o._id !== targetId && o.orderNumber !== targetId));
+        if (refreshUser) refreshUser().catch(() => {});
         toast.success(`Order ${order.orderNumber} deleted successfully.`, 'Order Deleted');
       } else {
         toast.error('Failed to delete order', 'Delete Failed');

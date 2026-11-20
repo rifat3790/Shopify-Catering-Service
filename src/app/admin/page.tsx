@@ -209,8 +209,7 @@ function AdminPageContent() {
     setOrders(prev => prev.filter(o => o._id !== id && o.orderNumber !== id));
     try {
       await fetch(`/api/orders/${id}`, { method: 'DELETE' });
-      clearClientCache('orders_list');
-      clearClientCache('members_list');
+      clearClientCache();
       fetchAdminData();
     } catch (e) {
       console.error(e);

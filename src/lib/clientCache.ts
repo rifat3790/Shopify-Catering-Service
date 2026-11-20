@@ -11,7 +11,7 @@ interface CacheEntry<T> {
 
 const memoryCache = new Map<string, CacheEntry<any>>();
 
-export function getClientCache<T = any>(key: string, maxAgeMs = 180000): T | null {
+export function getClientCache<T = any>(key: string, maxAgeMs = 15000): T | null {
   if (typeof window === 'undefined') return null;
 
   // 1. Check in-memory Map (0ms lookup)
