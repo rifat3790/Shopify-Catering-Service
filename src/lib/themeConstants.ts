@@ -230,62 +230,109 @@ div[class*="bg-slate-950"] {
 }
 
 /* ========================================================
-   3. TAILWIND GRADIENT ENGINE OVERRIDES (ALL BUTTONS & TABS)
+   3. TAILWIND GRADIENT ENGINE OVERRIDES (ALL BUTTONS, TABS & ACCENTS)
 ======================================================== */
-[class*="from-emerald-"],
-[class*="from-teal-"] {
+/* Solid CTA & Button Gradients */
+button[class*="from-emerald-"],
+button[class*="from-teal-"],
+a[class*="from-emerald-"],
+a[class*="from-teal-"],
+[role="button"][class*="from-emerald-"],
+[role="button"][class*="from-teal-"],
+div[class*="p-[2px]"][class*="from-emerald-"],
+div[class*="p-[2px]"][class*="from-teal-"] {
   --tw-gradient-from: var(--theme-primary) var(--tw-gradient-from-position) !important;
   --tw-gradient-to: rgba(var(--theme-primary-rgb), 0) var(--tw-gradient-to-position) !important;
   --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
 }
 
-[class*="from-amber-"],
-[class*="from-gold-"] {
+button[class*="from-amber-"],
+button[class*="from-gold-"],
+a[class*="from-amber-"],
+a[class*="from-gold-"],
+[role="button"][class*="from-amber-"],
+[role="button"][class*="from-gold-"],
+div[class*="p-[2px]"][class*="from-amber-"],
+div[class*="p-[2px]"][class*="from-gold-"] {
   --tw-gradient-from: var(--theme-accent) var(--tw-gradient-from-position) !important;
   --tw-gradient-to: rgba(var(--theme-accent-rgb), 0) var(--tw-gradient-to-position) !important;
   --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
 }
 
-[class*="to-amber-"],
-[class*="to-gold-"] {
+button[class*="to-amber-"],
+button[class*="to-gold-"],
+a[class*="to-amber-"],
+a[class*="to-gold-"] {
   --tw-gradient-to: var(--theme-accent) var(--tw-gradient-to-position) !important;
 }
 
-[class*="to-emerald-"],
-[class*="to-teal-"] {
+button[class*="to-emerald-"],
+button[class*="to-teal-"],
+a[class*="to-emerald-"],
+a[class*="to-teal-"] {
   --tw-gradient-to: var(--theme-primary) var(--tw-gradient-to-position) !important;
 }
 
-[class*="via-emerald-"],
-[class*="via-teal-"] {
+button[class*="via-emerald-"],
+button[class*="via-teal-"],
+a[class*="via-emerald-"],
+a[class*="via-teal-"] {
   --tw-gradient-stops: var(--tw-gradient-from), var(--theme-primary-light) var(--tw-gradient-via-position), var(--tw-gradient-to) !important;
 }
 
-[class*="via-amber-"] {
+button[class*="via-amber-"],
+a[class*="via-amber-"] {
   --tw-gradient-stops: var(--tw-gradient-from), var(--theme-accent-light) var(--tw-gradient-via-position), var(--tw-gradient-to) !important;
 }
 
-/* Deep Card Gradients */
+/* Translucent Gradient Glows for Cards & Badges (NEVER 100% solid, soft subtle tint) */
+[class*="from-emerald-500\/"],
+[class*="from-teal-500\/"] {
+  --tw-gradient-from: rgba(var(--theme-primary-rgb), 0.12) var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgba(var(--theme-primary-rgb), 0) var(--tw-gradient-to-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+[class*="to-teal-500\/"],
+[class*="to-emerald-500\/"] {
+  --tw-gradient-to: rgba(var(--theme-primary-rgb), 0.06) var(--tw-gradient-to-position) !important;
+}
+
+[class*="from-amber-500\/"],
+[class*="from-orange-500\/"],
+[class*="from-yellow-500\/"] {
+  --tw-gradient-from: rgba(var(--theme-accent-rgb), 0.12) var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgba(var(--theme-accent-rgb), 0) var(--tw-gradient-to-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+[class*="to-amber-500\/"],
+[class*="to-orange-500\/"],
+[class*="to-yellow-500\/"] {
+  --tw-gradient-to: rgba(var(--theme-accent-rgb), 0.06) var(--tw-gradient-to-position) !important;
+}
+
+/* Deep Card Gradients - 18-24% opacity luxury glow over dark card base */
 [class*="from-emerald-950"],
 [class*="from-teal-950"] {
-  --tw-gradient-from: rgba(var(--theme-primary-rgb), 0.28) var(--tw-gradient-from-position) !important;
+  --tw-gradient-from: rgba(var(--theme-primary-rgb), 0.22) var(--tw-gradient-from-position) !important;
   --tw-gradient-to: rgba(var(--theme-primary-rgb), 0) var(--tw-gradient-to-position) !important;
   --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
 }
 
 [class*="to-emerald-950"],
 [class*="to-teal-950"] {
-  --tw-gradient-to: rgba(var(--theme-primary-rgb), 0.28) var(--tw-gradient-to-position) !important;
+  --tw-gradient-to: rgba(var(--theme-primary-rgb), 0.18) var(--tw-gradient-to-position) !important;
 }
 
 [class*="from-amber-950"] {
-  --tw-gradient-from: rgba(var(--theme-accent-rgb), 0.28) var(--tw-gradient-from-position) !important;
+  --tw-gradient-from: rgba(var(--theme-accent-rgb), 0.22) var(--tw-gradient-from-position) !important;
   --tw-gradient-to: rgba(var(--theme-accent-rgb), 0) var(--tw-gradient-to-position) !important;
   --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
 }
 
 [class*="to-amber-950"] {
-  --tw-gradient-to: rgba(var(--theme-accent-rgb), 0.28) var(--tw-gradient-to-position) !important;
+  --tw-gradient-to: rgba(var(--theme-accent-rgb), 0.18) var(--tw-gradient-to-position) !important;
 }
 
 /* ========================================================
@@ -359,7 +406,7 @@ button[class*="bg-amber-950"],
 }
 
 /* ========================================================
-   5. ALL HIGHLIGHTED TEXT & DYNAMIC METRICS
+   5. ALL HIGHLIGHTED TEXT & HIGH-CONTRAST CARD READABILITY
 ======================================================== */
 .text-emerald-400,
 .text-emerald-300,
@@ -383,6 +430,28 @@ button[class*="bg-amber-950"],
 [class*="text-amber-200"],
 [class*="text-gold-400"] {
   color: var(--theme-accent-light) !important;
+}
+
+/* Card titles, headers & label text contrast enhancements across all themes */
+.text-slate-100 {
+  color: #ffffff !important;
+}
+
+.text-slate-200 {
+  color: #f1f5f9 !important;
+}
+
+.text-slate-300 {
+  color: #e2e8f0 !important;
+}
+
+/* Muted subtitles & labels - lifted to high-contrast readable silver */
+.text-slate-400 {
+  color: #cbd5e1 !important;
+}
+
+.text-slate-500 {
+  color: #94a3b8 !important;
 }
 
 .group:hover .group-hover\:text-amber-300,

@@ -300,40 +300,40 @@ function OrdersPageContent() {
 
         {/* Metrics Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-md">
-            <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
+          <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-md">
+            <div className="flex items-center justify-between text-xs font-bold text-slate-200 tracking-wider uppercase mb-1">
               <span>{language === 'bn' ? 'মোট অর্ডার সংখ্যা' : 'Total Orders Placed'}</span>
               <Receipt className="w-4 h-4 text-emerald-400" />
             </div>
-            <p className="text-2xl font-bold font-mono text-white">{totalOrdersCount}</p>
-            <p className="text-[11px] text-slate-500 mt-1">Real-time database sync</p>
+            <p className="text-2xl font-extrabold font-mono text-white">{totalOrdersCount}</p>
+            <p className="text-xs text-slate-300 font-medium mt-1">Real-time database sync</p>
           </div>
 
-          <div className="p-4 rounded-2xl bg-slate-900/80 border border-amber-500/30 shadow-md">
-            <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
+          <div className="p-4 rounded-2xl bg-slate-900/90 border border-amber-500/30 shadow-md">
+            <div className="flex items-center justify-between text-xs font-bold text-slate-200 tracking-wider uppercase mb-1">
               <span>{language === 'bn' ? 'মোট বিল্ড এমাউন্ট' : 'Total Billed Amount'}</span>
               <TrendingUp className="w-4 h-4 text-amber-400" />
             </div>
-            <p className="text-2xl font-bold font-mono text-amber-300">৳{totalBilled.toFixed(2)}</p>
-            <p className="text-[11px] text-amber-400/80 mt-1">All orders combined</p>
+            <p className="text-2xl font-extrabold font-mono text-amber-300">৳{totalBilled.toFixed(2)}</p>
+            <p className="text-xs text-amber-300/90 font-medium mt-1">All orders combined</p>
           </div>
 
-          <div className="p-4 rounded-2xl bg-slate-900/80 border border-emerald-500/30 shadow-md">
-            <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
+          <div className="p-4 rounded-2xl bg-slate-900/90 border border-emerald-500/30 shadow-md">
+            <div className="flex items-center justify-between text-xs font-bold text-slate-200 tracking-wider uppercase mb-1">
               <span>{language === 'bn' ? 'পরিশোধিত অর্থ' : 'Total Collected'}</span>
               <DollarSign className="w-4 h-4 text-emerald-400" />
             </div>
-            <p className="text-2xl font-bold font-mono text-emerald-300">৳{totalPaid.toFixed(2)}</p>
-            <p className="text-[11px] text-emerald-400/80 mt-1">Cash, Wallet & Mobile</p>
+            <p className="text-2xl font-extrabold font-mono text-emerald-300">৳{totalPaid.toFixed(2)}</p>
+            <p className="text-xs text-emerald-300/90 font-medium mt-1">Cash, Wallet & Mobile</p>
           </div>
 
-          <div className="p-4 rounded-2xl bg-slate-900/80 border border-rose-500/30 shadow-md">
-            <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
+          <div className="p-4 rounded-2xl bg-slate-900/90 border border-rose-500/30 shadow-md">
+            <div className="flex items-center justify-between text-xs font-bold text-slate-200 tracking-wider uppercase mb-1">
               <span>{language === 'bn' ? 'বকেয়া / ডিউ অর্ডার' : 'Due / Pending Orders'}</span>
               <AlertCircle className="w-4 h-4 text-rose-400" />
             </div>
-            <p className="text-2xl font-bold font-mono text-rose-300">{totalDue}</p>
-            <p className="text-[11px] text-rose-400/80 mt-1">Requires settlement</p>
+            <p className="text-2xl font-extrabold font-mono text-rose-300">{totalDue}</p>
+            <p className="text-xs text-rose-300/90 font-medium mt-1">Requires settlement</p>
           </div>
         </div>
 

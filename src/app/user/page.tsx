@@ -426,20 +426,20 @@ function UserDashboardContent() {
             </div>
 
             {/* Total Spent */}
-            <div className="p-6 rounded-3xl bg-slate-900/80 border border-slate-800 shadow-xl">
+            <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">
                   {language === 'bn' ? 'মোট খাবার গ্রহণ (Total Spent)' : 'Total Catering Spent'}
                 </span>
                 <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30">
                   <ShoppingBag className="w-5 h-5" />
                 </div>
               </div>
-              <h2 className="text-2xl sm:text-3xl font-bold font-mono text-amber-300">
+              <h2 className="text-2xl sm:text-3xl font-extrabold font-mono text-amber-300">
                 ৳{displaySpent.toFixed(2)}
               </h2>
               <div className="flex items-center justify-between mt-2 flex-wrap gap-1">
-                <p className="text-[11px] text-slate-400">
+                <p className="text-xs text-slate-300 font-medium">
                   {dateFilter === 'lifetime'
                     ? `${allPersonalOrders.length} ${language === 'bn' ? 'টি সফল অর্ডার সম্পন্ন' : 'Orders completed'}`
                     : `${myOrders.length} ${language === 'bn' ? 'টি সফল অর্ডার সম্পন্ন' : 'Orders completed'}`
@@ -454,19 +454,19 @@ function UserDashboardContent() {
             </div>
 
             {/* Unpaid / Due */}
-            <div className="p-6 rounded-3xl bg-slate-900/80 border border-slate-800 shadow-xl">
+            <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">
                   {language === 'bn' ? 'বকেয়া হিসাব (Current Due)' : 'Current Due / Credit'}
                 </span>
                 <div className={`p-2 rounded-xl border ${displayDue > 0 ? 'bg-rose-500/20 text-rose-400 border-rose-500/30' : 'bg-teal-500/20 text-teal-300 border-teal-500/30'}`}>
                   <CheckCircle2 className="w-5 h-5" />
                 </div>
               </div>
-              <h2 className={`text-2xl sm:text-3xl font-bold font-mono ${displayDue > 0 ? 'text-rose-400' : 'text-teal-300'}`}>
+              <h2 className={`text-2xl sm:text-3xl font-extrabold font-mono ${displayDue > 0 ? 'text-rose-400' : 'text-teal-300'}`}>
                 ৳{displayDue.toFixed(2)}
               </h2>
-              <p className={`text-[11px] mt-2 ${displayDue > 0 ? 'text-rose-400' : 'text-teal-400'}`}>
+              <p className={`text-xs font-medium mt-2 ${displayDue > 0 ? 'text-rose-300' : 'text-teal-300'}`}>
                 {displayDue > 0 ? `৳${displayDue.toFixed(2)} বকেয়া` : (language === 'bn' ? 'কোনো বকেয়া নেই (Clear)' : 'Zero outstanding dues')}
               </p>
             </div>

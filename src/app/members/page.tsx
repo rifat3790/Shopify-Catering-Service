@@ -260,26 +260,26 @@ function MembersPageContent() {
 
         {/* Member Analytics Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="p-5 rounded-2xl bg-slate-900/80 border border-emerald-600/30 shadow-lg">
-            <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
+          <div className="p-5 rounded-2xl bg-slate-900/90 border border-emerald-600/30 shadow-lg">
+            <div className="flex items-center justify-between text-xs font-bold text-slate-200 tracking-wider uppercase mb-2">
               <span>{language === 'bn' ? 'মোট মেম্বার ব্যালেন্স' : 'Total Member Wallet Funds'}</span>
               <Wallet className="w-4 h-4 text-emerald-400" />
             </div>
-            <p className="text-2xl font-bold font-mono text-emerald-400">৳{totalMembersBalance.toFixed(2)}</p>
-            <p className="text-[11px] text-emerald-400/80 mt-1">Available for refreshments</p>
+            <p className="text-2xl font-extrabold font-mono text-emerald-400">৳{totalMembersBalance.toFixed(2)}</p>
+            <p className="text-xs text-slate-300 font-medium mt-1">Available for refreshments</p>
           </div>
 
-          <div className="p-5 rounded-2xl bg-slate-900/80 border border-amber-500/30 shadow-lg">
-            <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
+          <div className="p-5 rounded-2xl bg-slate-900/90 border border-amber-500/30 shadow-lg">
+            <div className="flex items-center justify-between text-xs font-bold text-slate-200 tracking-wider uppercase mb-2">
               <span>{language === 'bn' ? 'মোট ক্যাটারিং খরচ' : 'Total Lifetime Food Spent'}</span>
               <TrendingUp className="w-4 h-4 text-amber-400" />
             </div>
-            <p className="text-2xl font-bold font-mono text-amber-300">৳{totalLifetimeSpent.toFixed(2)}</p>
-            <p className="text-[11px] text-slate-400 mt-1">Settled Catering Orders</p>
+            <p className="text-2xl font-extrabold font-mono text-amber-300">৳{totalLifetimeSpent.toFixed(2)}</p>
+            <p className="text-xs text-slate-300 font-medium mt-1">Settled Catering Orders</p>
           </div>
 
-          <div className={`p-5 rounded-2xl bg-slate-900/80 border shadow-lg ${totalMembersDue > 0 ? 'border-rose-500/40' : 'border-teal-500/30'}`}>
-            <div className="flex items-center justify-between text-xs text-slate-400 mb-2 font-medium">
+          <div className={`p-5 rounded-2xl bg-slate-900/90 border shadow-lg ${totalMembersDue > 0 ? 'border-rose-500/40' : 'border-teal-500/30'}`}>
+            <div className="flex items-center justify-between text-xs font-bold text-slate-200 tracking-wider uppercase mb-2">
               <span>{language === 'bn' ? 'মোট বকেয়া পাওনা হিসাব' : 'Total Outstanding Dues'}</span>
               {totalMembersDue > 0 ? (
                 <AlertCircle className="w-4 h-4 text-rose-400" />
@@ -287,10 +287,10 @@ function MembersPageContent() {
                 <CheckCircle2 className="w-4 h-4 text-teal-400" />
               )}
             </div>
-            <p className={`text-2xl font-bold font-mono ${totalMembersDue > 0 ? 'text-rose-400' : 'text-teal-300'}`}>
+            <p className={`text-2xl font-extrabold font-mono ${totalMembersDue > 0 ? 'text-rose-400' : 'text-teal-300'}`}>
               ৳{totalMembersDue.toFixed(2)}
             </p>
-            <p className={`text-[11px] mt-1 ${totalMembersDue > 0 ? 'text-rose-400' : 'text-teal-400/80'}`}>
+            <p className={`text-xs font-medium mt-1 ${totalMembersDue > 0 ? 'text-rose-300' : 'text-slate-300'}`}>
               {totalMembersDue > 0
                 ? (language === 'bn' ? `${dueMembersCount} জন মেম্বারের বকেয়া পাওনা রয়েছে` : `${dueMembersCount} members with pending dues`)
                 : (language === 'bn' ? 'সকল মেম্বার একাউন্ট ক্লিয়ার (বকেয়া নেই)' : 'Zero outstanding dues • All accounts clear')}

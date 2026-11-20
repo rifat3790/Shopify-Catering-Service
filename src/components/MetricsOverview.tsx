@@ -7,8 +7,7 @@ import {
   Receipt, 
   Wallet, 
   Coins, 
-  TrendingUp, 
-  ArrowUpRight 
+  TrendingUp 
 } from 'lucide-react';
 
 interface MetricsProps {
@@ -39,11 +38,12 @@ export default function MetricsOverview({ stats, isLoading }: MetricsProps) {
       value: stats.ordersCount.toString(),
       unit: language === 'bn' ? 'টি' : 'orders',
       icon: ShoppingBag,
-      color: 'from-emerald-500/20 to-teal-500/10',
-      borderColor: 'border-emerald-500/30',
+      borderColor: 'border-emerald-500/40',
       iconColor: 'text-emerald-400',
+      valueColor: 'text-white',
+      glowColor: 'bg-emerald-500',
       badge: 'Live',
-      badgeColor: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+      badgeColor: 'border-emerald-500/40 text-emerald-300',
     },
     {
       id: 'totalBill',
@@ -54,11 +54,12 @@ export default function MetricsOverview({ stats, isLoading }: MetricsProps) {
       value: `৳${stats.totalBill.toFixed(2)}`,
       unit: '',
       icon: Receipt,
-      color: 'from-amber-500/20 to-orange-500/10',
-      borderColor: 'border-amber-500/30',
+      borderColor: 'border-amber-500/40',
       iconColor: 'text-amber-400',
+      valueColor: 'text-amber-300',
+      glowColor: 'bg-amber-500',
       badge: 'Billed',
-      badgeColor: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+      badgeColor: 'border-amber-500/40 text-amber-300',
     },
     {
       id: 'totalPaid',
@@ -69,11 +70,12 @@ export default function MetricsOverview({ stats, isLoading }: MetricsProps) {
       value: `৳${stats.totalPaid.toFixed(2)}`,
       unit: '',
       icon: Wallet,
-      color: 'from-teal-500/20 to-emerald-500/10',
-      borderColor: 'border-teal-500/30',
+      borderColor: 'border-teal-500/40',
       iconColor: 'text-teal-300',
+      valueColor: 'text-emerald-300',
+      glowColor: 'bg-teal-500',
       badge: 'Received',
-      badgeColor: 'bg-teal-500/10 text-teal-300 border-teal-500/20',
+      badgeColor: 'border-teal-500/40 text-teal-300',
     },
     {
       id: 'refundChange',
@@ -84,11 +86,12 @@ export default function MetricsOverview({ stats, isLoading }: MetricsProps) {
       value: `৳${stats.totalRefundChange.toFixed(2)}`,
       unit: '',
       icon: Coins,
-      color: 'from-sky-500/20 to-indigo-500/10',
-      borderColor: 'border-sky-500/30',
+      borderColor: 'border-sky-500/40',
       iconColor: 'text-sky-400',
+      valueColor: 'text-sky-300',
+      glowColor: 'bg-sky-500',
       badge: 'Change',
-      badgeColor: 'bg-sky-500/10 text-sky-400 border-sky-500/20',
+      badgeColor: 'border-sky-500/40 text-sky-300',
     },
     ...(stats.totalMemberBalance !== undefined ? [{
       id: 'memberBalance',
@@ -99,11 +102,12 @@ export default function MetricsOverview({ stats, isLoading }: MetricsProps) {
       value: `৳${stats.totalMemberBalance.toFixed(2)}`,
       unit: '',
       icon: Wallet,
-      color: 'from-emerald-500/20 to-amber-500/10',
       borderColor: 'border-emerald-500/40',
       iconColor: 'text-emerald-300',
+      valueColor: 'text-emerald-300',
+      glowColor: 'bg-emerald-500',
       badge: 'Live Balances',
-      badgeColor: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20',
+      badgeColor: 'border-emerald-500/40 text-emerald-300',
     }] : []),
     {
       id: 'rate',
@@ -114,11 +118,12 @@ export default function MetricsOverview({ stats, isLoading }: MetricsProps) {
       value: stats.collectionRate,
       unit: '',
       icon: TrendingUp,
-      color: 'from-amber-600/20 to-yellow-500/10',
       borderColor: 'border-amber-400/40',
       iconColor: 'text-amber-300',
+      valueColor: 'text-amber-300',
+      glowColor: 'bg-amber-500',
       badge: 'High Performance',
-      badgeColor: 'bg-amber-400/10 text-amber-300 border-amber-400/30',
+      badgeColor: 'border-amber-400/40 text-amber-300',
     },
   ];
 
@@ -130,26 +135,26 @@ export default function MetricsOverview({ stats, isLoading }: MetricsProps) {
           return (
             <div
               key={card.id}
-              className={`relative overflow-hidden rounded-2xl bg-gradient-to-b ${card.color} bg-slate-900/80 backdrop-blur-xl border ${card.borderColor} p-4 sm:p-5 shadow-lg shadow-black/20 hover:scale-[1.02] transition-all duration-300 group`}
+              className={`relative overflow-hidden rounded-2xl bg-slate-900/95 backdrop-blur-xl border ${card.borderColor} p-4 sm:p-5 shadow-xl shadow-black/30 hover:scale-[1.02] hover:shadow-2xl transition-all duration-300 group`}
             >
-              {/* Subtle Ambient Radial Glow */}
-              <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-white/5 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-500 pointer-events-none" />
+              {/* Soft Ambient Radial Corner Glow (subtle & non-intrusive) */}
+              <div className={`absolute -right-8 -bottom-8 w-28 h-28 rounded-full blur-2xl pointer-events-none opacity-20 group-hover:opacity-40 transition-opacity duration-500 ${card.glowColor}`} />
 
               <div className="flex items-center justify-between mb-3">
-                <div className={`p-2 rounded-xl bg-slate-950/60 border border-slate-800 ${card.iconColor}`}>
+                <div className={`p-2 rounded-xl bg-slate-950/80 border border-slate-800 ${card.iconColor} shadow-inner`}>
                   <Icon className="w-5 h-5" />
                 </div>
-                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${card.badgeColor}`}>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border bg-slate-950/80 ${card.badgeColor}`}>
                   {card.badge}
                 </span>
               </div>
 
               <div>
-                <p className="text-xs font-medium text-slate-300 mb-1">
+                <p className="text-xs font-bold text-slate-200 tracking-wider uppercase mb-1">
                   {language === 'bn' ? card.titleBn : card.titleEn}
                 </p>
                 <div className="flex items-baseline gap-1">
-                  <h3 className="text-xl sm:text-2xl font-bold font-serif text-white tracking-tight">
+                  <h3 className={`text-xl sm:text-2xl font-extrabold font-mono tracking-tight ${card.valueColor}`}>
                     {isLoading ? (
                       <span className="inline-block w-16 h-6 bg-slate-800 animate-pulse rounded" />
                     ) : (
@@ -157,12 +162,12 @@ export default function MetricsOverview({ stats, isLoading }: MetricsProps) {
                     )}
                   </h3>
                   {card.unit && (
-                    <span className="text-xs text-slate-400 font-normal">
+                    <span className="text-xs text-slate-400 font-semibold pl-0.5">
                       {card.unit}
                     </span>
                   )}
                 </div>
-                <p className="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
+                <p className="text-xs text-slate-300 font-medium mt-1.5 flex items-center gap-1">
                   <span>{language === 'bn' ? card.subtextBn : card.subtextEn}</span>
                 </p>
               </div>
@@ -173,4 +178,3 @@ export default function MetricsOverview({ stats, isLoading }: MetricsProps) {
     </section>
   );
 }
-
