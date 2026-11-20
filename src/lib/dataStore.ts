@@ -922,9 +922,16 @@ export async function updateUserBalance(
     await connectToDatabase();
     if (User) {
       const isObjectId = idOrEmail.match(/^[0-9a-fA-F]{24}$/);
+      const escapeRegex = (s: string) => s.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
       const query = isObjectId 
         ? { _id: idOrEmail } 
-        : { $or: [{ uid: idOrEmail }, { email: search }, { name: search }] };
+        : { 
+            $or: [
+              { uid: idOrEmail }, 
+              { email: { $regex: new RegExp(`^${escapeRegex(search)}$`, 'i') } }, 
+              { name: { $regex: new RegExp(`^${escapeRegex(search)}$`, 'i') } }
+            ] 
+          };
       const userDoc = await User.findOne(query);
       if (userDoc) {
         if (action === 'add') {
@@ -1219,6 +1226,59 @@ export async function updateOrder(id: string, updates: Partial<OrderData>): Prom
           _id: (doc as any)._id.toString(),
           orderDate: (doc as any).orderDate?.toISOString?.() || new Date().toISOString(),
         } as unknown as OrderData;
+
+        // Recalculate customer real totalSpent & currentDue from MongoDB orders
+        try {
+          const custEmail = (formatted.customerEmail || '').toLowerCase().trim();
+          const custName = (formatted.customerName || '').toLowerCase().trim();
+          const custUserId = formatted.userId || '';
+          if (custEmail || custUserId || custName) {
+            const orderFilterList: any[] = [];
+            if (custEmail) orderFilterList.push({ customerEmail: custEmail });
+            if (custUserId) orderFilterList.push({ userId: custUserId });
+            if (custName) orderFilterList.push({ customerName: custName });
+
+            const remainingOrders = await Order.find({ $or: orderFilterList }).select('totalBill status changeDue paidAmount').lean();
+            const realTotalSpent = remainingOrders.reduce((sum: number, o: any) => sum + (Number(o.totalBill) || 0), 0);
+            const realCurrentDue = remainingOrders
+              .filter((o: any) => o.status === 'Due' || o.changeDue < 0)
+              .reduce((sum: number, o: any) => sum + Math.max(0, (Number(o.totalBill) || 0) - (Number(o.paidAmount) || 0)), 0);
+
+            const userFilterList: any[] = [];
+            if (custEmail) userFilterList.push({ email: custEmail });
+            if (custUserId) userFilterList.push({ uid: custUserId });
+            if (custName) userFilterList.push({ name: custName });
+
+            await User.updateMany(
+              { $or: userFilterList },
+              { $set: { totalSpent: realTotalSpent, currentDue: realCurrentDue } }
+            );
+
+            if (Customer && custName) {
+              await Customer.updateOne(
+                { name: custName },
+                { $set: { totalSpent: realTotalSpent, totalOrders: remainingOrders.length, currentDue: realCurrentDue } }
+              );
+            }
+
+            const matched = usersCache.find(u =>
+              (custEmail && u.email.toLowerCase() === custEmail) ||
+              (custUserId && u.id === custUserId) ||
+              (custName && u.name.toLowerCase() === custName)
+            );
+            if (matched) {
+              matched.totalSpent = realTotalSpent;
+              matched.currentDue = realCurrentDue;
+              persistentStore.updateUserProfile(matched.email, {
+                totalSpent: realTotalSpent,
+                currentDue: realCurrentDue,
+              });
+            }
+          }
+        } catch (recalcErr) {
+          console.warn('Error recalculating user spent after updateOrder:', recalcErr);
+        }
+
         return formatted;
       }
     }

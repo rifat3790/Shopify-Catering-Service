@@ -19,12 +19,14 @@ import {
   ArrowRight
 } from 'lucide-react';
 
-const DARK_BG_PRESETS = [
+const BG_PRESETS = [
   { label: 'Obsidian Slate', hex: '#030712' },
   { label: 'Midnight Blue', hex: '#030717' },
   { label: 'Velvet Plum', hex: '#090514' },
   { label: 'Garnet Black', hex: '#0f0507' },
   { label: 'Abyssal Forest', hex: '#020b08' },
+  { label: 'Pearl White (Light)', hex: '#f8fafc' },
+  { label: 'Ivory Cream (Light)', hex: '#fafaf9' },
 ];
 
 const FONT_PRESETS = [
@@ -130,8 +132,8 @@ export default function ThemeSelectorModal() {
               </h2>
               <p className="text-xs text-slate-400">
                 {language === 'bn' 
-                  ? '৫টি প্রফেশনাল থিম থেকে বেছে নিন বা নিজের মনের মতো কালার এডিট করুন। আপনার আইডিতে সেভ থাকবে।' 
-                  : 'Choose from 5 curated luxury presets or customize your own colors. Persisted to your user ID.'}
+                  ? '৬টি প্রফেশনাল থিম থেকে বেছে নিন বা নিজের মনের মতো কালার এডিট করুন। আপনার আইডিতে সেভ থাকবে।' 
+                  : 'Choose from 6 curated luxury presets or customize your own colors. Persisted to your user ID.'}
               </p>
             </div>
           </div>
@@ -155,7 +157,7 @@ export default function ThemeSelectorModal() {
             }`}
           >
             <Layers className="w-3.5 h-3.5" />
-            <span>{language === 'bn' ? '৫টি লাক্সারি প্রিসেট' : '5 Curated Presets'}</span>
+            <span>{language === 'bn' ? '৬টি লাক্সারি প্রিসেট' : '6 Curated Presets'}</span>
           </button>
 
           <button
@@ -306,13 +308,13 @@ export default function ThemeSelectorModal() {
                   </div>
                 </div>
 
-                {/* Dark Background Presets */}
+                {/* Background Presets */}
                 <div className="space-y-2 pt-2">
                   <label className="text-xs font-semibold text-slate-300">
-                    {language === 'bn' ? 'ডিপ ব্যাকগ্রাউন্ড শেড নির্বাচন করুন:' : 'Select Deep Background Shade:'}
+                    {language === 'bn' ? 'ব্যাকগ্রাউন্ড শেড নির্বাচন করুন (ডার্ক ও লাইট):' : 'Select Background Shade (Dark & Light):'}
                   </label>
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                    {DARK_BG_PRESETS.map((bg) => (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
+                    {BG_PRESETS.map((bg) => (
                       <button
                         key={bg.hex}
                         type="button"

@@ -106,6 +106,27 @@ export const THEME_PRESETS: ThemePreset[] = [
     fontBody: "'Inter', system-ui, sans-serif",
     previewGradient: 'from-teal-500 to-lime-500',
   },
+  {
+    id: 'pearl',
+    name: 'Pearl & Royal Emerald (Light)',
+    nameBn: 'রাজকীয় মুক্তা ও পান্না (লাইট)',
+    description: 'Crisp luminous pearl white background with deep executive emerald & imperial gold accents',
+    descriptionBn: 'উজ্জ্বল পার্ল হোয়াইট ব্যাকগ্রাউন্ড, ডিপ এক্সিকিউটিভ পান্না ও সোনালী ফন্ট কম্বিনেশন',
+    tag: 'Luxury Executive Light',
+    primary: '#059669',        // emerald-600
+    primaryLight: '#047857',   // emerald-700
+    primaryDark: '#065f46',    // emerald-800
+    primaryRgb: '5, 150, 105',
+    accent: '#d97706',         // amber-600
+    accentLight: '#b45309',    // amber-700
+    accentDark: '#92400e',     // amber-800
+    accentRgb: '217, 119, 6',
+    bgBase: '#f8fafc',         // soft pearl slate-50
+    bgCard: '#ffffff',         // crisp pure white
+    fontHeading: "'Playfair Display', Georgia, serif",
+    fontBody: "'Inter', system-ui, sans-serif",
+    previewGradient: 'from-emerald-600 to-amber-600',
+  },
 ];
 
 export function hexToRgb(hex: string): { r: number; g: number; b: number; rgbString: string } {
@@ -132,6 +153,13 @@ export function adjustBrightness(hex: string, percent: number): string {
   return `#${((1 << 24) + (newR << 16) + (newG << 8) + newB).toString(16).slice(1)}`;
 }
 
+export function isLightColor(hex: string): boolean {
+  if (!hex) return false;
+  const { r, g, b } = hexToRgb(hex);
+  const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  return luminance > 0.45;
+}
+
 export function generateThemeCSS(
   primaryHex: string,
   accentHex: string,
@@ -150,6 +178,289 @@ export function generateThemeCSS(
   const accentLight = adjustBrightness(accentHex, 20);
   const accentDark = adjustBrightness(accentHex, -25);
 
+  const isLight = isLightColor(bgBaseHex);
+
+  if (isLight) {
+    // ========================================================
+    // LIGHT THEME STYLING & HIGH-CONTRAST ENGINE
+    // ========================================================
+    return `
+:root {
+  --theme-primary: ${primaryHex};
+  --theme-primary-hover: ${primaryDark};
+  --theme-primary-light: ${primaryLight};
+  --theme-primary-dark: ${primaryDark};
+  --theme-primary-rgb: ${primaryRgb};
+
+  --theme-accent: ${accentHex};
+  --theme-accent-hover: ${accentDark};
+  --theme-accent-light: ${accentLight};
+  --theme-accent-dark: ${accentDark};
+  --theme-accent-rgb: ${accentRgb};
+
+  --theme-bg-base: ${bgBaseHex};
+  --theme-bg-base-rgb: ${bgBaseRgb};
+  --theme-bg-card: ${bgCardHex};
+  --theme-bg-card-rgb: ${bgCardRgb};
+
+  --theme-font-heading: ${fontHeading};
+  --theme-font-body: ${fontBody};
+}
+
+/* Base Body & High-Contrast Typography */
+body {
+  font-family: var(--theme-font-body);
+  background-color: var(--theme-bg-base) !important;
+  color: #0f172a !important;
+  transition: background-color 0.25s ease-in-out;
+}
+
+h1, h2, h3, h4, h5, h6, .font-serif, [class*="font-serif"], .font-display, [class*="font-display"] {
+  font-family: var(--theme-font-heading) !important;
+  color: #0f172a !important;
+}
+
+::selection {
+  background-color: var(--theme-primary) !important;
+  color: #ffffff !important;
+}
+
+/* Page Background and Cards */
+.bg-slate-950,
+main[class*="bg-slate-950"],
+div[class*="bg-slate-950"] {
+  background-color: var(--theme-bg-base) !important;
+}
+
+.bg-slate-900,
+.bg-slate-900\/95,
+.bg-slate-900\/90,
+.bg-slate-900\/80,
+.bg-slate-900\/70,
+.bg-slate-900\/60,
+.bg-slate-900\/50,
+[class*="bg-slate-900"] {
+  background-color: var(--theme-bg-card) !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05), 0 1px 3px 0 rgba(15, 23, 42, 0.04) !important;
+}
+
+/* Recessed card sub-containers & table inner areas */
+.bg-slate-950\/70,
+.bg-slate-950\/80,
+.bg-slate-950\/90,
+.bg-slate-950\/95,
+[class*="bg-slate-950\/"] {
+  background-color: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* Hero Cards / Banners with subtle gradient */
+.from-emerald-950.via-slate-900.to-emerald-950,
+.from-emerald-950.via-slate-950.to-emerald-950,
+.from-emerald-950.via-slate-950.to-slate-950 {
+  background-image: linear-gradient(135deg, rgba(var(--theme-primary-rgb), 0.12), #ffffff, rgba(var(--theme-accent-rgb), 0.12)) !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* Text Colors Inverted for Crisp Readability on White Cards */
+.text-white:not(button):not(button *):not(a[class*="bg-gradient"]):not(a[class*="bg-gradient"] *):not([role="button"]):not([role="button"] *):not(.btn-gradient):not(.btn-gradient *) {
+  color: #0f172a !important;
+}
+
+.text-slate-100:not(button):not(button *) {
+  color: #0f172a !important;
+}
+
+.text-slate-200:not(button):not(button *) {
+  color: #1e293b !important;
+}
+
+.text-slate-300:not(button):not(button *) {
+  color: #334155 !important;
+}
+
+.text-slate-400:not(button):not(button *) {
+  color: #475569 !important;
+}
+
+.text-slate-500:not(button):not(button *) {
+  color: #64748b !important;
+}
+
+/* High-Contrast WCAG AAA Metrics */
+.text-emerald-400,
+.text-emerald-300,
+.text-teal-400,
+.text-teal-300,
+[class*="text-emerald-400"],
+[class*="text-teal-400"] {
+  color: #047857 !important; /* Deep emerald-700 */
+}
+
+.text-amber-400,
+.text-amber-300,
+.text-amber-200,
+.text-gold-400,
+[class*="text-amber-400"],
+[class*="text-amber-300"],
+[class*="text-gold-400"] {
+  color: #b45309 !important; /* Deep amber-700 */
+}
+
+.text-rose-400,
+.text-red-400,
+[class*="text-rose-400"],
+[class*="text-red-400"] {
+  color: #be123c !important; /* Deep rose-700 */
+}
+
+.text-sky-400,
+.text-cyan-400,
+[class*="text-sky-400"] {
+  color: #0369a1 !important; /* Deep sky-700 */
+}
+
+/* Gradient Buttons (Crisp White Text) */
+button[class*="from-emerald-"],
+button[class*="from-teal-"],
+a[class*="from-emerald-"],
+a[class*="from-teal-"],
+[role="button"][class*="from-emerald-"],
+[role="button"][class*="from-teal-"] {
+  --tw-gradient-from: var(--theme-primary) var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgba(var(--theme-primary-rgb), 0) var(--tw-gradient-to-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+  color: #ffffff !important;
+}
+
+button[class*="from-amber-"],
+button[class*="from-gold-"],
+a[class*="from-amber-"],
+a[class*="from-gold-"],
+[role="button"][class*="from-amber-"],
+[role="button"][class*="from-gold-"] {
+  --tw-gradient-from: var(--theme-accent) var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgba(var(--theme-accent-rgb), 0) var(--tw-gradient-to-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+  color: #ffffff !important;
+}
+
+button[class*="to-amber-"],
+button[class*="to-gold-"],
+a[class*="to-amber-"],
+a[class*="to-gold-"] {
+  --tw-gradient-to: var(--theme-accent) var(--tw-gradient-to-position) !important;
+}
+
+button[class*="to-emerald-"],
+button[class*="to-teal-"],
+a[class*="to-emerald-"],
+a[class*="to-teal-"] {
+  --tw-gradient-to: var(--theme-primary) var(--tw-gradient-to-position) !important;
+}
+
+/* Secondary / Slate Buttons in Light Mode */
+button.bg-slate-800,
+button[class*="bg-slate-800"],
+div[role="button"][class*="bg-slate-800"] {
+  background-color: #f1f5f9 !important;
+  color: #1e293b !important;
+  border-color: #cbd5e1 !important;
+}
+
+button.bg-slate-800:hover,
+button[class*="bg-slate-800"]:hover {
+  background-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+/* Soft Action Pills */
+.bg-emerald-950,
+.bg-emerald-950\/60,
+.bg-emerald-950\/80,
+button[class*="bg-emerald-950"] {
+  background-color: rgba(var(--theme-primary-rgb), 0.12) !important;
+  color: #047857 !important;
+  border-color: rgba(var(--theme-primary-rgb), 0.3) !important;
+}
+
+.bg-amber-950,
+.bg-amber-950\/40,
+.bg-amber-950\/60,
+button[class*="bg-amber-950"] {
+  background-color: rgba(var(--theme-accent-rgb), 0.12) !important;
+  color: #b45309 !important;
+  border-color: rgba(var(--theme-accent-rgb), 0.3) !important;
+}
+
+/* Inputs, Selects & Textareas */
+input, select, textarea {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+input::placeholder, textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: var(--theme-primary) !important;
+  box-shadow: 0 0 0 2px rgba(var(--theme-primary-rgb), 0.25) !important;
+}
+
+/* Borders & Dividers */
+.border-slate-800,
+.border-slate-800\/80,
+.border-slate-800\/60,
+.border-slate-700,
+.border-slate-700\/80 {
+  border-color: #e2e8f0 !important;
+}
+
+[class*="border-emerald-"] {
+  border-color: rgba(var(--theme-primary-rgb), 0.35) !important;
+}
+
+[class*="border-amber-"] {
+  border-color: rgba(var(--theme-accent-rgb), 0.35) !important;
+}
+
+/* Tables */
+table thead th {
+  background-color: #f8fafc !important;
+  color: #475569 !important;
+  border-color: #e2e8f0 !important;
+}
+
+table tbody tr {
+  border-color: #e2e8f0 !important;
+}
+
+table tbody tr:hover {
+  background-color: #f8fafc !important;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar-track {
+  background: #f1f5f9 !important;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1 !important;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8 !important;
+}
+`;
+  }
+
+  // ========================================================
+  // DARK LUXURY THEME STYLING ENGINE (DEFAULT)
+  // ========================================================
   return `
 :root {
   --theme-primary: ${primaryHex};
@@ -285,7 +596,7 @@ a[class*="via-amber-"] {
   --tw-gradient-stops: var(--tw-gradient-from), var(--theme-accent-light) var(--tw-gradient-via-position), var(--tw-gradient-to) !important;
 }
 
-/* Translucent Gradient Glows for Cards & Badges (NEVER 100% solid, soft subtle tint) */
+/* Translucent Gradient Glows for Cards & Badges */
 [class*="from-emerald-500\/"],
 [class*="from-teal-500\/"] {
   --tw-gradient-from: rgba(var(--theme-primary-rgb), 0.12) var(--tw-gradient-from-position) !important;
@@ -312,7 +623,7 @@ a[class*="via-amber-"] {
   --tw-gradient-to: rgba(var(--theme-accent-rgb), 0.06) var(--tw-gradient-to-position) !important;
 }
 
-/* Deep Card Gradients - 18-24% opacity luxury glow over dark card base */
+/* Deep Card Gradients */
 [class*="from-emerald-950"],
 [class*="from-teal-950"] {
   --tw-gradient-from: rgba(var(--theme-primary-rgb), 0.22) var(--tw-gradient-from-position) !important;
@@ -338,7 +649,6 @@ a[class*="via-amber-"] {
 /* ========================================================
    4. SOLID BUTTONS, TAB BUTTONS & PILLS
 ======================================================== */
-/* Solid Primary Buttons & Active Tab Buttons (Orders status, Super Admin, Chat, etc.) */
 .bg-emerald-600,
 .bg-emerald-500,
 .bg-teal-600,
@@ -351,7 +661,6 @@ button[class*="bg-teal-500"] {
   color: #030712 !important;
 }
 
-/* Solid Accent Buttons & Active Filter Tabs (Department tabs, Category pills, etc.) */
 .bg-amber-400,
 .bg-amber-500,
 .bg-gold-500,
@@ -364,7 +673,6 @@ button[class*="bg-gold-500"] {
   color: #030712 !important;
 }
 
-/* Button Hovers */
 .hover\:bg-emerald-500:hover,
 .hover\:bg-emerald-600:hover,
 .hover\:bg-emerald-700:hover,
@@ -379,7 +687,6 @@ button[class*="hover:bg-amber"]:hover {
   background-color: var(--theme-accent-hover) !important;
 }
 
-/* Subtle Action Buttons (PNG receipt, icon actions, custom buttons) */
 .bg-emerald-950,
 .bg-emerald-950\/60,
 .bg-emerald-950\/80,
@@ -399,7 +706,6 @@ button[class*="bg-amber-950"],
   color: var(--theme-accent-light) !important;
 }
 
-/* Inactive Tab Hover Subtle Theme Glow */
 .text-slate-400.hover\:text-white:hover,
 .text-slate-400.hover\:text-slate-200:hover {
   color: var(--theme-primary-light) !important;
@@ -432,7 +738,6 @@ button[class*="bg-amber-950"],
   color: var(--theme-accent-light) !important;
 }
 
-/* Card titles, headers & label text contrast enhancements across all themes */
 .text-slate-100 {
   color: #ffffff !important;
 }
@@ -445,7 +750,6 @@ button[class*="bg-amber-950"],
   color: #e2e8f0 !important;
 }
 
-/* Muted subtitles & labels - lifted to high-contrast readable silver */
 .text-slate-400 {
   color: #cbd5e1 !important;
 }

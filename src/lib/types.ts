@@ -44,7 +44,7 @@ export interface MenuItemData {
 
 export type UserRole = 'super_admin' | 'admin' | 'staff' | 'user';
 
-export type ThemePresetId = 'emerald' | 'sapphire' | 'amethyst' | 'ruby' | 'arctic' | 'custom';
+export type ThemePresetId = 'emerald' | 'sapphire' | 'amethyst' | 'ruby' | 'arctic' | 'pearl' | 'custom';
 
 export interface CustomThemeConfig {
   primary: string;
