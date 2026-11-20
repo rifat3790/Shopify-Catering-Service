@@ -110,27 +110,27 @@ export default function ThemeSelectorModal() {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
       <div 
-        className="w-full max-w-3xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-200"
+        className="w-full max-w-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="p-5 sm:p-6 pb-4 border-b border-slate-800 flex items-center justify-between gap-4 bg-slate-950/60">
+        <div className="p-5 sm:p-6 pb-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-4 bg-slate-50 dark:bg-slate-950/60">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-600 to-amber-500 p-[2px] shadow-lg shrink-0">
-              <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center">
-                <Palette className="w-5 h-5 text-amber-400" />
+              <div className="w-full h-full bg-white dark:bg-slate-950 rounded-[14px] flex items-center justify-center">
+                <Palette className="w-5 h-5 text-amber-500 dark:text-amber-400" />
               </div>
             </div>
             <div>
-              <h2 className="font-serif font-bold text-white text-base sm:text-lg flex items-center gap-2">
+              <h2 className="font-serif font-bold text-slate-900 dark:text-white text-base sm:text-lg flex items-center gap-2">
                 <span>{language === 'bn' ? 'ওয়েবসাইট থিম ও কালার কাস্টমাইজেশন' : 'Website Theme & Color Palette'}</span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
                   Live 0ms
                 </span>
               </h2>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 {language === 'bn' 
                   ? '৬টি প্রফেশনাল থিম থেকে বেছে নিন বা নিজের মনের মতো কালার এডিট করুন। আপনার আইডিতে সেভ থাকবে।' 
                   : 'Choose from 6 curated luxury presets or customize your own colors. Persisted to your user ID.'}
@@ -140,20 +140,20 @@ export default function ThemeSelectorModal() {
 
           <button
             onClick={() => setIsThemeModalOpen(false)}
-            className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors shrink-0"
+            className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors shrink-0"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Tab Switcher */}
-        <div className="px-5 sm:px-6 pt-4 pb-2 flex items-center gap-2 border-b border-slate-800/60 bg-slate-900/40">
+        <div className="px-5 sm:px-6 pt-4 pb-2 flex items-center gap-2 border-b border-slate-200 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/40">
           <button
             onClick={() => setActiveTab('presets')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
               activeTab === 'presets'
-                ? 'bg-gradient-to-r from-emerald-600 to-amber-600 text-slate-950 shadow-md scale-[1.02]'
-                : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
+                ? 'bg-gradient-to-r from-emerald-600 to-amber-600 text-white shadow-md scale-[1.02]'
+                : 'bg-white dark:bg-slate-950 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-slate-800'
             }`}
           >
             <Layers className="w-3.5 h-3.5" />
@@ -168,8 +168,8 @@ export default function ThemeSelectorModal() {
             }}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
               activeTab === 'custom'
-                ? 'bg-gradient-to-r from-emerald-600 to-amber-600 text-slate-950 shadow-md scale-[1.02]'
-                : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
+                ? 'bg-gradient-to-r from-emerald-600 to-amber-600 text-white shadow-md scale-[1.02]'
+                : 'bg-white dark:bg-slate-950 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-slate-800'
             }`}
           >
             <Sliders className="w-3.5 h-3.5" />
@@ -190,33 +190,33 @@ export default function ThemeSelectorModal() {
                     onClick={() => handleSelectPreset(preset.id)}
                     className={`p-4 rounded-2xl border transition-all cursor-pointer relative overflow-hidden group hover:scale-[1.01] ${
                       isSelected
-                        ? 'bg-slate-950 border-amber-400/80 shadow-xl shadow-emerald-950/40 ring-2 ring-emerald-500/30'
-                        : 'bg-slate-950/60 border-slate-800/80 hover:border-slate-700'
+                        ? 'bg-slate-50 dark:bg-slate-950 border-amber-500 dark:border-amber-400/80 shadow-lg ring-2 ring-emerald-500/30'
+                        : 'bg-white dark:bg-slate-950/60 border-slate-200 dark:border-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700'
                     }`}
                   >
                     {/* Top Tag & Active Check */}
                     <div className="flex items-center justify-between gap-2 mb-2">
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-slate-900 border border-slate-800 text-slate-400">
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400">
                         {preset.tag}
                       </span>
                       {isSelected ? (
-                        <span className="flex items-center gap-1 text-[10px] font-bold text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30">
-                          <Check className="w-3 h-3 text-amber-400" />
+                        <span className="flex items-center gap-1 text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30">
+                          <Check className="w-3 h-3 text-amber-600 dark:text-amber-400" />
                           <span>Active</span>
                         </span>
                       ) : null}
                     </div>
 
                     {/* Preset Name */}
-                    <h3 className="font-bold text-white text-sm mb-1">
+                    <h3 className="font-bold text-slate-900 dark:text-white text-sm mb-1">
                       {language === 'bn' ? preset.nameBn : preset.name}
                     </h3>
-                    <p className="text-[11px] text-slate-400 mb-3 leading-relaxed">
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-3 leading-relaxed">
                       {language === 'bn' ? preset.descriptionBn : preset.description}
                     </p>
 
                     {/* Dual Swatch Bar */}
-                    <div className="flex items-center justify-between pt-2.5 border-t border-slate-800/80">
+                    <div className="flex items-center justify-between pt-2.5 border-t border-slate-200 dark:border-slate-800/80">
                       <div className="flex items-center gap-2">
                         <div 
                           className="w-5 h-5 rounded-full shadow-inner border border-white/20"
@@ -247,15 +247,15 @@ export default function ThemeSelectorModal() {
           ) : (
             /* Custom Color Editor */
             <div className="space-y-5">
-              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-4">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
                   <div className="flex items-center gap-2">
-                    <Sliders className="w-4 h-4 text-amber-400" />
-                    <h3 className="font-bold text-white text-xs sm:text-sm">
+                    <Sliders className="w-4 h-4 text-amber-500 dark:text-amber-400" />
+                    <h3 className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm">
                       {language === 'bn' ? 'কালার প্যালেট কাস্টমাইজ করুন' : 'Fine-Tune Color Values'}
                     </h3>
                   </div>
-                  <span className="text-[11px] text-slate-400 font-mono">
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
                     Instant Live Preview
                   </span>
                 </div>
@@ -263,9 +263,9 @@ export default function ThemeSelectorModal() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Primary Color Picker */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between">
                       <span>{language === 'bn' ? 'ব্র্যান্ড প্রাইমারি কালার:' : 'Brand Primary Color:'}</span>
-                      <span className="font-mono text-emerald-400 text-[11px]">{localCustom.primary}</span>
+                      <span className="font-mono text-emerald-600 dark:text-emerald-400 text-[11px]">{localCustom.primary}</span>
                     </label>
                     <div className="flex items-center gap-2">
                       <input
@@ -279,16 +279,16 @@ export default function ThemeSelectorModal() {
                         value={localCustom.primary}
                         onChange={(e) => handleCustomColorChange('primary', e.target.value)}
                         placeholder="#10b981"
-                        className="flex-1 px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs font-mono text-white focus:outline-none focus:border-amber-400 uppercase"
+                        className="flex-1 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-900 dark:text-white focus:outline-none focus:border-amber-400 uppercase"
                       />
                     </div>
                   </div>
 
                   {/* Accent Color Picker */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between">
                       <span>{language === 'bn' ? 'হাইলাইট এক্সেন্ট কালার:' : 'Highlight Accent Color:'}</span>
-                      <span className="font-mono text-amber-400 text-[11px]">{localCustom.accent}</span>
+                      <span className="font-mono text-amber-600 dark:text-amber-400 text-[11px]">{localCustom.accent}</span>
                     </label>
                     <div className="flex items-center gap-2">
                       <input
@@ -302,7 +302,7 @@ export default function ThemeSelectorModal() {
                         value={localCustom.accent}
                         onChange={(e) => handleCustomColorChange('accent', e.target.value)}
                         placeholder="#f59e0b"
-                        className="flex-1 px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs font-mono text-white focus:outline-none focus:border-amber-400 uppercase"
+                        className="flex-1 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-900 dark:text-white focus:outline-none focus:border-amber-400 uppercase"
                       />
                     </div>
                   </div>
@@ -310,7 +310,7 @@ export default function ThemeSelectorModal() {
 
                 {/* Background Presets */}
                 <div className="space-y-2 pt-2">
-                  <label className="text-xs font-semibold text-slate-300">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                     {language === 'bn' ? 'ব্যাকগ্রাউন্ড শেড নির্বাচন করুন (ডার্ক ও লাইট):' : 'Select Background Shade (Dark & Light):'}
                   </label>
                   <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
@@ -321,12 +321,12 @@ export default function ThemeSelectorModal() {
                         onClick={() => handleCustomColorChange('bg', bg.hex)}
                         className={`p-2 rounded-xl text-[11px] font-semibold border flex items-center gap-2 transition-all ${
                           localCustom.bg === bg.hex
-                            ? 'border-amber-400 text-white bg-slate-900 shadow-md ring-1 ring-amber-400/40'
-                            : 'border-slate-800 text-slate-400 hover:text-white bg-slate-900/50'
+                            ? 'border-amber-500 text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-900 shadow-md ring-2 ring-amber-400/50'
+                            : 'border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-white dark:bg-slate-900/50'
                         }`}
                       >
                         <span 
-                          className="w-3.5 h-3.5 rounded-full border border-white/20 shrink-0"
+                          className="w-3.5 h-3.5 rounded-full border border-slate-300 dark:border-white/20 shrink-0"
                           style={{ backgroundColor: bg.hex }}
                         />
                         <span className="truncate">{bg.label}</span>
@@ -337,7 +337,7 @@ export default function ThemeSelectorModal() {
 
                 {/* Heading Typography Selector */}
                 <div className="space-y-2 pt-2">
-                  <label className="text-xs font-semibold text-slate-300">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                     {language === 'bn' ? 'হেডিং ফন্ট ও টাইপোগ্রাফি স্টাইল:' : 'Heading Typography Style:'}
                   </label>
                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
@@ -348,8 +348,8 @@ export default function ThemeSelectorModal() {
                         onClick={() => handleCustomColorChange('fontHeading' as any, f.value)}
                         className={`p-2 rounded-xl text-[11px] font-semibold border flex flex-col items-center justify-center gap-1 transition-all ${
                           localCustom.fontHeading === f.value
-                            ? 'border-amber-400 text-white bg-slate-900 shadow-md ring-1 ring-amber-400/40'
-                            : 'border-slate-800 text-slate-400 hover:text-white bg-slate-900/50'
+                            ? 'border-amber-500 text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-900 shadow-md ring-1 ring-amber-400/40'
+                            : 'border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-white dark:bg-slate-900/50'
                         }`}
                       >
                         <span className="font-bold text-xs" style={{ fontFamily: f.value }}>Aa</span>
@@ -361,20 +361,20 @@ export default function ThemeSelectorModal() {
               </div>
 
               {/* Live Preview Demo Card */}
-              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
-                <span className="text-[11px] font-mono text-slate-400 uppercase tracking-wider">
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-3">
+                <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                   {language === 'bn' ? 'লাইভ প্রিভিউ কম্পোনেন্ট' : 'Live Interactive Component Preview'}
                 </span>
 
-                <div className="p-4 rounded-xl bg-slate-900/90 border border-emerald-500/30 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
+                <div className="p-4 rounded-xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-emerald-500/30 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
                   <div>
-                    <span className="text-xs text-slate-400 block mb-0.5">
+                    <span className="text-xs text-slate-500 dark:text-slate-400 block mb-0.5">
                       {language === 'bn' ? 'ব্যক্তিগত ক্যাটারিং ব্যালেন্স' : 'Current Catering Balance'}
                     </span>
-                    <p className="text-xl font-bold font-mono text-emerald-400">
+                    <p className="text-xl font-bold font-mono text-emerald-600 dark:text-emerald-400">
                       ৳{(Number(user?.balance) || 0).toFixed(2)}
                     </p>
-                    <span className={`text-[10px] font-medium ${(Number(user?.balance) || 0) > 0 ? 'text-emerald-400' : 'text-slate-400'}`}>
+                    <span className={`text-[10px] font-medium ${(Number(user?.balance) || 0) > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'}`}>
                       {(Number(user?.balance) || 0) > 0
                         ? (language === 'bn' ? '● অর্ডারের জন্য প্রস্তুত' : '● Available for orders')
                         : (language === 'bn' ? '● ওয়ালেট ব্যালেন্স শূন্য' : '● Zero available balance')}
@@ -384,13 +384,13 @@ export default function ThemeSelectorModal() {
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 text-slate-950 font-bold text-xs shadow-md transition-all hover:scale-105"
+                      className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 text-white font-bold text-xs shadow-md transition-all hover:scale-105"
                     >
                       + {language === 'bn' ? 'খাবার অর্ডার' : 'Add New Order'}
                     </button>
                     <button
                       type="button"
-                      className="px-3 py-2 rounded-xl bg-slate-800 text-amber-300 font-semibold text-xs border border-amber-500/30"
+                      className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-amber-300 font-semibold text-xs border border-slate-200 dark:border-amber-500/30"
                     >
                       {language === 'bn' ? 'হিসাব অডিট' : 'Audit'}
                     </button>
@@ -402,7 +402,7 @@ export default function ThemeSelectorModal() {
         </div>
 
         {/* Modal Footer Actions */}
-        <div className="p-4 sm:p-5 border-t border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-950/70">
+        <div className="p-4 sm:p-5 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50 dark:bg-slate-950/70">
           <div className="flex items-center gap-2 text-xs text-slate-400">
             {user ? (
               <span className="flex items-center gap-1.5 text-emerald-400 text-[11px]">
@@ -420,9 +420,9 @@ export default function ThemeSelectorModal() {
             <button
               type="button"
               onClick={handleResetDefault}
-              className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+              className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm"
             >
-              <RotateCcw className="w-3.5 h-3.5" />
+              <RotateCcw className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" />
               <span>{language === 'bn' ? 'ডিফল্ট' : 'Reset'}</span>
             </button>
 
@@ -430,16 +430,16 @@ export default function ThemeSelectorModal() {
               type="button"
               disabled={isSaving}
               onClick={handleSaveAndClose}
-              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-lg transition-all hover:scale-105 active:scale-95 disabled:opacity-50 flex items-center gap-1.5"
+              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-white font-bold text-xs shadow-lg transition-all hover:scale-105 active:scale-95 disabled:opacity-50 flex items-center gap-1.5"
             >
               {isSaving ? (
                 <>
-                  <div className="w-3.5 h-3.5 rounded-full border-2 border-slate-950 border-t-transparent animate-spin" />
+                  <div className="w-3.5 h-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
                   <span>{language === 'bn' ? 'সেভ হচ্ছে...' : 'Saving...'}</span>
                 </>
               ) : (
                 <>
-                  <Save className="w-3.5 h-3.5" />
+                  <Save className="w-3.5 h-3.5 text-white" />
                   <span>{language === 'bn' ? 'সেভ ও প্রয়োগ করুন' : 'Save & Apply Theme'}</span>
                 </>
               )}

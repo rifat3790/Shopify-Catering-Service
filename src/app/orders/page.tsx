@@ -223,22 +223,22 @@ function OrdersPageContent() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col lg:flex-row">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col lg:flex-row text-slate-900 dark:text-slate-100">
       <Sidebar onOpenNewOrder={() => setIsOrderModalOpen(true)} />
 
       <main className="flex-1 w-full min-w-0 px-4 sm:px-6 lg:px-10 py-8 space-y-6">
         
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-emerald-900/40">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-200 dark:border-emerald-900/40">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-950/80 border border-emerald-500/30 text-emerald-300 text-xs font-semibold mb-2">
-              <ClipboardList className="w-3.5 h-3.5 text-amber-400" />
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 dark:bg-emerald-950/80 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs font-semibold mb-2">
+              <ClipboardList className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
               <span>{language === 'bn' ? 'সকল অর্ডারের হিস্টোরি ও রসিদ' : 'Master Orders Ledger & PNG Receipt Export'}</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold font-serif text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold font-serif text-slate-900 dark:text-white">
               {language === 'bn' ? 'অর্ডার ডিটেইলস ও ভাউচার' : 'Order Details & Invoices'}
             </h1>
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
               {language === 'bn'
                 ? 'সকল মেম্বারের খাবার অর্ডারের রিয়েল-টাইম তথ্য ও ১-ক্লিকে হাই-রেজোলিউশন PNG রসিদ ডাউনলোড'
                 : 'Live master order directory — view all orders, audit payment math & 1-click download PNG receipts'}
@@ -248,9 +248,9 @@ function OrdersPageContent() {
           <div className="flex items-center gap-2.5 flex-wrap">
             <button
               onClick={() => fetchOrders()}
-              className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs font-semibold transition-colors flex items-center gap-1.5"
+              className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-sm"
             >
-              <RefreshCw className="w-3.5 h-3.5 text-emerald-400" />
+              <RefreshCw className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
               <span>রিফ্রেশ</span>
             </button>
 
@@ -258,13 +258,13 @@ function OrdersPageContent() {
             <button
               onClick={handleDownloadAllInTab}
               disabled={filteredOrders.length === 0 || isDownloadingBulk}
-              className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-300 border border-amber-500/40 hover:border-amber-400 text-xs font-semibold transition-all flex items-center gap-1.5 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-[0.98]"
+              className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-amber-700 dark:text-amber-300 border border-amber-500/40 hover:border-amber-500 text-xs font-semibold transition-all flex items-center gap-1.5 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-[0.98]"
               title={language === 'bn' ? 'বর্তমান ট্যাবের সকল রসিদ একসাথে ZIP আকারে ডাউনলোড' : 'Download all receipts in current tab as ZIP'}
             >
               {isDownloadingBulk ? (
                 <div className="w-3.5 h-3.5 rounded-full border-2 border-amber-400 border-t-transparent animate-spin" />
               ) : (
-                <Download className="w-3.5 h-3.5 text-amber-400" />
+                <Download className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
               )}
               <span>
                 {isDownloadingBulk
@@ -277,9 +277,9 @@ function OrdersPageContent() {
             {isSuperOrAdmin && (
               <button
                 onClick={() => setIsOrderModalOpen(true)}
-                className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-md transition-all flex items-center gap-1.5 hover:scale-105"
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-white font-bold text-xs shadow-md transition-all flex items-center gap-1.5 hover:scale-105"
               >
-                <Plus className="w-4 h-4 text-slate-950" />
+                <Plus className="w-4 h-4 text-white" />
                 <span>{language === 'bn' ? 'নতুন অর্ডার যোগ করুন' : 'Add New Order'}</span>
               </button>
             )}
@@ -297,45 +297,45 @@ function OrdersPageContent() {
 
         {/* Metrics Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-md">
-            <div className="flex items-center justify-between text-xs font-bold text-slate-200 tracking-wider uppercase mb-1">
+          <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-md">
+            <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-200 tracking-wider uppercase mb-1">
               <span>{language === 'bn' ? 'মোট অর্ডার সংখ্যা' : 'Total Orders Placed'}</span>
-              <Receipt className="w-4 h-4 text-emerald-400" />
+              <Receipt className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
             </div>
-            <p className="text-2xl font-extrabold font-mono text-white">{totalOrdersCount}</p>
-            <p className="text-xs text-slate-300 font-medium mt-1">Real-time database sync</p>
+            <p className="text-2xl font-extrabold font-mono text-slate-900 dark:text-white">{totalOrdersCount}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-300 font-medium mt-1">Real-time database sync</p>
           </div>
 
-          <div className="p-4 rounded-2xl bg-slate-900/90 border border-amber-500/30 shadow-md">
-            <div className="flex items-center justify-between text-xs font-bold text-slate-200 tracking-wider uppercase mb-1">
+          <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-amber-500/30 shadow-md">
+            <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-200 tracking-wider uppercase mb-1">
               <span>{language === 'bn' ? 'মোট বিল্ড এমাউন্ট' : 'Total Billed Amount'}</span>
-              <TrendingUp className="w-4 h-4 text-amber-400" />
+              <TrendingUp className="w-4 h-4 text-amber-600 dark:text-amber-400" />
             </div>
-            <p className="text-2xl font-extrabold font-mono text-amber-300">৳{totalBilled.toFixed(2)}</p>
-            <p className="text-xs text-amber-300/90 font-medium mt-1">All orders combined</p>
+            <p className="text-2xl font-extrabold font-mono text-amber-600 dark:text-amber-300">৳{totalBilled.toFixed(2)}</p>
+            <p className="text-xs text-amber-700 dark:text-amber-300/90 font-medium mt-1">All orders combined</p>
           </div>
 
-          <div className="p-4 rounded-2xl bg-slate-900/90 border border-emerald-500/30 shadow-md">
-            <div className="flex items-center justify-between text-xs font-bold text-slate-200 tracking-wider uppercase mb-1">
+          <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-emerald-500/30 shadow-md">
+            <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-200 tracking-wider uppercase mb-1">
               <span>{language === 'bn' ? 'পরিশোধিত অর্থ' : 'Total Collected'}</span>
-              <DollarSign className="w-4 h-4 text-emerald-400" />
+              <DollarSign className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
             </div>
-            <p className="text-2xl font-extrabold font-mono text-emerald-300">৳{totalPaid.toFixed(2)}</p>
-            <p className="text-xs text-emerald-300/90 font-medium mt-1">Cash, Wallet & Mobile</p>
+            <p className="text-2xl font-extrabold font-mono text-emerald-600 dark:text-emerald-300">৳{totalPaid.toFixed(2)}</p>
+            <p className="text-xs text-emerald-700 dark:text-emerald-300/90 font-medium mt-1">Cash, Wallet & Mobile</p>
           </div>
 
-          <div className="p-4 rounded-2xl bg-slate-900/90 border border-rose-500/30 shadow-md">
-            <div className="flex items-center justify-between text-xs font-bold text-slate-200 tracking-wider uppercase mb-1">
+          <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-rose-500/30 shadow-md">
+            <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-200 tracking-wider uppercase mb-1">
               <span>{language === 'bn' ? 'বকেয়া / ডিউ অর্ডার' : 'Due / Pending Orders'}</span>
-              <AlertCircle className="w-4 h-4 text-rose-400" />
+              <AlertCircle className="w-4 h-4 text-rose-500 dark:text-rose-400" />
             </div>
-            <p className="text-2xl font-extrabold font-mono text-rose-300">{totalDue}</p>
-            <p className="text-xs text-rose-300/90 font-medium mt-1">Requires settlement</p>
+            <p className="text-2xl font-extrabold font-mono text-rose-600 dark:text-rose-300">{totalDue}</p>
+            <p className="text-xs text-rose-700 dark:text-rose-300/90 font-medium mt-1">Requires settlement</p>
           </div>
         </div>
 
         {/* Search & Filter Toolbar */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3 rounded-2xl bg-slate-900/90 border border-slate-800">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-sm">
           <div className="relative flex-1 min-w-[220px]">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
@@ -343,7 +343,7 @@ function OrdersPageContent() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={language === 'bn' ? 'অর্ডার নম্বর, মেম্বার নাম বা খাবার দিয়ে খুঁজুন...' : 'Search by order #, member name, or dish...'}
-              className="w-full pl-10 pr-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+              className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500"
             />
           </div>
 
@@ -354,8 +354,8 @@ function OrdersPageContent() {
                 onClick={() => setStatusFilter(status)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0 ${
                   statusFilter === status
-                    ? 'bg-emerald-600 text-slate-950 shadow'
-                    : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
+                    ? 'bg-gradient-to-r from-emerald-600 to-amber-600 text-white font-bold shadow-md'
+                    : 'bg-slate-100 dark:bg-slate-950 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'
                 }`}
               >
                 {status}
@@ -370,9 +370,9 @@ function OrdersPageContent() {
             <LuxuryLoader size="md" message="Loading master order ledger..." />
           </div>
         ) : filteredOrders.length === 0 ? (
-          <div className="p-12 text-center rounded-3xl bg-slate-900/60 border border-slate-800 text-slate-400 space-y-3">
-            <Receipt className="w-10 h-10 mx-auto text-slate-600" />
-            <p className="text-sm font-semibold text-slate-300">
+          <div className="p-12 text-center rounded-3xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 space-y-3">
+            <Receipt className="w-10 h-10 mx-auto text-slate-400 dark:text-slate-600" />
+            <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
               {language === 'bn' ? 'কোনো অর্ডার পাওয়া যায়নি' : 'No catering orders found'}
             </p>
             <p className="text-xs text-slate-500 max-w-sm mx-auto">
@@ -392,13 +392,13 @@ function OrdersPageContent() {
                 return (
                   <div
                     key={order._id || order.orderNumber}
-                    className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-3 shadow-lg"
+                    className="p-4 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 space-y-3 shadow-md"
                   >
                     {/* Header: Order Number, Date, Status */}
-                    <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-slate-800/80">
+                    <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-slate-200 dark:border-slate-800/80">
                       <div>
-                        <span className="font-mono font-bold text-amber-300 text-sm">{order.orderNumber}</span>
-                        <p className="text-[10px] text-slate-500 flex items-center gap-1 mt-0.5">
+                        <span className="font-mono font-bold text-amber-700 dark:text-amber-300 text-sm">{order.orderNumber}</span>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
                           <Clock className="w-3 h-3 text-slate-400" />
                           <span>{new Date(order.orderDate).toLocaleDateString()}</span>
                         </p>
@@ -406,10 +406,10 @@ function OrdersPageContent() {
 
                       <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border ${
                         isPaid
-                          ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
+                          ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-500/30'
                           : isDue
-                          ? 'bg-rose-500/10 text-rose-300 border-rose-500/30'
-                          : 'bg-amber-500/10 text-amber-300 border-amber-500/30'
+                          ? 'bg-rose-50 dark:bg-rose-500/10 text-rose-800 dark:text-rose-300 border-rose-300 dark:border-rose-500/30'
+                          : 'bg-amber-50 dark:bg-amber-500/10 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-500/30'
                       }`}>
                         {order.status}
                       </span>
@@ -426,15 +426,15 @@ function OrdersPageContent() {
                         className="w-9 h-9 rounded-full object-cover ring-1 ring-emerald-500/40 shrink-0"
                       />
                       <div className="min-w-0 flex-1">
-                        <p className="font-bold text-white text-xs truncate">{order.customerName}</p>
-                        <p className="text-[10px] text-slate-400 font-mono truncate">{order.customerDepartment || 'Shopify Team'}</p>
+                        <p className="font-bold text-slate-900 dark:text-white text-xs truncate">{order.customerName}</p>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono truncate">{order.customerDepartment || 'Shopify Team'}</p>
                       </div>
                       <div className="flex flex-col items-end">
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                           {order.paymentMethod}
                         </span>
                         {order.depositChangeToWallet && Number(order.changeDue) > 0 && (
-                          <span className="text-[9px] text-emerald-400 font-mono font-bold mt-0.5">
+                          <span className="text-[9px] text-emerald-700 dark:text-emerald-400 font-mono font-bold mt-0.5">
                             +৳{Number(order.changeDue).toFixed(0)} Wallet
                           </span>
                         )}
@@ -442,12 +442,12 @@ function OrdersPageContent() {
                     </div>
 
                     {/* Ordered Dishes */}
-                    <div className="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800/80 text-xs text-slate-300">
-                      <p className="line-clamp-2 text-white font-medium">
+                    <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800/80 text-xs text-slate-700 dark:text-slate-300">
+                      <p className="line-clamp-2 text-slate-900 dark:text-white font-medium">
                         {order.itemsText || (order.items?.map(i => `${i.quantity}x ${i.name}`).join(', ') || 'Catering Order')}
                       </p>
                       {order.notes && (
-                        <p className="text-[10px] text-amber-400/80 italic mt-1 truncate">
+                        <p className="text-[10px] text-amber-700 dark:text-amber-400/80 italic mt-1 truncate">
                           Note: {order.notes}
                         </p>
                       )}
@@ -456,13 +456,13 @@ function OrdersPageContent() {
                     {/* Financials & Actions */}
                     <div className="flex items-center justify-between pt-1 text-xs">
                       <div>
-                        <span className="text-[10px] text-slate-400 block">{language === 'bn' ? 'মোট বিল' : 'Total Bill'}</span>
-                        <span className="font-mono font-bold text-amber-300 text-base">৳{order.totalBill.toFixed(2)}</span>
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400 block">{language === 'bn' ? 'মোট বিল' : 'Total Bill'}</span>
+                        <span className="font-mono font-bold text-amber-700 dark:text-amber-300 text-base">৳{order.totalBill.toFixed(2)}</span>
                       </div>
 
                       <div className="text-right">
-                        <span className="text-[10px] text-slate-400 block">{language === 'bn' ? 'পরিশোধ' : 'Paid'}</span>
-                        <span className={`font-mono text-xs font-semibold ${order.paidAmount >= order.totalBill ? 'text-emerald-400 font-bold' : 'text-slate-300'}`}>
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400 block">{language === 'bn' ? 'পরিশোধ' : 'Paid'}</span>
+                        <span className={`font-mono text-xs font-semibold ${order.paidAmount >= order.totalBill ? 'text-emerald-700 dark:text-emerald-400 font-bold' : 'text-slate-700 dark:text-slate-300'}`}>
                           ৳{order.paidAmount.toFixed(2)}
                         </span>
                       </div>
@@ -470,14 +470,14 @@ function OrdersPageContent() {
                       <div className="flex items-center gap-1.5">
                         <button
                           onClick={() => setSelectedInvoice(order)}
-                          className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 text-xs"
+                          className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-amber-700 dark:text-amber-300 border border-slate-200 dark:border-slate-700 text-xs"
                           title="Invoice"
                         >
                           <Eye className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => downloadReceiptPng(order)}
-                          className="p-2 rounded-xl bg-slate-800 hover:bg-emerald-900/60 text-emerald-400 border border-slate-700 text-xs"
+                          className="p-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 dark:bg-slate-800 dark:hover:bg-emerald-900/60 text-emerald-800 dark:text-emerald-400 border border-emerald-300 dark:border-slate-700 text-xs"
                           title="Download PNG"
                         >
                           <Download className="w-3.5 h-3.5" />
@@ -486,14 +486,14 @@ function OrdersPageContent() {
                           <>
                             <button
                               onClick={() => handleOpenEdit(order)}
-                              className="p-2 rounded-xl bg-slate-800 hover:bg-amber-900/60 text-amber-400 border border-slate-700 text-xs"
+                              className="p-2 rounded-xl bg-amber-50 hover:bg-amber-100 dark:bg-slate-800 dark:hover:bg-amber-900/60 text-amber-800 dark:text-amber-400 border border-amber-300 dark:border-slate-700 text-xs"
                               title="Edit"
                             >
                               <Edit3 className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={() => handleDeleteOrder(order)}
-                              className="p-2 rounded-xl bg-slate-800 hover:bg-rose-950 text-rose-400 border border-slate-700 text-xs"
+                              className="p-2 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-slate-800 dark:hover:bg-rose-950 text-rose-800 dark:text-rose-400 border border-rose-300 dark:border-slate-700 text-xs"
                               title="Delete"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -508,10 +508,10 @@ function OrdersPageContent() {
             </div>
 
             {/* Desktop Expansive Master Ledger Table (hidden md:block) */}
-            <div className="hidden md:block bg-slate-900/80 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
+            <div className="hidden md:block bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-xl">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
+                <thead className="bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 uppercase text-[10px] tracking-wider border-b border-slate-200 dark:border-slate-800">
                   <tr>
                     <th className="px-4 py-3.5">Order</th>
                     <th className="px-4 py-3.5">Member / Customer</th>
@@ -523,18 +523,18 @@ function OrdersPageContent() {
                     <th className="px-4 py-3.5 text-center">Receipt & Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-800/60 text-slate-700 dark:text-slate-300">
                   {filteredOrders.map((order) => {
                     const isPaid = order.status === 'Paid';
                     const isDue = order.status === 'Due' || order.changeDue < 0;
 
                     return (
-                      <tr key={order._id || order.orderNumber} className="hover:bg-slate-800/40 transition-colors">
+                      <tr key={order._id || order.orderNumber} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
                         
                         {/* Order Number & Date */}
                         <td className="px-4 py-3.5 whitespace-nowrap">
-                          <p className="font-mono font-bold text-amber-300">{order.orderNumber}</p>
-                          <p className="text-[10px] text-slate-500 flex items-center gap-1 mt-0.5">
+                          <p className="font-mono font-bold text-amber-700 dark:text-amber-300">{order.orderNumber}</p>
+                          <p className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
                             <Clock className="w-3 h-3" />
                             <span>{new Date(order.orderDate).toLocaleDateString()}</span>
                           </p>
@@ -552,36 +552,36 @@ function OrdersPageContent() {
                               className="w-8 h-8 rounded-full object-cover ring-1 ring-emerald-500/40 shrink-0"
                             />
                             <div>
-                              <p className="font-bold text-white text-xs">{order.customerName}</p>
-                              <p className="text-[10px] text-slate-400 font-mono">{order.customerDepartment || 'Shopify Team'}</p>
+                              <p className="font-bold text-slate-900 dark:text-white text-xs">{order.customerName}</p>
+                              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">{order.customerDepartment || 'Shopify Team'}</p>
                             </div>
                           </div>
                         </td>
 
                         {/* Items Breakdown */}
                         <td className="px-4 py-3.5 max-w-xs">
-                          <p className="text-xs text-white font-medium line-clamp-2">
+                          <p className="text-xs text-slate-900 dark:text-white font-medium line-clamp-2">
                             {order.itemsText || (order.items?.map(i => `${i.quantity}x ${i.name}`).join(', ') || 'Catering Order')}
                           </p>
                           {order.notes && (
-                            <p className="text-[10px] text-amber-400/80 italic mt-0.5 truncate">
+                            <p className="text-[10px] text-amber-700 dark:text-amber-400/80 italic mt-0.5 truncate">
                               Note: {order.notes}
                             </p>
                           )}
                         </td>
 
                         {/* Total Bill */}
-                        <td className="px-4 py-3.5 text-right font-mono font-bold text-amber-300 text-sm whitespace-nowrap">
+                        <td className="px-4 py-3.5 text-right font-mono font-bold text-amber-700 dark:text-amber-300 text-sm whitespace-nowrap">
                           ৳{order.totalBill.toFixed(2)}
                         </td>
 
                         {/* Paid Amount */}
                         <td className="px-4 py-3.5 text-right font-mono text-xs whitespace-nowrap">
-                          <span className={order.paidAmount >= order.totalBill ? 'text-emerald-400 font-bold' : 'text-slate-400'}>
+                          <span className={order.paidAmount >= order.totalBill ? 'text-emerald-700 dark:text-emerald-400 font-bold' : 'text-slate-500 dark:text-slate-400'}>
                             ৳{order.paidAmount.toFixed(2)}
                           </span>
                           {order.depositChangeToWallet && Number(order.changeDue) > 0 && (
-                            <span className="block text-[10px] text-emerald-400/90 font-medium">
+                            <span className="block text-[10px] text-emerald-600 dark:text-emerald-400/90 font-medium">
                               (৳{Number(order.changeDue).toFixed(0)} credited)
                             </span>
                           )}
@@ -589,11 +589,11 @@ function OrdersPageContent() {
 
                         {/* Payment Method */}
                         <td className="px-4 py-3.5 text-center whitespace-nowrap">
-                          <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                             {order.paymentMethod}
                           </span>
                           {order.depositChangeToWallet && Number(order.changeDue) > 0 && (
-                            <div className="text-[10px] text-emerald-400 font-mono font-bold mt-0.5">
+                            <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-bold mt-0.5">
                               +৳{Number(order.changeDue).toFixed(0)} Wallet
                             </div>
                           )}
@@ -603,12 +603,12 @@ function OrdersPageContent() {
                         <td className="px-4 py-3.5 text-center whitespace-nowrap">
                           <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold border ${
                             isPaid
-                              ? 'bg-emerald-950/60 text-emerald-300 border-emerald-500/40'
+                              ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-500/40'
                               : isDue
-                              ? 'bg-rose-950/60 text-rose-300 border-rose-500/40'
-                              : 'bg-amber-950/60 text-amber-300 border-amber-500/40'
+                              ? 'bg-rose-50 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border-rose-300 dark:border-rose-500/40'
+                              : 'bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-500/40'
                           }`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${isPaid ? 'bg-emerald-400' : isDue ? 'bg-rose-400' : 'bg-amber-400'}`} />
+                            <span className={`w-1.5 h-1.5 rounded-full ${isPaid ? 'bg-emerald-500' : isDue ? 'bg-rose-500' : 'bg-amber-500'}`} />
                             <span>{order.status}</span>
                           </span>
                         </td>
@@ -621,9 +621,9 @@ function OrdersPageContent() {
                             <button
                               onClick={() => downloadReceiptPng(order)}
                               title={language === 'bn' ? 'PNG রসিদ ডাউনলোড করুন' : 'Download PNG Receipt'}
-                              className="px-2.5 py-1.5 rounded-lg bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-600/50 text-[11px] font-semibold flex items-center gap-1 transition-all hover:scale-105 shadow-sm"
+                              className="px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950 dark:hover:bg-emerald-900 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-600/50 text-[11px] font-semibold flex items-center gap-1 transition-all hover:scale-105 shadow-sm"
                             >
-                              <Download className="w-3.5 h-3.5 text-emerald-400" />
+                              <Download className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                               <span>PNG</span>
                             </button>
 
@@ -631,7 +631,7 @@ function OrdersPageContent() {
                             <button
                               onClick={() => setSelectedInvoice(order)}
                               title="View Full Invoice"
-                              className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                              className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-transparent transition-colors"
                             >
                               <Eye className="w-3.5 h-3.5" />
                             </button>
@@ -642,14 +642,14 @@ function OrdersPageContent() {
                                 <button
                                   onClick={() => handleOpenEdit(order)}
                                   title="Edit Order"
-                                  className="p-1.5 rounded-lg bg-amber-950/40 hover:bg-amber-900/60 text-amber-300 border border-amber-500/30 transition-colors"
+                                  className="p-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-500/30 transition-colors"
                                 >
                                   <Edit3 className="w-3.5 h-3.5" />
                                 </button>
                                 <button
                                   onClick={() => handleDeleteOrder(order)}
                                   title="Delete Order"
-                                  className="p-1.5 rounded-lg bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-500/30 transition-colors"
+                                  className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-500/30 transition-colors"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>
@@ -707,28 +707,29 @@ function OrdersPageContent() {
       )}
 
       {/* Admin Edit Order Modal */}
+      {/* Admin Edit Order Modal */}
       {editOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
-          <div className="w-full max-w-md bg-slate-900 border border-amber-500/50 rounded-3xl p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 dark:bg-black/85 backdrop-blur-md animate-in fade-in">
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-amber-500/50 rounded-3xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
               <div>
-                <h3 className="font-serif font-bold text-white text-base">
+                <h3 className="font-serif font-bold text-slate-900 dark:text-white text-base">
                   Edit Order: {editOrder.orderNumber}
                 </h3>
-                <p className="text-[11px] text-slate-400">Customer: {editOrder.customerName}</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">Customer: {editOrder.customerName}</p>
               </div>
-              <button onClick={() => setEditOrder(null)} className="text-slate-400 hover:text-white">
+              <button onClick={() => setEditOrder(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-white">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={handleSaveEdit} className="space-y-4 text-xs">
               <div>
-                <label className="block text-slate-400 mb-1 font-semibold uppercase text-[10px]">Order Status</label>
+                <label className="block text-slate-600 dark:text-slate-400 mb-1 font-semibold uppercase text-[10px]">Order Status</label>
                 <select
                   value={editStatus}
                   onChange={(e) => setEditStatus(e.target.value as any)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white"
                 >
                   <option value="Paid">Paid</option>
                   <option value="Due">Due</option>
@@ -740,7 +741,7 @@ function OrdersPageContent() {
               </div>
 
               <div>
-                <label className="block text-slate-400 mb-1 font-semibold uppercase text-[10px]">
+                <label className="block text-slate-600 dark:text-slate-400 mb-1 font-semibold uppercase text-[10px]">
                   Paid Amount (৳) — Bill: ৳{editOrder.totalBill}
                 </label>
                 <input
@@ -749,16 +750,16 @@ function OrdersPageContent() {
                   step="1"
                   value={editPaid}
                   onChange={(e) => setEditPaid(Number(e.target.value))}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-amber-300 font-mono font-bold"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-amber-700 dark:text-amber-300 font-mono font-bold"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-400 mb-1 font-semibold uppercase text-[10px]">Payment Method</label>
+                <label className="block text-slate-600 dark:text-slate-400 mb-1 font-semibold uppercase text-[10px]">Payment Method</label>
                 <select
                   value={editPaymentMethod}
                   onChange={(e) => setEditPaymentMethod(e.target.value as any)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white"
                 >
                   <option value="Cash">Cash</option>
                   <option value="Wallet">Wallet</option>
@@ -769,28 +770,28 @@ function OrdersPageContent() {
               </div>
 
               <div>
-                <label className="block text-slate-400 mb-1 font-semibold uppercase text-[10px]">Notes</label>
+                <label className="block text-slate-600 dark:text-slate-400 mb-1 font-semibold uppercase text-[10px]">Notes</label>
                 <input
                   type="text"
                   value={editNotes}
                   onChange={(e) => setEditNotes(e.target.value)}
                   placeholder="Order notes..."
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setEditOrder(null)}
-                  className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300"
+                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 font-medium"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={savingEdit}
-                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 text-slate-950 font-bold"
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 text-white font-bold shadow-md hover:scale-105 transition-all"
                 >
                   {savingEdit ? 'Updating...' : 'Save Changes'}
                 </button>

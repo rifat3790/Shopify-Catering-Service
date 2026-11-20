@@ -383,23 +383,23 @@ function SuperAdminDashboardContent() {
             <div className="flex items-center gap-2 flex-wrap self-start md:self-auto">
               <button
                 onClick={() => setIsNewUserModalOpen(true)}
-                className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-md transition-all flex items-center gap-1.5"
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-white font-bold text-xs shadow-md transition-all flex items-center gap-1.5 hover:scale-105"
               >
-                <UserPlus className="w-4 h-4 text-slate-950" />
+                <UserPlus className="w-4 h-4 text-white" />
                 <span>{language === 'bn' ? 'নতুন মেম্বার যুক্ত' : 'Add User'}</span>
               </button>
 
               <button
                 onClick={() => fetchUsers()}
-                className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs font-semibold transition-colors flex items-center gap-1.5"
+                className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-800 text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-sm"
               >
-                <RefreshCw className="w-3.5 h-3.5 text-emerald-400" />
+                <RefreshCw className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                 <span>রিফ্রেশ</span>
               </button>
 
               <Link
                 href="/admin"
-                className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-xs font-semibold text-emerald-300 border border-emerald-800/80 transition-colors"
+                className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold text-emerald-700 dark:text-emerald-300 border border-slate-300 dark:border-emerald-800/80 transition-colors shadow-sm"
               >
                 {language === 'bn' ? 'অ্যাডমিন কিচেন' : 'Admin Kitchen'}
               </Link>

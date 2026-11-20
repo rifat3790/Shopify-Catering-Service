@@ -39,11 +39,11 @@ export default function MetricsOverview({ stats, isLoading }: MetricsProps) {
       unit: language === 'bn' ? 'টি' : 'orders',
       icon: ShoppingBag,
       borderColor: 'border-emerald-500/40',
-      iconColor: 'text-emerald-400',
-      valueColor: 'text-white',
+      iconColor: 'text-emerald-600 dark:text-emerald-400',
+      valueColor: 'text-slate-900 dark:text-white',
       glowColor: 'bg-emerald-500',
       badge: 'Live',
-      badgeColor: 'border-emerald-500/40 text-emerald-300',
+      badgeColor: 'border-emerald-500/40 text-emerald-700 dark:text-emerald-300',
     },
     {
       id: 'totalBill',
@@ -55,11 +55,11 @@ export default function MetricsOverview({ stats, isLoading }: MetricsProps) {
       unit: '',
       icon: Receipt,
       borderColor: 'border-amber-500/40',
-      iconColor: 'text-amber-400',
-      valueColor: 'text-amber-300',
+      iconColor: 'text-amber-600 dark:text-amber-400',
+      valueColor: 'text-amber-700 dark:text-amber-300',
       glowColor: 'bg-amber-500',
       badge: 'Billed',
-      badgeColor: 'border-amber-500/40 text-amber-300',
+      badgeColor: 'border-amber-500/40 text-amber-700 dark:text-amber-300',
     },
     {
       id: 'totalPaid',
@@ -71,11 +71,11 @@ export default function MetricsOverview({ stats, isLoading }: MetricsProps) {
       unit: '',
       icon: Wallet,
       borderColor: 'border-teal-500/40',
-      iconColor: 'text-teal-300',
-      valueColor: 'text-emerald-300',
+      iconColor: 'text-teal-600 dark:text-teal-300',
+      valueColor: 'text-emerald-700 dark:text-emerald-300',
       glowColor: 'bg-teal-500',
       badge: 'Received',
-      badgeColor: 'border-teal-500/40 text-teal-300',
+      badgeColor: 'border-teal-500/40 text-teal-700 dark:text-teal-300',
     },
     {
       id: 'refundChange',
@@ -87,11 +87,11 @@ export default function MetricsOverview({ stats, isLoading }: MetricsProps) {
       unit: '',
       icon: Coins,
       borderColor: 'border-sky-500/40',
-      iconColor: 'text-sky-400',
-      valueColor: 'text-sky-300',
+      iconColor: 'text-sky-600 dark:text-sky-400',
+      valueColor: 'text-sky-700 dark:text-sky-300',
       glowColor: 'bg-sky-500',
       badge: 'Change',
-      badgeColor: 'border-sky-500/40 text-sky-300',
+      badgeColor: 'border-sky-500/40 text-sky-700 dark:text-sky-300',
     },
     ...(stats.totalMemberBalance !== undefined ? [{
       id: 'memberBalance',
@@ -103,11 +103,11 @@ export default function MetricsOverview({ stats, isLoading }: MetricsProps) {
       unit: '',
       icon: Wallet,
       borderColor: 'border-emerald-500/40',
-      iconColor: 'text-emerald-300',
-      valueColor: 'text-emerald-300',
+      iconColor: 'text-emerald-600 dark:text-emerald-300',
+      valueColor: 'text-emerald-700 dark:text-emerald-300',
       glowColor: 'bg-emerald-500',
       badge: 'Live Balances',
-      badgeColor: 'border-emerald-500/40 text-emerald-300',
+      badgeColor: 'border-emerald-500/40 text-emerald-700 dark:text-emerald-300',
     }] : []),
     {
       id: 'rate',
@@ -119,11 +119,11 @@ export default function MetricsOverview({ stats, isLoading }: MetricsProps) {
       unit: '',
       icon: TrendingUp,
       borderColor: 'border-amber-400/40',
-      iconColor: 'text-amber-300',
-      valueColor: 'text-amber-300',
+      iconColor: 'text-amber-600 dark:text-amber-300',
+      valueColor: 'text-amber-700 dark:text-amber-300',
       glowColor: 'bg-amber-500',
       badge: 'High Performance',
-      badgeColor: 'border-amber-400/40 text-amber-300',
+      badgeColor: 'border-amber-400/40 text-amber-700 dark:text-amber-300',
     },
   ];
 
@@ -135,7 +135,7 @@ export default function MetricsOverview({ stats, isLoading }: MetricsProps) {
           return (
             <div
               key={card.id}
-              className={`relative overflow-hidden rounded-2xl bg-slate-900/95 backdrop-blur-xl border ${card.borderColor} p-4 sm:p-5 shadow-xl shadow-black/30 hover:scale-[1.02] hover:shadow-2xl transition-all duration-300 group`}
+              className={`relative overflow-hidden rounded-2xl bg-white dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:${card.borderColor} p-4 sm:p-5 shadow-md dark:shadow-xl dark:shadow-black/30 hover:scale-[1.02] hover:shadow-lg transition-all duration-300 group`}
             >
               {/* Soft Ambient Radial Corner Glow (subtle & non-intrusive) */}
               <div className={`absolute -right-8 -bottom-8 w-28 h-28 rounded-full blur-2xl pointer-events-none opacity-20 group-hover:opacity-40 transition-opacity duration-500 ${card.glowColor}`} />

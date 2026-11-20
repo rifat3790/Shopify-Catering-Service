@@ -283,13 +283,13 @@ function PosPageContent() {
           <div className="lg:col-span-7 space-y-5">
 
             {/* Customer Pill Selectors */}
-            <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-2">
-              <div className="flex items-center justify-between text-xs font-semibold text-slate-300 uppercase tracking-wider">
+            <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 space-y-2 shadow-sm">
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                 <span className="flex items-center gap-1.5">
-                  <User className="w-3.5 h-3.5 text-amber-400" />
+                  <User className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
                   <span>{language === 'bn' ? 'গ্রাহক সিলেক্ট করুন' : 'Select Customer'}</span>
                 </span>
-                <span className="text-amber-400 font-bold">{customer}</span>
+                <span className="text-amber-600 dark:text-amber-400 font-bold">{customer}</span>
               </div>
 
               <div className="flex flex-wrap gap-2 pt-1">
@@ -303,13 +303,13 @@ function PosPageContent() {
                         onClick={() => setCustomer(m.name)}
                         className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
                           isSelected
-                            ? 'bg-gradient-to-r from-emerald-600 to-amber-500 text-slate-950 shadow-md ring-2 ring-amber-400'
-                            : 'bg-slate-950 text-slate-300 hover:bg-slate-800 border border-slate-700/80'
+                            ? 'bg-gradient-to-r from-emerald-600 to-amber-600 text-white shadow-md ring-2 ring-amber-400/60'
+                            : 'bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/80 shadow-xs'
                         }`}
                       >
                         <span>{m.name}</span>
                         <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded font-semibold ${
-                          isSelected ? 'bg-slate-950/20 text-slate-950' : 'bg-emerald-950/80 text-emerald-300 border border-emerald-800/50'
+                          isSelected ? 'bg-black/25 text-white border border-white/20' : 'bg-emerald-50 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/50'
                         }`}>
                           ৳{(m.balance || 0).toFixed(0)}
                         </span>
@@ -322,7 +322,7 @@ function PosPageContent() {
                     value={customer}
                     onChange={e => setCustomer(e.target.value)}
                     placeholder="Customer Name"
-                    className="px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white"
+                    className="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white"
                   />
                 )}
               </div>
@@ -379,30 +379,30 @@ function PosPageContent() {
           {/* Right Column: Register Bill, Cash Presets & Change Return (5 cols) */}
           <div className="lg:col-span-5 space-y-4">
 
-            <div id="pos-register-card" className="rounded-3xl bg-slate-900/90 border border-emerald-800/80 p-4 sm:p-5 shadow-2xl backdrop-blur-xl space-y-4">
+            <div id="pos-register-card" className="rounded-3xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-emerald-800/80 p-4 sm:p-5 shadow-xl backdrop-blur-xl space-y-4">
 
               {/* Register Header */}
-              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
                 <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400">
+                  <div className="p-2 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400">
                     <ShoppingBag className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-white text-sm flex items-center gap-2">
+                    <h3 className="font-bold text-slate-800 dark:text-white text-sm flex items-center gap-2">
                       <span>{customer}&apos;s Order</span>
                       {selectedMember && (
-                        <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                        <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
                           Wallet: ৳{(selectedMember.balance || 0).toFixed(2)}
                         </span>
                       )}
                     </h3>
-                    <p className="text-[11px] text-emerald-400 font-medium">
+                    <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
                       {selectedMember?.department || 'Shopify Team'} • Catering POS
                     </p>
                   </div>
                 </div>
 
-                <span className="text-xs font-mono font-semibold text-slate-400">
+                <span className="text-xs font-mono font-semibold text-slate-500 dark:text-slate-400">
                   {Object.values(cart).length} items
                 </span>
               </div>
@@ -410,18 +410,18 @@ function PosPageContent() {
               {/* Order Items Table in Register */}
               <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
                 {Object.keys(cart).length === 0 ? (
-                  <p className="text-center py-6 text-xs text-slate-500 italic">
+                  <p className="text-center py-6 text-xs text-slate-400 italic">
                     {language === 'bn' ? 'কোনো খাবার যোগ করা হয়নি' : 'Cart is empty. Tap items on the left.'}
                   </p>
                 ) : (
                   Object.entries(cart).map(([id, item]) => (
                     <div
                       key={id}
-                      className="flex items-center justify-between p-2 rounded-xl bg-slate-950/70 border border-slate-800 text-xs"
+                      className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 text-xs"
                     >
                       <div className="flex-1 mr-2 truncate">
-                        <p className="font-semibold text-white truncate">{item.name}</p>
-                        <p className="text-[11px] text-amber-300 font-mono">
+                        <p className="font-semibold text-slate-800 dark:text-white truncate">{item.name}</p>
+                        <p className="text-[11px] text-amber-600 dark:text-amber-300 font-mono font-bold">
                           {item.qty} × ৳{item.price} = ৳{item.qty * item.price}
                         </p>
                       </div>
@@ -429,14 +429,14 @@ function PosPageContent() {
                       <div className="flex items-center gap-1.5">
                         <button
                           onClick={() => handleRemoveItem(id)}
-                          className="w-6 h-6 rounded-lg bg-slate-800 text-slate-300 flex items-center justify-center font-bold hover:bg-slate-700"
+                          className="w-6 h-6 rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center font-bold hover:bg-slate-300 dark:hover:bg-slate-700"
                         >
                           -
                         </button>
-                        <span className="w-5 text-center font-bold text-white font-mono">{item.qty}</span>
+                        <span className="w-5 text-center font-bold text-slate-800 dark:text-white font-mono">{item.qty}</span>
                         <button
                           onClick={() => handleAddItem(id, item.name, item.price)}
-                          className="w-6 h-6 rounded-lg bg-emerald-600 text-slate-950 flex items-center justify-center font-bold hover:bg-emerald-500"
+                          className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold hover:bg-emerald-500"
                         >
                           +
                         </button>
@@ -447,7 +447,7 @@ function PosPageContent() {
               </div>
 
               {/* Bill & Payment Presets */}
-              <div className="p-4 rounded-2xl bg-slate-950 border border-emerald-950 space-y-3">
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-emerald-950 space-y-3">
 
                 {/* Total Bill Row */}
                 <div className="flex items-baseline justify-between">

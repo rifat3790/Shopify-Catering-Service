@@ -29,7 +29,7 @@ function MenuPageContent() {
   const { user } = useAuth();
   const { language } = useLanguage();
   const { toast } = useToast();
-  
+
   // Instant 0ms cache initialize
   const [menuItems, setMenuItems] = useState<MenuItemData[]>(() => {
     return getClientCache<MenuItemData[]>('menu_items') || [];
@@ -239,22 +239,22 @@ function MenuPageContent() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col lg:flex-row">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col lg:flex-row text-slate-900 dark:text-slate-100">
       <Sidebar onOpenNewOrder={() => setIsOrderModalOpen(true)} />
 
       <main className="flex-1 w-full min-w-0 px-4 sm:px-6 lg:px-10 py-8 space-y-6">
 
         {/* Top Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-emerald-900/40">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-200 dark:border-emerald-900/40">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-950/80 border border-emerald-500/30 text-emerald-300 text-xs font-semibold mb-2">
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 dark:bg-emerald-950/80 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs font-semibold mb-2">
+              <Sparkles className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
               <span>{language === 'bn' ? 'এক্সক্লুসিভ ক্যাটারিং মেনু ক্যাটালগ' : 'Curated Catering Menu & Management'}</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold font-serif text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold font-serif text-slate-900 dark:text-white">
               {language === 'bn' ? 'শপিফাই ক্যাটারিং মেনু' : 'Shopify Catering Menu'}
             </h1>
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
               {language === 'bn'
                 ? 'রিয়েল-টাইম মেনু ক্যাটালগ — খাবার অর্ডার করুন এবং সরাসরি আপনার ব্যালেন্স থেকে পরিশোধ করুন'
                 : 'Dynamic catering menu — order items and pay directly via your wallet balance'}
@@ -266,9 +266,9 @@ function MenuPageContent() {
             {isSuperOrAdmin && (
               <button
                 onClick={handleOpenAddDish}
-                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-md transition-all hover:scale-105"
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-white font-bold text-xs shadow-md transition-all hover:scale-105"
               >
-                <Plus className="w-4 h-4 text-slate-950" />
+                <Plus className="w-4 h-4 text-white" />
                 <span>{language === 'bn' ? 'নতুন খাবার যুক্ত করুন' : 'Add New Dish'}</span>
               </button>
             )}
@@ -287,14 +287,14 @@ function MenuPageContent() {
         </div>
 
         {/* Category Filter Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-slate-800">
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-slate-200 dark:border-slate-800">
           {categories.map((cat) => (
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
               className={`px-4 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${selectedCategory === cat
-                ? 'bg-amber-400 text-slate-950 font-bold shadow-md'
-                : 'bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800'
+                ? 'bg-gradient-to-r from-emerald-600 to-amber-600 text-white font-bold shadow-md'
+                : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'
                 }`}
             >
               {cat === 'All' ? (language === 'bn' ? 'সকল মেনু' : 'All Items') : cat}
@@ -341,9 +341,9 @@ function MenuPageContent() {
               return (
                 <div
                   key={item._id || item.name}
-                  className={`group rounded-3xl bg-slate-900/80 border p-4 flex flex-col justify-between transition-all duration-300 hover:shadow-2xl relative overflow-hidden ${item.isAvailable === false
-                    ? 'opacity-60 border-slate-800'
-                    : 'border-slate-800 hover:border-emerald-700/80 hover:shadow-emerald-950/40'
+                  className={`group rounded-3xl bg-white dark:bg-slate-900/80 border p-4 flex flex-col justify-between transition-all duration-300 hover:shadow-xl relative overflow-hidden ${item.isAvailable === false
+                    ? 'opacity-60 border-slate-200 dark:border-slate-800'
+                    : 'border-slate-200 dark:border-slate-800 hover:border-emerald-500/80 shadow-md'
                     }`}
                 >
                   {/* Popular Badge */}
@@ -356,25 +356,25 @@ function MenuPageContent() {
 
                   {/* Admin Management Floating Toolbar */}
                   {isSuperOrAdmin && (
-                    <div className="absolute top-4 right-4 z-10 flex items-center gap-1 bg-slate-950/90 backdrop-blur-md p-1 rounded-xl border border-slate-700 shadow-lg">
+                    <div className="absolute top-4 right-4 z-10 flex items-center gap-1 bg-white/90 dark:bg-slate-950/90 backdrop-blur-md p-1 rounded-xl border border-slate-200 dark:border-slate-700 shadow-md">
                       <button
                         onClick={() => handleToggleAvailable(item)}
                         title={item.isAvailable ? 'Mark Out of Stock' : 'Mark Available'}
-                        className="p-1 rounded text-slate-400 hover:text-white"
+                        className="p-1 rounded text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
                       >
-                        {item.isAvailable ? <Eye className="w-3.5 h-3.5 text-emerald-400" /> : <EyeOff className="w-3.5 h-3.5 text-rose-400" />}
+                        {item.isAvailable ? <Eye className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> : <EyeOff className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />}
                       </button>
                       <button
                         onClick={() => handleOpenEditDish(item)}
                         title="Edit Dish"
-                        className="p-1 rounded text-slate-400 hover:text-amber-300"
+                        className="p-1 rounded text-slate-500 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-300"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => handleDeleteDish(item._id)}
                         title="Delete Dish"
-                        className="p-1 rounded text-slate-400 hover:text-rose-400"
+                        className="p-1 rounded text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -383,7 +383,7 @@ function MenuPageContent() {
 
                   <div>
                     {/* Food Image */}
-                    <div className="relative w-full h-44 rounded-2xl overflow-hidden bg-slate-950 mb-3.5">
+                    <div className="relative w-full h-44 rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-950 mb-3.5">
                       <img
                         src={item.imageUrl}
                         alt={item.name}
@@ -397,39 +397,39 @@ function MenuPageContent() {
 
                     {/* Title & Desc */}
                     <div>
-                      <h3 className="font-serif font-bold text-white text-base group-hover:text-amber-200 transition-colors">
+                      <h3 className="font-serif font-bold text-slate-900 dark:text-white text-base group-hover:text-emerald-700 dark:group-hover:text-amber-200 transition-colors">
                         {language === 'bn' ? item.nameBn : item.name}
                       </h3>
-                      <p className="text-xs text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                      <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
                         {language === 'bn' ? item.descriptionBn : item.description}
                       </p>
                     </div>
                   </div>
 
                   {/* Footer action */}
-                  <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between">
+                  <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800/80 flex items-center justify-between">
                     <span className="text-[11px] text-slate-500 font-mono">
                       {item.calories ? `${item.calories} kcal` : item.category}
                     </span>
 
                     {item.isAvailable === false ? (
-                      <span className="text-[11px] font-bold text-rose-400 px-2 py-0.5 rounded bg-rose-950/40 border border-rose-800">
+                      <span className="text-[11px] font-bold text-rose-600 dark:text-rose-400 px-2 py-0.5 rounded bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800">
                         Out of Stock
                       </span>
                     ) : countInCart > 0 ? (
-                      <div className="flex items-center gap-2 bg-emerald-950 border border-emerald-600/60 rounded-xl p-1">
+                      <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-950 border border-emerald-300 dark:border-emerald-600/60 rounded-xl p-1">
                         <button
                           onClick={() => removeFromCart(item._id || item.name)}
-                          className="w-6 h-6 rounded-lg bg-slate-800 text-slate-200 flex items-center justify-center text-xs font-bold"
+                          className="w-6 h-6 rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center justify-center text-xs font-bold"
                         >
                           -
                         </button>
-                        <span className="text-xs font-bold text-white px-1">
+                        <span className="text-xs font-bold text-slate-900 dark:text-white px-1">
                           {countInCart}
                         </span>
                         <button
                           onClick={() => addToCart(item._id || item.name)}
-                          className="w-6 h-6 rounded-lg bg-emerald-600 text-slate-950 flex items-center justify-center text-xs font-bold"
+                          className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-xs font-bold"
                         >
                           +
                         </button>
@@ -437,7 +437,7 @@ function MenuPageContent() {
                     ) : (
                       <button
                         onClick={() => addToCart(item._id || item.name)}
-                        className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-emerald-600 text-slate-200 hover:text-slate-950 text-xs font-semibold transition-all"
+                        className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-emerald-600 dark:bg-slate-800 dark:hover:bg-emerald-600 text-slate-700 hover:text-white dark:text-slate-200 dark:hover:text-slate-950 text-xs font-semibold border border-slate-200 dark:border-slate-700 transition-all shadow-xs"
                       >
                         <Plus className="w-3.5 h-3.5" />
                         <span>{language === 'bn' ? 'অর্ডার কার্টে নিন' : 'Add to Cart'}</span>

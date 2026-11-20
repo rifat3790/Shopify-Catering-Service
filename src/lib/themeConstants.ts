@@ -427,9 +427,14 @@ a[class*="bg-slate-800"]:hover,
 button[class*="bg-slate-900"]:hover,
 a[class*="bg-slate-900"]:hover,
 button[class*="bg-slate-950"]:hover,
-a[class*="bg-slate-950"]:hover {
-  background-color: #f8fafc !important;
+a[class*="bg-slate-950"]:hover,
+button:not([class*="from-"]):not([class*="bg-emerald"]):not([class*="bg-amber"]):not([class*="bg-rose"]):hover {
+  background-color: #f1f5f9 !important;
   border-color: #94a3b8 !important;
+  color: #0f172a !important;
+}
+
+button:not([class*="from-"]):not([class*="bg-emerald"]):not([class*="bg-amber"]):not([class*="bg-rose"]):hover * {
   color: #0f172a !important;
 }
 

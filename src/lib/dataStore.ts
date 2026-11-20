@@ -1,6 +1,7 @@
 import { connectToDatabase } from './mongodb';
 import { adminAuth, getFirebaseUsersList } from './firebaseAdmin';
 import { persistentStore } from './persistentStore';
+import { cloudBackupService } from './cloudBackupService';
 import Order from './models/Order';
 import MenuItem from './models/MenuItem';
 import Customer from './models/Customer';
@@ -980,11 +981,14 @@ export async function updateUserBalance(
           createdAt: userDoc.createdAt?.toISOString?.() || new Date().toISOString()
         };
         usersCache = usersCache.map(u => (u.id === updated.id || u.email.toLowerCase() === updated.email.toLowerCase()) ? updated : u);
+        cloudBackupService.setMongoHealthy(true);
+        cloudBackupService.backupUser(updated);
         return applyUserOverridesAndUsername(updated);
       }
     }
-  } catch (err) {
-    console.warn("MongoDB update balance failed, using cache:", err);
+  } catch (err: any) {
+    cloudBackupService.setMongoHealthy(false, err?.message);
+    console.warn("MongoDB update balance failed, using resilient backup cache:", err);
   }
 
   const idx = usersCache.findIndex(u => u.id === idOrEmail || u.email.toLowerCase() === search || u.name.toLowerCase() === search);
@@ -999,6 +1003,7 @@ export async function updateUserBalance(
     persistentStore.updateUserProfile(usersCache[idx].email, {
       balance: usersCache[idx].balance,
     });
+    cloudBackupService.backupUser(usersCache[idx]);
     return applyUserOverridesAndUsername(usersCache[idx]);
   }
   return null;
@@ -1044,13 +1049,23 @@ export async function getAllOrders(): Promise<OrderData[]> {
       cachedOrdersResult = mapped;
       lastOrdersFetch = now;
       mapped.forEach(o => persistentStore.saveOrder(o));
+      cloudBackupService.setMongoHealthy(true);
       return mapped;
     }
-  } catch (err) {
-    console.warn("MongoDB getAllOrders error, fallback to persistentStore:", err);
+  } catch (err: any) {
+    cloudBackupService.setMongoHealthy(false, err?.message);
+    console.warn("MongoDB getAllOrders error, fallback to persistent backup store:", err);
   }
 
-  const pOrders = persistentStore.getOrders();
+  let pOrders = persistentStore.getOrders();
+  if (!pOrders || pOrders.length === 0) {
+    const snapshot = cloudBackupService.restoreLatestSnapshot();
+    if (snapshot && snapshot.orders.length > 0) {
+      pOrders = snapshot.orders;
+      pOrders.forEach(o => persistentStore.saveOrder(o));
+    }
+  }
+
   cachedOrdersResult = pOrders;
   lastOrdersFetch = now;
   return pOrders;
@@ -1192,13 +1207,16 @@ export async function createOrder(data: Partial<OrderData>): Promise<OrderData> 
         orderDate: new Date(newOrder.orderDate)
       });
       if (doc) newOrder._id = doc._id.toString();
+      cloudBackupService.setMongoHealthy(true);
     }
-  } catch (e) {
-    console.error('MongoDB Order.create error:', e);
+  } catch (e: any) {
+    cloudBackupService.setMongoHealthy(false, e?.message);
+    console.warn('MongoDB Order.create storage/connection issue. Resilient backup active:', e?.message);
   }
 
-  // 3. Immediately persist to disk & memory
+  // 3. Immediately persist to disk, cloud backup & memory
   persistentStore.saveOrder(newOrder);
+  cloudBackupService.backupOrder(newOrder);
   ordersCache = [newOrder, ...ordersCache];
   invalidateOrdersCache();
   invalidateUsersCache();
@@ -1210,6 +1228,7 @@ export async function updateOrder(id: string, updates: Partial<OrderData>): Prom
   const pUpdated = persistentStore.updateOrder(id, updates);
   if (pUpdated) {
     ordersCache = ordersCache.map(o => (o._id === id || o.orderNumber === id) ? pUpdated : o);
+    cloudBackupService.backupOrder(pUpdated);
   }
   invalidateOrdersCache();
   invalidateUsersCache();

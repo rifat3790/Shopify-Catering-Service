@@ -383,7 +383,7 @@ function UserDashboardContent() {
 
               <button
                 onClick={() => setIsOrderModalOpen(true)}
-                className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-md"
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-white font-bold text-xs shadow-md"
               >
                 + {language === 'bn' ? 'নতুন খাবার অর্ডার' : 'Order Food'}
               </button>
@@ -394,18 +394,18 @@ function UserDashboardContent() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             
             {/* Main Dynamic Balance */}
-            <div className="relative overflow-hidden p-6 rounded-3xl bg-gradient-to-br from-emerald-950 via-slate-900 to-emerald-950 border border-emerald-500/40 shadow-2xl">
+            <div className="relative overflow-hidden p-6 rounded-3xl bg-white dark:bg-gradient-to-br dark:from-emerald-950 dark:via-slate-900 dark:to-emerald-950 border border-emerald-500/40 shadow-xl">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold text-emerald-300 uppercase tracking-wider">
+                <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider">
                   {language === 'bn' ? 'বর্তমান ক্যাটারিং ব্যালেন্স (Wallet)' : 'Current Catering Balance'}
                 </span>
-                <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
                   <Wallet className="w-5 h-5" />
                 </div>
               </div>
               
               <div className="flex items-baseline justify-between gap-2 flex-wrap">
-                <h2 className="text-3xl sm:text-4xl font-extrabold font-mono text-emerald-400">
+                <h2 className="text-3xl sm:text-4xl font-extrabold font-mono text-emerald-600 dark:text-emerald-400">
                   ৳{displayBalance.toFixed(2)}
                 </h2>
 
@@ -413,14 +413,14 @@ function UserDashboardContent() {
                 {isElevated && (
                   <button
                     onClick={() => setIsBalanceModalOpen(true)}
-                    className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-slate-950 text-xs font-bold border border-amber-500/40 transition-all flex items-center gap-1 shadow-sm hover:scale-105"
+                    className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500 text-amber-700 dark:text-amber-300 hover:text-white dark:hover:text-slate-950 text-xs font-bold border border-amber-500/40 transition-all flex items-center gap-1 shadow-sm hover:scale-105"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>{language === 'bn' ? 'ব্যালেন্স আপডেট' : 'Top-up / Edit'}</span>
                   </button>
                 )}
               </div>
-              <p className={`text-[11px] mt-2 flex items-center gap-1 ${displayBalance > 0 ? 'text-emerald-300/90' : 'text-slate-400'}`}>
+              <p className={`text-[11px] mt-2 flex items-center gap-1 ${displayBalance > 0 ? 'text-emerald-700 dark:text-emerald-300/90' : 'text-slate-500 dark:text-slate-400'}`}>
                 <span>
                   {displayBalance > 0
                     ? (language === 'bn' ? '● যেকোনো খাবার অর্ডারের জন্য প্রস্তুত' : '● Available for immediate food ordering')
@@ -430,27 +430,27 @@ function UserDashboardContent() {
             </div>
 
             {/* Total Spent */}
-            <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl">
+            <div className="p-6 rounded-3xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-xl">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
                   {language === 'bn' ? 'মোট খাবার গ্রহণ (Total Spent)' : 'Total Catering Spent'}
                 </span>
-                <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                <div className="p-2 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30">
                   <ShoppingBag className="w-5 h-5" />
                 </div>
               </div>
-              <h2 className="text-2xl sm:text-3xl font-extrabold font-mono text-amber-300">
+              <h2 className="text-2xl sm:text-3xl font-extrabold font-mono text-amber-600 dark:text-amber-300">
                 ৳{displaySpent.toFixed(2)}
               </h2>
               <div className="flex items-center justify-between mt-2 flex-wrap gap-1">
-                <p className="text-xs text-slate-300 font-medium">
+                <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">
                   {dateFilter === 'lifetime'
                     ? `${allPersonalOrders.length} ${language === 'bn' ? 'টি সফল অর্ডার সম্পন্ন' : 'Orders completed'}`
                     : `${myOrders.length} ${language === 'bn' ? 'টি সফল অর্ডার সম্পন্ন' : 'Orders completed'}`
                   }
                 </p>
                 {dateFilter !== 'lifetime' && allPersonalOrders.length > 0 && (
-                  <span className="text-[10px] text-amber-400/90 font-mono font-semibold">
+                  <span className="text-[10px] text-amber-600 dark:text-amber-400/90 font-mono font-semibold">
                     {language === 'bn' ? 'লাইফটাইম' : 'Lifetime'}: ৳{lifetimeSpent.toFixed(2)}
                   </span>
                 )}
@@ -458,19 +458,19 @@ function UserDashboardContent() {
             </div>
 
             {/* Unpaid / Due */}
-            <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl">
+            <div className="p-6 rounded-3xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-xl">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
                   {language === 'bn' ? 'বকেয়া হিসাব (Current Due)' : 'Current Due / Credit'}
                 </span>
-                <div className={`p-2 rounded-xl border ${displayDue > 0 ? 'bg-rose-500/20 text-rose-400 border-rose-500/30' : 'bg-teal-500/20 text-teal-300 border-teal-500/30'}`}>
+                <div className={`p-2 rounded-xl border ${displayDue > 0 ? 'bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/30' : 'bg-teal-500/20 text-teal-600 dark:text-teal-300 border-teal-500/30'}`}>
                   <CheckCircle2 className="w-5 h-5" />
                 </div>
               </div>
-              <h2 className={`text-2xl sm:text-3xl font-extrabold font-mono ${displayDue > 0 ? 'text-rose-400' : 'text-teal-300'}`}>
+              <h2 className={`text-2xl sm:text-3xl font-extrabold font-mono ${displayDue > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-teal-600 dark:text-teal-300'}`}>
                 ৳{displayDue.toFixed(2)}
               </h2>
-              <p className={`text-xs font-medium mt-2 ${displayDue > 0 ? 'text-rose-300' : 'text-teal-300'}`}>
+              <p className={`text-xs font-medium mt-2 ${displayDue > 0 ? 'text-rose-600 dark:text-rose-300' : 'text-teal-600 dark:text-teal-300'}`}>
                 {displayDue > 0 ? `৳${displayDue.toFixed(2)} বকেয়া` : (language === 'bn' ? 'কোনো বকেয়া নেই (Clear)' : 'Zero outstanding dues')}
               </p>
             </div>
@@ -478,15 +478,15 @@ function UserDashboardContent() {
           </div>
 
           {/* My Orders & Download Receipt Image Section */}
-          <div className="rounded-3xl bg-slate-900/90 border border-emerald-900/60 shadow-2xl overflow-hidden backdrop-blur-xl">
+          <div className="rounded-3xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-emerald-900/60 shadow-xl overflow-hidden backdrop-blur-xl">
             
-            <div className="p-5 bg-gradient-to-r from-emerald-950 via-slate-950 to-emerald-950 border-b border-emerald-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="p-5 bg-slate-50 dark:bg-gradient-to-r dark:from-emerald-950 dark:via-slate-950 dark:to-emerald-950 border-b border-slate-200 dark:border-emerald-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h2 className="text-base sm:text-lg font-bold font-serif text-white flex items-center gap-2">
-                  <Receipt className="w-5 h-5 text-amber-400" />
+                <h2 className="text-base sm:text-lg font-bold font-serif text-slate-800 dark:text-white flex items-center gap-2">
+                  <Receipt className="w-5 h-5 text-amber-500 dark:text-amber-400" />
                   <span>{language === 'bn' ? 'আমার খাবারের অর্ডার ও রসিদ ডাউনলোড' : 'My Orders & Invoice Image Downloads'}</span>
                 </h2>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
                   {language === 'bn' 
                     ? 'প্রতিটি অর্ডারের রসিদ হাই-রেজোলিউশন ইমেজ (PNG) হিসেবে সরাসরি ডাউনলোড করুন' 
                     : 'Download any order receipt as a high-resolution PNG image'}
@@ -498,13 +498,13 @@ function UserDashboardContent() {
                 <button
                   onClick={handleDownloadAllInTab}
                   disabled={myOrders.length === 0 || isDownloadingBulk}
-                  className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-300 border border-amber-500/40 hover:border-amber-400 text-xs font-semibold transition-all flex items-center gap-1.5 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-[0.98]"
+                  className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-amber-700 dark:text-amber-300 border border-amber-500/40 hover:border-amber-500 text-xs font-semibold transition-all flex items-center gap-1.5 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-[0.98]"
                   title={language === 'bn' ? 'বর্তমান ট্যাবের সকল রসিদ একসাথে ZIP আকারে ডাউনলোড' : 'Download all receipts in current tab as ZIP'}
                 >
                   {isDownloadingBulk ? (
                     <div className="w-3.5 h-3.5 rounded-full border-2 border-amber-400 border-t-transparent animate-spin" />
                   ) : (
-                    <Download className="w-3.5 h-3.5 text-amber-400" />
+                    <Download className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
                   )}
                   <span>
                     {isDownloadingBulk
@@ -515,7 +515,7 @@ function UserDashboardContent() {
 
                 <button
                   onClick={() => setIsOrderModalOpen(true)}
-                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-md"
+                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-white font-bold text-xs shadow-md"
                 >
                   + {language === 'bn' ? 'নতুন খাবার অর্ডার' : 'Order Food Now'}
                 </button>
@@ -541,7 +541,7 @@ function UserDashboardContent() {
                   </p>
                   <button
                     onClick={() => setIsOrderModalOpen(true)}
-                    className="mt-3 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold text-xs shadow-md"
+                    className="mt-3 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-white font-bold text-xs shadow-md"
                   >
                     + {language === 'bn' ? 'খাবার অর্ডার করুন' : 'Order Food Now'}
                   </button>
@@ -550,34 +550,34 @@ function UserDashboardContent() {
                 myOrders.map(order => (
                   <div
                     key={order._id || order.orderNumber}
-                    className="p-4 sm:p-5 rounded-2xl bg-slate-950 border border-slate-800 hover:border-emerald-600/60 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-md"
+                    className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 hover:border-emerald-500/70 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm"
                   >
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold text-xs text-amber-300">
+                        <span className="font-mono font-bold text-xs text-amber-600 dark:text-amber-300">
                           {order.orderNumber}
                         </span>
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                           order.status === 'Paid'
-                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                            : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                            ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30'
+                            : 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30'
                         }`}>
                           {order.status}
                         </span>
                       </div>
 
-                      <p className="text-sm font-semibold text-white">
+                      <p className="text-sm font-semibold text-slate-800 dark:text-white">
                         {order.itemsText || (order.items?.map(i => `${i.quantity}x ${i.name}`).join(', ') || 'Catering Order')}
                       </p>
 
-                      <div className="flex items-center gap-3 text-xs text-slate-400">
+                      <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
                         <span>{new Date(order.orderDate).toLocaleDateString()}</span>
                         <span>•</span>
-                        <span className="text-slate-300">{order.paymentMethod}</span>
+                        <span className="text-slate-600 dark:text-slate-300">{order.paymentMethod}</span>
                         {order.notes && (
                           <>
                             <span>•</span>
-                            <span className="italic text-slate-400">&quot;{order.notes}&quot;</span>
+                            <span className="italic text-slate-500 dark:text-slate-400">&quot;{order.notes}&quot;</span>
                           </>
                         )}
                       </div>
@@ -585,15 +585,15 @@ function UserDashboardContent() {
 
                     <div className="flex items-center gap-4 self-end sm:self-center">
                       <div className="text-right">
-                        <span className="text-[10px] uppercase tracking-wider text-slate-400 block font-semibold">Bill</span>
-                        <span className="font-mono font-bold text-base text-amber-300">
+                        <span className="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400 block font-semibold">Bill</span>
+                        <span className="font-mono font-bold text-base text-amber-600 dark:text-amber-300">
                           ৳{Number(order.totalBill).toFixed(2)}
                         </span>
                       </div>
 
                       <button
                         onClick={() => setSelectedInvoice(order)}
-                        className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-emerald-950 text-amber-300 hover:text-amber-200 border border-amber-500/30 font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm"
+                        className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-emerald-950 text-amber-700 dark:text-amber-300 hover:text-amber-800 dark:hover:text-amber-200 border border-amber-500/40 font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm"
                       >
                         <Download className="w-3.5 h-3.5" />
                         <span>{language === 'bn' ? 'রসিদ ইমেজ' : 'Receipt Image'}</span>

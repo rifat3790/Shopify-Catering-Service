@@ -343,26 +343,26 @@ export default function QuickOrderModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
-      <div className="relative w-full max-w-2xl bg-slate-900 border border-emerald-800/80 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+      <div className="relative w-full max-w-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-emerald-800/80 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
 
         {/* Modal Header */}
-        <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-emerald-950 px-6 py-4 border-b border-emerald-800/80 flex items-center justify-between text-white">
+        <div className="bg-slate-50 dark:bg-gradient-to-r dark:from-emerald-950 dark:via-emerald-900 dark:to-emerald-950 px-6 py-4 border-b border-slate-200 dark:border-emerald-800/80 flex items-center justify-between text-slate-900 dark:text-white">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30">
+            <div className="p-2 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30">
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-serif text-lg sm:text-xl font-bold text-amber-200">
+              <h3 className="font-serif text-lg sm:text-xl font-bold text-slate-900 dark:text-amber-200">
                 {language === 'bn' ? 'নতুন খাবার ও রিফ্রেশমেন্ট অর্ডার' : 'New Catering & Refreshment Order'}
               </h3>
-              <p className="text-xs text-emerald-300">
+              <p className="text-xs text-emerald-700 dark:text-emerald-300">
                 {language === 'bn' ? 'মেনু আইটেম নির্বাচন বা কাস্টম খাবার যোগ করুন' : 'Select menu items or add custom dishes dynamically'}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
+            className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -373,11 +373,11 @@ export default function QuickOrderModal({
 
           {/* Order Cutoff Status Banner */}
           {!isOrderAllowedForMe && orderControl && (
-            <div className="p-3.5 rounded-2xl bg-rose-950/60 border border-rose-500/50 text-rose-200 text-xs flex items-center gap-2.5">
-              <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />
+            <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-500/50 text-rose-800 dark:text-rose-200 text-xs flex items-center gap-2.5">
+              <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0" />
               <div>
                 <p className="font-bold">{language === 'bn' ? 'অর্ডার গ্রহণ বন্ধ রয়েছে' : 'Orders Closed'}</p>
-                <p className="text-[11px] text-rose-300/80">
+                <p className="text-[11px] text-rose-700 dark:text-rose-300/80">
                   {orderControl.evaluation?.messageBn || (language === 'bn' ? 'আজকের খাবার অর্ডারের নির্ধারিত সময় শেষ হয়ে গেছে।' : 'Daily order cutoff has passed.')}
                 </p>
               </div>
@@ -385,8 +385,8 @@ export default function QuickOrderModal({
           )}
 
           {isSuperOrAdmin && orderControl && !orderControl.isOrderAllowedNow && (
-            <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+            <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-500/15 border border-amber-300 dark:border-amber-500/40 text-amber-800 dark:text-amber-300 text-xs flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
               <span>
                 {language === 'bn'
                   ? '⚡ অ্যাডমিন ওভাররাইড: সাধারণ ইউজারদের অর্ডার বন্ধ থাকলেও আপনি অ্যাডমিন হিসেবে অর্ডার করতে পারবেন।'
@@ -398,18 +398,18 @@ export default function QuickOrderModal({
           {/* Customer Selection */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                 {language === 'bn' ? 'গ্রাহক বা মেম্বার নাম *' : 'Customer / Team Member Name *'}
               </label>
               {user && (
-                <span className="text-[10px] text-emerald-400 font-medium">
+                <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-medium">
                   {language === 'bn' ? 'প্রোফাইল থেকে স্বয়ংক্রিয়' : 'Auto-synced from Profile'}
                 </span>
               )}
             </div>
 
             {user && (
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 sm:gap-3 p-3 rounded-2xl bg-emerald-950/40 border border-emerald-800/60 shadow-inner">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 sm:gap-3 p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 shadow-sm">
                 <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto">
                   <img
                     src={customerAvatar || user.photoURL || user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(customerName || 'User')}&background=047857&color=fff`}
@@ -420,21 +420,21 @@ export default function QuickOrderModal({
                     className="w-10 h-10 rounded-full object-cover ring-2 ring-emerald-500/40 shrink-0"
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-bold text-white truncate flex items-center gap-1.5">
+                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate flex items-center gap-1.5">
                       <span>{customerName || user.displayName || 'Member'}</span>
-                      <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-mono">
+                      <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-500/40 font-mono">
                         Profile Active
                       </span>
                     </p>
-                    <p className="text-[10px] text-slate-400 truncate font-mono">{user.email}</p>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate font-mono">{user.email}</p>
                   </div>
                 </div>
 
-                <div className="text-left sm:text-right w-full sm:w-auto shrink-0 bg-slate-900/90 px-3 py-1.5 rounded-xl border border-emerald-700/50 flex sm:block items-center justify-between">
-                  <span className="text-[10px] font-semibold text-emerald-300 uppercase block">
+                <div className="text-left sm:text-right w-full sm:w-auto shrink-0 bg-white dark:bg-slate-900/90 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-emerald-700/50 flex sm:block items-center justify-between shadow-xs">
+                  <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 uppercase block">
                     {language === 'bn' ? 'ওয়ালেট ব্যালেন্স' : 'Wallet Balance'}
                   </span>
-                  <span className="text-sm sm:text-base font-extrabold font-mono text-amber-300">
+                  <span className="text-sm sm:text-base font-extrabold font-mono text-amber-700 dark:text-amber-300">
                     ৳{(liveBalance ?? user.balance ?? 0).toFixed(2)}
                   </span>
                 </div>
@@ -459,7 +459,7 @@ export default function QuickOrderModal({
                   }
                 }}
                 placeholder={language === 'bn' ? 'গ্রাহকের নাম লিখুন' : 'Enter customer name'}
-                className="w-full pl-10 pr-4 py-2 bg-slate-950 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
+                className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-amber-400"
               />
               <datalist id="quickorder-members-datalist">
                 {allMembers.map((m: any) => (
@@ -474,7 +474,7 @@ export default function QuickOrderModal({
           {/* Quick Menu Items Selector */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                 {language === 'bn' ? 'খাবারের আইটেম নির্বাচন (Menu Items)' : 'Select Food Items'}
               </label>
 
@@ -482,7 +482,7 @@ export default function QuickOrderModal({
               <button
                 type="button"
                 onClick={() => setShowAddCustom(!showAddCustom)}
-                className="text-xs font-bold text-amber-300 hover:text-amber-200 flex items-center gap-1"
+                className="text-xs font-bold text-amber-700 dark:text-amber-300 hover:text-amber-600 dark:hover:text-amber-200 flex items-center gap-1"
               >
                 <PlusSquare className="w-3.5 h-3.5" />
                 <span>{language === 'bn' ? 'কাস্টম আইটেম' : 'Custom Item'}</span>
@@ -491,8 +491,8 @@ export default function QuickOrderModal({
 
             {/* Dynamic Custom Item Creator */}
             {showAddCustom && (
-              <div className="mb-3 p-3 rounded-xl bg-slate-950 border border-amber-500/40 space-y-2">
-                <p className="text-[11px] font-bold text-amber-300">
+              <div className="mb-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-amber-300 dark:border-amber-500/40 space-y-2">
+                <p className="text-[11px] font-bold text-amber-700 dark:text-amber-300">
                   {language === 'bn' ? 'নতুন কাস্টম খাবার যোগ করুন:' : 'Add Custom Dish / Refreshment:'}
                 </p>
                 <div className="flex flex-wrap items-center gap-2">
@@ -501,45 +501,45 @@ export default function QuickOrderModal({
                     value={newCustomName}
                     onChange={e => setNewCustomName(e.target.value)}
                     placeholder={language === 'bn' ? 'খাবারের নাম' : 'Item name'}
-                    className="flex-1 min-w-[130px] px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-amber-400"
+                    className="flex-1 min-w-[130px] px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-400"
                   />
                   
                   {/* Clean Price Box with Currency Prefix */}
                   <div className="relative flex items-center">
-                    <span className="absolute left-2.5 text-xs text-amber-400 font-bold font-mono select-none">৳</span>
+                    <span className="absolute left-2.5 text-xs text-amber-600 dark:text-amber-400 font-bold font-mono select-none">৳</span>
                     <input
                       type="number"
                       min="1"
                       value={newCustomPrice || ''}
                       onChange={e => setNewCustomPrice(Number(e.target.value))}
                       placeholder={language === 'bn' ? 'মূল্য' : 'Price'}
-                      className="w-24 pl-6 pr-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs font-mono font-bold text-amber-300 focus:outline-none focus:border-amber-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      className="w-24 pl-6 pr-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs font-mono font-bold text-amber-700 dark:text-amber-300 focus:outline-none focus:border-amber-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
                   </div>
 
                   {/* Clean Quantity Stepper */}
-                  <div className="flex items-center bg-slate-900 border border-slate-700 rounded-lg overflow-hidden">
+                  <div className="flex items-center bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg overflow-hidden">
                     <button
                       type="button"
                       onClick={() => setNewCustomQty(prev => Math.max(1, prev - 1))}
-                      className="w-7 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 text-xs font-bold transition-colors select-none"
+                      className="w-7 h-8 flex items-center justify-center text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold transition-colors select-none"
                     >
                       −
                     </button>
                     <div className="flex items-center px-1">
-                      <span className="text-[10px] text-slate-400 mr-1 select-none">Qty:</span>
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400 mr-1 select-none">Qty:</span>
                       <input
                         type="number"
                         min="1"
                         value={newCustomQty}
                         onChange={e => setNewCustomQty(Math.max(1, parseInt(e.target.value) || 1))}
-                        className="w-8 bg-transparent text-center text-xs font-mono font-bold text-white outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        className="w-8 bg-transparent text-center text-xs font-mono font-bold text-slate-900 dark:text-white outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
                     </div>
                     <button
                       type="button"
                       onClick={() => setNewCustomQty(prev => prev + 1)}
-                      className="w-7 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 text-xs font-bold transition-colors select-none"
+                      className="w-7 h-8 flex items-center justify-center text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold transition-colors select-none"
                     >
                       +
                     </button>
@@ -548,7 +548,7 @@ export default function QuickOrderModal({
                   <button
                     type="button"
                     onClick={handleAddCustomItem}
-                    className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-sm transition-all"
+                    className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-white font-bold text-xs shadow-sm transition-all"
                   >
                     {language === 'bn' ? 'যোগ করুন' : 'Add'}
                   </button>
@@ -562,20 +562,20 @@ export default function QuickOrderModal({
                 {customItems.map((ci) => (
                   <div
                     key={ci.id}
-                    className="flex items-center justify-between p-2 rounded-xl bg-amber-950/20 border border-amber-500/30 text-xs"
+                    className="flex items-center justify-between p-2 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-300 dark:border-amber-500/30 text-xs"
                   >
                     <div>
-                      <span className="font-semibold text-white">✨ {ci.name}</span>
-                      <span className="text-[11px] text-amber-300 font-mono ml-2">৳{ci.price} each</span>
-                      <span className="text-[11px] text-emerald-400 font-mono font-bold ml-2">Total: ৳{(ci.qty * ci.price).toFixed(2)}</span>
+                      <span className="font-semibold text-slate-900 dark:text-white">✨ {ci.name}</span>
+                      <span className="text-[11px] text-amber-700 dark:text-amber-300 font-mono ml-2">৳{ci.price} each</span>
+                      <span className="text-[11px] text-emerald-700 dark:text-emerald-400 font-mono font-bold ml-2">Total: ৳{(ci.qty * ci.price).toFixed(2)}</span>
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1 bg-slate-900 p-0.5 rounded-lg border border-slate-800">
+                      <div className="flex items-center gap-1 bg-white dark:bg-slate-900 p-0.5 rounded-lg border border-slate-200 dark:border-slate-800">
                         <button
                           type="button"
                           onClick={() => handleCustomItemQty(ci.id, -1)}
-                          className="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center"
+                          className="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 flex items-center justify-center"
                         >
                           <Minus className="w-3 h-3" />
                         </button>
@@ -584,12 +584,12 @@ export default function QuickOrderModal({
                           min="1"
                           value={ci.qty}
                           onChange={(e) => handleSetCustomItemQty(ci.id, Math.max(1, parseInt(e.target.value) || 1))}
-                          className="w-10 text-center bg-transparent text-xs font-mono font-bold text-white outline-none"
+                          className="w-10 text-center bg-transparent text-xs font-mono font-bold text-slate-900 dark:text-white outline-none"
                         />
                         <button
                           type="button"
                           onClick={() => handleCustomItemQty(ci.id, 1)}
-                          className="w-6 h-6 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold flex items-center justify-center"
+                          className="w-6 h-6 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-bold flex items-center justify-center"
                         >
                           <Plus className="w-3 h-3" />
                         </button>
@@ -598,7 +598,7 @@ export default function QuickOrderModal({
                       <button
                         type="button"
                         onClick={() => handleRemoveCustomItem(ci.id)}
-                        className="text-rose-400 hover:text-rose-300 p-1"
+                        className="text-rose-600 dark:text-rose-400 hover:text-rose-500 p-1"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -610,15 +610,15 @@ export default function QuickOrderModal({
 
             {/* Dynamic Catalog Grid */}
             {menuItems.length === 0 ? (
-              <div className="p-6 rounded-2xl bg-slate-950/70 border border-slate-800 text-center space-y-3">
-                <div className="p-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-300 w-fit mx-auto">
+              <div className="p-6 rounded-2xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 text-center space-y-3">
+                <div className="p-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-300 w-fit mx-auto">
                   <Utensils className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-slate-300">
+                  <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                     {language === 'bn' ? 'মেনুতে কোনো খাবার সংরক্ষিত নেই' : 'No menu dishes added yet'}
                   </p>
-                  <p className="text-[11px] text-slate-400 mt-0.5">
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                     {language === 'bn' 
                       ? 'যেকোনো খাবার ও মূল্য অর্ডারে যোগ করতে "+ কাস্টম আইটেম" বাটনে ক্লিক করুন।' 
                       : 'Click "+ Custom Item" above to order any custom refreshment or dish.'}
@@ -627,7 +627,7 @@ export default function QuickOrderModal({
                 <button
                   type="button"
                   onClick={() => setShowAddCustom(true)}
-                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-500 text-slate-950 font-bold text-xs shadow-md hover:scale-105 transition-all inline-flex items-center gap-1.5"
+                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-500 text-white font-bold text-xs shadow-md hover:scale-105 transition-all inline-flex items-center gap-1.5"
                 >
                   <PlusSquare className="w-3.5 h-3.5" />
                   <span>{language === 'bn' ? '+ কাস্টম খাবার যোগ করুন' : '+ Add Custom Dish'}</span>
@@ -641,16 +641,16 @@ export default function QuickOrderModal({
                     <div
                       key={item._id || item.name}
                       className={`flex items-center justify-between p-2.5 rounded-xl border transition-all ${count > 0
-                        ? 'bg-emerald-950/40 border-emerald-500/60 shadow-sm'
-                        : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
+                        ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-500/60 shadow-sm'
+                        : 'bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 hover:border-slate-300'
                         }`}
                     >
                       <div className="min-w-0 flex-1 pr-2">
-                        <p className="text-xs font-semibold text-white truncate">{item.name}</p>
+                        <p className="text-xs font-semibold text-slate-900 dark:text-white truncate">{item.name}</p>
                         <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[11px] text-amber-300 font-mono">৳{item.price}</span>
+                          <span className="text-[11px] text-amber-700 dark:text-amber-300 font-mono font-bold">৳{item.price}</span>
                           {count > 0 && (
-                            <span className="text-[10px] text-emerald-400 font-mono font-bold">
+                            <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-mono font-bold">
                               = ৳{(count * item.price).toFixed(2)}
                             </span>
                           )}
@@ -661,7 +661,7 @@ export default function QuickOrderModal({
                         <button
                           type="button"
                           onClick={() => handleItemCount(item._id || item.name, -1)}
-                          className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition-colors"
+                          className="w-7 h-7 rounded-lg bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 flex items-center justify-center transition-colors"
                         >
                           <Minus className="w-3.5 h-3.5" />
                         </button>
@@ -672,12 +672,12 @@ export default function QuickOrderModal({
                           value={count === 0 ? '' : count}
                           onChange={(e) => handleSetItemCount(item._id || item.name, Math.max(0, parseInt(e.target.value) || 0))}
                           placeholder="0"
-                          className="w-12 h-7 text-center bg-slate-900 border border-slate-700 focus:border-amber-400 rounded-lg text-xs font-mono font-bold text-white outline-none"
+                          className="w-12 h-7 text-center bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:border-amber-400 rounded-lg text-xs font-mono font-bold text-slate-900 dark:text-white outline-none"
                         />
                         <button
                           type="button"
                           onClick={() => handleItemCount(item._id || item.name, 1)}
-                          className="w-7 h-7 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold flex items-center justify-center transition-colors"
+                          className="w-7 h-7 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold flex items-center justify-center transition-colors shadow-xs"
                         >
                           <Plus className="w-3.5 h-3.5" />
                         </button>
@@ -690,20 +690,20 @@ export default function QuickOrderModal({
           </div>
 
           {/* Real-time Calculation Summary Box */}
-          <div className="p-4 rounded-2xl bg-slate-950 border border-emerald-900/60 space-y-3">
+          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-emerald-900/60 space-y-3">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-400 font-medium">
+              <span className="text-slate-700 dark:text-slate-400 font-medium">
                 {language === 'bn' ? 'মোট বিল (Total Bill):' : 'Total Calculated Bill:'}
               </span>
-              <span className="text-xl font-bold font-mono text-amber-300">
+              <span className="text-xl font-bold font-mono text-amber-700 dark:text-amber-300">
                 ৳{calculatedBill.toFixed(2)}
               </span>
             </div>
 
             {/* Cash Presets */}
             <div>
-              <p className="text-[11px] text-slate-400 mb-1.5 font-medium flex items-center gap-1">
-                <Banknote className="w-3.5 h-3.5 text-emerald-400" />
+              <p className="text-[11px] text-slate-600 dark:text-slate-400 mb-1.5 font-medium flex items-center gap-1">
+                <Banknote className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                 {language === 'bn' ? 'নগদ জমা নোট সিলেক্টর:' : 'Cash Tender Presets:'}
               </p>
               <div className="flex flex-wrap gap-1.5">
@@ -713,8 +713,8 @@ export default function QuickOrderModal({
                     key={preset}
                     onClick={() => setPaidAmount(preset)}
                     className={`px-3 py-1 rounded-lg font-mono text-xs font-semibold transition-all ${paidAmount === preset
-                      ? 'bg-emerald-500 text-slate-950 ring-2 ring-emerald-300'
-                      : 'bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700'
+                      ? 'bg-emerald-600 text-white ring-2 ring-emerald-300 shadow-sm'
+                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'
                       }`}
                   >
                     ৳{preset}
@@ -723,7 +723,7 @@ export default function QuickOrderModal({
                 <button
                   type="button"
                   onClick={() => setPaidAmount(calculatedBill)}
-                  className="px-3 py-1 rounded-lg text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30"
+                  className="px-3 py-1 rounded-lg text-xs font-bold bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/40 hover:bg-amber-500/30"
                 >
                   Exact (সমান)
                 </button>
@@ -731,13 +731,13 @@ export default function QuickOrderModal({
             </div>
 
             {/* Custom Paid Input & Change */}
-            <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-800">
+            <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200 dark:border-slate-800">
               <div>
-                <label className="block text-[11px] text-slate-400 mb-1 font-semibold">
+                <label className="block text-[11px] text-slate-700 dark:text-slate-400 mb-1 font-semibold">
                   {language === 'bn' ? 'পরিশোধিত টাকা (Paid ৳)' : 'Paid Amount (৳)'}
                 </label>
                 <div className="relative flex items-center">
-                  <span className="absolute left-3 text-sm font-bold text-teal-400 font-mono select-none">৳</span>
+                  <span className="absolute left-3 text-sm font-bold text-teal-600 dark:text-teal-400 font-mono select-none">৳</span>
                   <input
                     type="number"
                     min="0"
@@ -745,18 +745,18 @@ export default function QuickOrderModal({
                     value={paidAmount || ''}
                     onChange={(e) => setPaidAmount(Number(e.target.value))}
                     placeholder="0.00"
-                    className="w-full pl-8 pr-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-sm font-mono text-teal-300 font-bold focus:outline-none focus:border-amber-400 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    className="w-full pl-8 pr-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-sm font-mono text-teal-700 dark:text-teal-300 font-bold focus:outline-none focus:border-amber-400 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-[11px] text-slate-400 mb-1">
+                <label className="block text-[11px] text-slate-700 dark:text-slate-400 mb-1 font-semibold">
                   {language === 'bn' ? 'ফেরতযোগ্য বাকি (Change ৳)' : 'Change to Return (৳)'}
                 </label>
                 <div className={`px-3 py-2 rounded-xl text-sm font-mono font-bold border ${changeDue >= 0
-                  ? 'bg-emerald-950/40 text-emerald-400 border-emerald-800'
-                  : 'bg-rose-950/40 text-rose-400 border-rose-800'
+                  ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800'
+                  : 'bg-rose-50 dark:bg-rose-950/40 text-rose-800 dark:text-rose-400 border border-rose-300 dark:border-rose-800'
                   }`}>
                   ৳{changeDue.toFixed(2)}
                 </div>
@@ -765,21 +765,21 @@ export default function QuickOrderModal({
 
             {/* Change to Wallet Balance Option */}
             {paymentMethod === 'Cash' && changeDue > 0 && (
-              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-2">
+              <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-300 dark:border-amber-500/30 flex items-center justify-between gap-2">
                 <label className="flex items-center gap-2.5 cursor-pointer text-xs">
                   <input
                     type="checkbox"
                     checked={depositChangeToWallet}
                     onChange={(e) => setDepositChangeToWallet(e.target.checked)}
-                    className="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-400 bg-slate-900 border-slate-700 cursor-pointer"
+                    className="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-400 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 cursor-pointer"
                   />
-                  <span className="text-amber-200 font-medium">
+                  <span className="text-amber-800 dark:text-amber-200 font-medium">
                     {language === 'bn'
                       ? `অবশিষ্ট ৳${changeDue.toFixed(2)} ক্যাটারিং ব্যালেন্সে জমা করুন`
                       : `Credit change ৳${changeDue.toFixed(2)} to Catering Wallet`}
                   </span>
                 </label>
-                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shrink-0">
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30 shrink-0">
                   {depositChangeToWallet ? `+৳${changeDue.toFixed(2)} Balance` : (language === 'bn' ? 'নগদ ফেরত' : 'Cash Back')}
                 </span>
               </div>
@@ -790,7 +790,7 @@ export default function QuickOrderModal({
           <div className="space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                   {language === 'bn' ? 'পেমেন্ট মেথড' : 'Payment Method'}
                 </label>
                 <select
@@ -802,7 +802,7 @@ export default function QuickOrderModal({
                       setPaidAmount(calculatedBill);
                     }
                   }}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none"
+                  className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none"
                 >
                   <option value="Cash">Cash (নগদ)</option>
                   <option value="Wallet">Catering Wallet (ব্যালেন্স থেকে কর্তন)</option>
@@ -813,7 +813,7 @@ export default function QuickOrderModal({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                   {language === 'bn' ? 'অর্ডার নোট' : 'Order Notes'}
                 </label>
                 <input
@@ -821,30 +821,30 @@ export default function QuickOrderModal({
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="e.g. less spicy, extra chutney"
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none"
+                  className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none"
                 />
               </div>
             </div>
 
             {paymentMethod === 'Wallet' && (
-              <div className="p-3 rounded-xl bg-emerald-950/50 border border-emerald-500/40 space-y-2 text-xs">
+              <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-500/40 space-y-2 text-xs">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Banknote className="w-4 h-4 text-emerald-400" />
-                    <span className="text-slate-300">
+                    <Banknote className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
+                    <span className="text-slate-700 dark:text-slate-300">
                       {language === 'bn' ? 'বর্তমান ওয়ালেট ব্যালেন্স:' : 'Current Wallet Balance:'}
                     </span>
-                    <span className="font-mono font-bold text-amber-300">৳{(liveBalance ?? user?.balance ?? 0).toFixed(2)}</span>
+                    <span className="font-mono font-bold text-amber-700 dark:text-amber-300">৳{(liveBalance ?? user?.balance ?? 0).toFixed(2)}</span>
                   </div>
-                  <span className="text-[10px] text-emerald-400 font-medium">
+                  <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-medium">
                     {calculatedBill <= (liveBalance ?? user?.balance ?? 0)
                       ? (language === 'bn' ? '✓ ব্যালেন্স পর্যাপ্ত' : '✓ Sufficient Balance')
                       : (language === 'bn' ? '⚠️ নেগেটিভ/ডিউ হবে' : '⚠️ Overdraft / Due')}
                   </span>
                 </div>
-                <div className="flex items-center justify-between pt-1 border-t border-emerald-800/40 text-[11px] text-slate-300">
+                <div className="flex items-center justify-between pt-1 border-t border-emerald-200 dark:border-emerald-800/40 text-[11px] text-slate-600 dark:text-slate-300">
                   <span>{language === 'bn' ? 'অর্ডার পরবর্তী ব্যালেন্স:' : 'Balance After Order:'}</span>
-                  <span className="font-mono font-bold text-teal-300">
+                  <span className="font-mono font-bold text-teal-700 dark:text-teal-300">
                     ৳{Math.max(0, (liveBalance ?? user?.balance ?? 0) - calculatedBill).toFixed(2)}
                   </span>
                 </div>
@@ -853,11 +853,11 @@ export default function QuickOrderModal({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors"
+              className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold transition-colors"
             >
               {language === 'bn' ? 'বাতিল' : 'Cancel'}
             </button>
@@ -865,8 +865,8 @@ export default function QuickOrderModal({
               type="submit"
               disabled={submitting || !isOrderAllowedForMe}
               className={`px-6 py-2.5 rounded-xl font-bold text-xs shadow-lg transition-all flex items-center gap-2 ${isOrderAllowedForMe
-                ? 'bg-gradient-to-r from-emerald-600 via-emerald-500 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-slate-950 shadow-emerald-950/50 hover:scale-[1.02] active:scale-[0.98]'
-                : 'bg-slate-800 border border-rose-500/50 text-rose-300 opacity-60 cursor-not-allowed'
+                ? 'bg-gradient-to-r from-emerald-600 via-emerald-500 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-white shadow-emerald-950/20 hover:scale-[1.02] active:scale-[0.98]'
+                : 'bg-slate-100 dark:bg-slate-800 border border-rose-300 dark:border-rose-500/50 text-rose-700 dark:text-rose-300 opacity-60 cursor-not-allowed'
                 }`}
             >
               {submitting ? (

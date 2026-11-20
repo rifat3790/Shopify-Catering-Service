@@ -99,18 +99,18 @@ export default function LiveTrackerTable({
   };
 
   return (
-    <div className="w-full bg-slate-900/90 backdrop-blur-xl border border-emerald-900/50 rounded-2xl shadow-2xl overflow-hidden">
+    <div className="w-full bg-white dark:bg-slate-900/90 backdrop-blur-xl border border-slate-200 dark:border-emerald-900/50 rounded-2xl shadow-xl overflow-hidden">
       
       {/* Authentic Forest Green Luxury Header Banner */}
-      <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-emerald-950 px-5 sm:px-8 py-5 border-b border-emerald-800/80 text-white relative">
+      <div className="bg-slate-50 dark:bg-gradient-to-r dark:from-emerald-950 dark:via-emerald-900 dark:to-emerald-950 px-5 sm:px-8 py-5 border-b border-slate-200 dark:border-emerald-800/80 text-slate-900 dark:text-white relative">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <span className="text-2xl sm:text-3xl">🍽️</span>
             <div>
-              <h2 className="text-lg sm:text-xl md:text-2xl font-bold font-serif text-amber-200 tracking-wide flex items-center gap-2">
+              <h2 className="text-lg sm:text-xl md:text-2xl font-bold font-serif text-slate-900 dark:text-amber-200 tracking-wide flex items-center gap-2">
                 Shopify Catering Service — Order & Payment Tracker
               </h2>
-              <p className="text-xs sm:text-sm text-emerald-200/90 font-medium tracking-wide mt-0.5">
+              <p className="text-xs sm:text-sm text-slate-600 dark:text-emerald-200/90 font-medium tracking-wide mt-0.5">
                 {language === 'bn' 
                   ? 'দৈনিক খাবার ও রিফ্রেশমেন্ট অর্ডার ট্র্যাকার - রিয়েল-টাইম বিল ও কালেকশন স্ট্যাটাস' 
                   : 'Daily Food & Refreshment Order Tracker — Real-Time Bill & Collection Status'}
@@ -119,8 +119,8 @@ export default function LiveTrackerTable({
           </div>
 
           <div className="flex items-center gap-2 self-end sm:self-auto">
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-800/50 border border-emerald-500/40 text-[11px] text-emerald-300">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-800/50 border border-emerald-300 dark:border-emerald-500/40 text-[11px] text-emerald-800 dark:text-emerald-300">
+              <span className="w-2 h-2 rounded-full bg-emerald-600 dark:bg-emerald-400 animate-pulse" />
               <span>Live MongoDB Sync</span>
             </div>
           </div>
@@ -128,7 +128,7 @@ export default function LiveTrackerTable({
       </div>
 
       {/* Control & Filter Toolbar */}
-      <div className="p-4 sm:p-5 border-b border-slate-800 bg-slate-950/60 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+      <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/60 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
         
         {/* Search Input */}
         <div className="relative flex-1 max-w-md">
@@ -138,7 +138,7 @@ export default function LiveTrackerTable({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={language === 'bn' ? 'গ্রাহক বা খাবারের নাম খুঁজুন...' : 'Search customer or food items...'}
-            className="w-full pl-10 pr-4 py-2 bg-slate-900 border border-slate-700/80 rounded-xl text-sm text-white placeholder-slate-400 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/30 transition-all"
+            className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/30 transition-all"
           />
         </div>
 
@@ -186,7 +186,7 @@ export default function LiveTrackerTable({
         <table className="w-full min-w-[950px] text-left border-collapse">
           {/* Table Header */}
           <thead>
-            <tr className="bg-emerald-950/70 border-b border-emerald-800/60 text-emerald-200 text-xs font-semibold uppercase tracking-wider">
+            <tr className="bg-slate-100 dark:bg-emerald-950/70 border-b border-slate-200 dark:border-emerald-800/60 text-slate-700 dark:text-emerald-200 text-xs font-semibold uppercase tracking-wider">
               <th className="py-3.5 px-4 sm:px-6">
                 {language === 'bn' ? 'গ্রাহকের নাম (Customer)' : 'Customer'}
               </th>
@@ -212,7 +212,7 @@ export default function LiveTrackerTable({
           </thead>
 
           {/* Table Body */}
-          <tbody className="divide-y divide-slate-800/80 text-sm">
+          <tbody className="divide-y divide-slate-200 dark:divide-slate-800/80 text-sm">
             {isLoading ? (
               <tr>
                 <td colSpan={7} className="py-12">
@@ -222,7 +222,7 @@ export default function LiveTrackerTable({
             ) : filteredOrders.length === 0 ? (
               <tr>
                 <td colSpan={7} className="py-12 text-center text-slate-400">
-                  <Utensils className="w-8 h-8 mx-auto mb-2 text-slate-600" />
+                  <Utensils className="w-8 h-8 mx-auto mb-2 text-slate-400 dark:text-slate-600" />
                   <p>{language === 'bn' ? 'কোনো অর্ডার পাওয়া যায়নি' : 'No catering orders found'}</p>
                 </td>
               </tr>
@@ -237,7 +237,7 @@ export default function LiveTrackerTable({
                 return (
                   <tr
                     key={order._id || order.orderNumber}
-                    className={`hover:bg-slate-800/40 transition-colors ${
+                    className={`hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors ${
                       isIsmail ? 'bg-amber-500/5' : ''
                     }`}
                   >
@@ -256,15 +256,15 @@ export default function LiveTrackerTable({
                           className="w-8 h-8 rounded-full object-cover ring-2 ring-emerald-500/40 shrink-0"
                         />
                         <div>
-                          <p className="font-semibold text-white tracking-wide flex items-center gap-1.5">
+                          <p className="font-semibold text-slate-900 dark:text-white tracking-wide flex items-center gap-1.5">
                             {order.customerName}
                             {isIsmail && (
-                              <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                              <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-400/20 text-amber-700 dark:text-amber-300 border border-amber-400/30">
                                 Special
                               </span>
                             )}
                           </p>
-                          <p className="text-[11px] text-slate-400">
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400">
                             {order.orderNumber}
                           </p>
                         </div>
@@ -275,11 +275,11 @@ export default function LiveTrackerTable({
                     <td className="py-3.5 px-4 sm:px-6">
                       <div className="max-w-xs sm:max-w-md">
                         {order.itemsText && order.itemsText.trim() ? (
-                          <span className="text-slate-200 font-medium">
+                          <span className="text-slate-800 dark:text-slate-200 font-medium">
                             {order.itemsText}
                           </span>
                         ) : (
-                          <span className="text-slate-500 italic text-xs">
+                          <span className="text-slate-400 dark:text-slate-500 italic text-xs">
                             {language === 'bn' ? 'অর্ডার পেন্ডিং / খালি' : 'No items selected'}
                           </span>
                         )}
@@ -287,27 +287,27 @@ export default function LiveTrackerTable({
                     </td>
 
                     {/* Total Bill Column */}
-                    <td className="py-3.5 px-4 sm:px-6 text-right font-mono font-semibold text-amber-200">
+                    <td className="py-3.5 px-4 sm:px-6 text-right font-mono font-bold text-amber-700 dark:text-amber-200">
                       ৳{Number(order.totalBill).toFixed(2)}
                     </td>
 
                     {/* Paid Column */}
-                    <td className="py-3.5 px-4 sm:px-6 text-right font-mono font-semibold text-teal-300">
+                    <td className="py-3.5 px-4 sm:px-6 text-right font-mono font-bold text-emerald-700 dark:text-teal-300">
                       ৳{Number(order.paidAmount).toFixed(2)}
                     </td>
 
                     {/* Change / Due Column */}
                     <td className="py-3.5 px-4 sm:px-6 text-right font-mono">
                       {order.changeDue > 0 ? (
-                        <span className="text-emerald-400 font-bold">
+                        <span className="text-emerald-700 dark:text-emerald-400 font-bold">
                           ৳{Number(order.changeDue).toFixed(2)}
                         </span>
                       ) : order.changeDue < 0 ? (
-                        <span className="text-rose-400 font-bold">
+                        <span className="text-rose-700 dark:text-rose-400 font-bold">
                           -৳{Math.abs(Number(order.changeDue)).toFixed(2)} (Due)
                         </span>
                       ) : (
-                        <span className="text-slate-400">
+                        <span className="text-slate-500 dark:text-slate-400">
                           ৳0.00
                         </span>
                       )}
@@ -325,16 +325,16 @@ export default function LiveTrackerTable({
                         }
                         className={`text-xs font-bold py-1 px-3 rounded-full border outline-none cursor-pointer transition-colors ${
                           isPaid
-                            ? 'bg-emerald-950/80 text-emerald-300 border-emerald-600/60 hover:bg-emerald-900/60'
+                            ? 'bg-emerald-50 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-600/60 hover:bg-emerald-100'
                             : isPending
-                            ? 'bg-amber-950/80 text-amber-300 border-amber-600/60 hover:bg-amber-900/60'
-                            : 'bg-rose-950/80 text-rose-300 border-rose-600/60 hover:bg-rose-900/60'
+                            ? 'bg-amber-50 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-600/60 hover:bg-amber-100'
+                            : 'bg-rose-50 dark:bg-rose-950/80 text-rose-800 dark:text-rose-300 border-rose-300 dark:border-rose-600/60 hover:bg-rose-100'
                         }`}
                       >
-                        <option value="Paid" className="bg-slate-900 text-emerald-400">Paid (পরিশোধ)</option>
-                        <option value="Pending" className="bg-slate-900 text-amber-400">Pending (অপেক্ষমাণ)</option>
-                        <option value="Due" className="bg-slate-900 text-rose-400">Due (বকেয়া)</option>
-                        <option value="Partial" className="bg-slate-900 text-blue-400">Partial</option>
+                        <option value="Paid" className="bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400">Paid (পরিশোধ)</option>
+                        <option value="Pending" className="bg-white dark:bg-slate-900 text-amber-700 dark:text-amber-400">Pending (অপেক্ষমাণ)</option>
+                        <option value="Due" className="bg-white dark:bg-slate-900 text-rose-700 dark:text-rose-400">Due (বকেয়া)</option>
+                        <option value="Partial" className="bg-white dark:bg-slate-900 text-blue-700 dark:text-blue-400">Partial</option>
                       </select>
                     </td>
 
@@ -344,14 +344,14 @@ export default function LiveTrackerTable({
                         <button
                           onClick={() => onSelectInvoice(order)}
                           title="Print / View Invoice"
-                          className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-400 transition-colors"
+                          className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-amber-700 dark:text-amber-400 border border-slate-200 dark:border-slate-700 transition-colors"
                         >
                           <Printer className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => onDeleteOrder(order._id || order.orderNumber)}
                           title="Delete Order"
-                          className="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-950/50 text-slate-400 hover:text-rose-400 transition-colors"
+                          className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-rose-100 dark:hover:bg-rose-950/50 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 border border-slate-200 dark:border-slate-700 transition-colors"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -365,23 +365,23 @@ export default function LiveTrackerTable({
 
           {/* Authentic Footer Summary Row matching Google Sheet */}
           <tfoot>
-            <tr className="bg-emerald-950/95 border-t-2 border-emerald-600 font-bold text-white text-xs sm:text-sm">
-              <td className="py-4 px-4 sm:px-6 text-amber-300 font-serif">
+            <tr className="bg-slate-100 dark:bg-emerald-950/95 border-t-2 border-emerald-500 font-bold text-slate-900 dark:text-white text-xs sm:text-sm">
+              <td className="py-4 px-4 sm:px-6 text-amber-800 dark:text-amber-300 font-serif">
                 {language === 'bn' ? 'সর্বমোট হিসাব (Total)' : 'Grand Total Summary'}
               </td>
-              <td className="py-4 px-4 sm:px-6 text-emerald-200">
+              <td className="py-4 px-4 sm:px-6 text-emerald-800 dark:text-emerald-200">
                 {completedOrders.length} {language === 'bn' ? 'টি সম্পন্ন অর্ডার' : 'Completed Orders'}
               </td>
-              <td className="py-4 px-4 sm:px-6 text-right text-amber-300 font-mono text-base">
+              <td className="py-4 px-4 sm:px-6 text-right text-amber-800 dark:text-amber-300 font-mono text-base">
                 ৳{totalBillSum.toFixed(2)}
               </td>
-              <td className="py-4 px-4 sm:px-6 text-right text-teal-300 font-mono text-base">
+              <td className="py-4 px-4 sm:px-6 text-right text-emerald-800 dark:text-teal-300 font-mono text-base">
                 ৳{totalPaidSum.toFixed(2)}
               </td>
-              <td className="py-4 px-4 sm:px-6 text-right text-emerald-400 font-mono text-base">
+              <td className="py-4 px-4 sm:px-6 text-right text-emerald-800 dark:text-emerald-400 font-mono text-base">
                 ৳{totalRefundSum.toFixed(2)}
               </td>
-              <td colSpan={2} className="py-4 px-4 sm:px-6 text-center text-amber-300 font-mono text-sm">
+              <td colSpan={2} className="py-4 px-4 sm:px-6 text-center text-amber-800 dark:text-amber-300 font-mono text-sm">
                 {collectionRate}% {language === 'bn' ? 'আদায়কৃত' : 'Collected'}
               </td>
             </tr>
@@ -390,7 +390,7 @@ export default function LiveTrackerTable({
       </div>
 
       {/* Footer Notes & Legend */}
-      <div className="px-5 py-3 bg-slate-950/80 border-t border-slate-800 flex flex-wrap items-center justify-between text-[11px] text-slate-400 gap-2">
+      <div className="px-5 py-3 bg-slate-50 dark:bg-slate-950/80 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between text-[11px] text-slate-600 dark:text-slate-400 gap-2">
         <div className="flex items-center gap-4">
           <span className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />

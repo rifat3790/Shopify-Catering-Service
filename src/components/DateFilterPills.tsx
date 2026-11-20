@@ -31,8 +31,8 @@ export default function DateFilterPills({
 
   return (
     <div className={`flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin ${className}`}>
-      <div className="flex items-center gap-1 px-2.5 py-1 text-slate-400 text-xs font-semibold shrink-0">
-        <Calendar className="w-3.5 h-3.5 text-amber-400" />
+      <div className="flex items-center gap-1 px-2.5 py-1 text-slate-600 dark:text-slate-400 text-xs font-semibold shrink-0">
+        <Calendar className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
         <span>{language === 'bn' ? 'সময়কাল:' : 'Period:'}</span>
       </div>
 
@@ -57,8 +57,8 @@ export default function DateFilterPills({
                 <span
                   className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-bold leading-none ${
                     isActive
-                      ? 'bg-black/25 text-white border border-white/20'
-                      : 'bg-slate-200 text-slate-700 border border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
+                      ? 'bg-black/30 text-white border border-white/30'
+                      : 'bg-slate-200 text-slate-800 border border-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700'
                   }`}
                 >
                   {count}

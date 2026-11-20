@@ -346,33 +346,48 @@ function AdminPageContent() {
             </div>
           </div>
 
-          {/* 3 Tab Switcher */}
-          <div className="flex flex-wrap items-center gap-2 p-1 bg-slate-900 rounded-2xl w-fit border border-slate-800">
+          {/* 5 Tab Switcher */}
+          <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-slate-100 dark:bg-slate-900 rounded-2xl w-fit border border-slate-200 dark:border-slate-800 shadow-sm">
             <button
               onClick={() => setActiveTab('orders')}
-              className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === 'orders' ? 'bg-emerald-700 text-white shadow' : 'text-slate-400 hover:text-white'
-                }`}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                activeTab === 'orders'
+                  ? 'bg-gradient-to-r from-emerald-600 to-amber-600 text-white shadow-md'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800'
+              }`}
             >
-              📋 {language === 'bn' ? 'অর্ডার ও পেমেন্ট ট্র্যাকার' : 'Orders & Ledger'}
+              <span>📋</span>
+              <span>{language === 'bn' ? 'অর্ডার ও পেমেন্ট ট্র্যাকার' : 'Orders & Ledger'}</span>
             </button>
             <button
               onClick={() => setActiveTab('menu')}
-              className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === 'menu' ? 'bg-emerald-700 text-white shadow' : 'text-slate-400 hover:text-white'
-                }`}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                activeTab === 'menu'
+                  ? 'bg-gradient-to-r from-emerald-600 to-amber-600 text-white shadow-md'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800'
+              }`}
             >
-              🍲 {language === 'bn' ? 'মেনু ক্যাটালগ কন্ট্রোল' : 'Menu Management'}
+              <span>🍲</span>
+              <span>{language === 'bn' ? 'মেনু ক্যাটালগ কন্ট্রোল' : 'Menu Management'}</span>
             </button>
             <button
               onClick={() => setActiveTab('balance')}
-              className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === 'balance' ? 'bg-amber-500 text-slate-950 shadow' : 'text-slate-400 hover:text-white'
-                }`}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                activeTab === 'balance'
+                  ? 'bg-gradient-to-r from-emerald-600 to-amber-600 text-white shadow-md'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800'
+              }`}
             >
-              💳 {language === 'bn' ? 'মেম্বার ব্যালেন্স কন্ট্রোল' : 'Member Balances'}
+              <span>💳</span>
+              <span>{language === 'bn' ? 'মেম্বার ব্যালেন্স কন্ট্রোল' : 'Member Balances'}</span>
             </button>
             <button
               onClick={() => setActiveTab('resets')}
-              className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${activeTab === 'resets' ? 'bg-amber-400 text-slate-950 shadow' : 'text-slate-400 hover:text-white'
-                }`}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                activeTab === 'resets'
+                  ? 'bg-gradient-to-r from-emerald-600 to-amber-600 text-white shadow-md'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800'
+              }`}
             >
               <KeyRound className="w-3.5 h-3.5" />
               <span>Reset Codes (OTP)</span>
@@ -384,8 +399,11 @@ function AdminPageContent() {
             </button>
             <button
               onClick={() => setActiveTab('timing')}
-              className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${activeTab === 'timing' ? 'bg-amber-400 text-slate-950 shadow' : 'text-slate-400 hover:text-white'
-                }`}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                activeTab === 'timing'
+                  ? 'bg-gradient-to-r from-emerald-600 to-amber-600 text-white shadow-md'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800'
+              }`}
             >
               <Clock className="w-3.5 h-3.5" />
               <span>{language === 'bn' ? 'অর্ডার কাট-অফ ও টাইমিং' : 'Order Cutoff & Timing'}</span>
