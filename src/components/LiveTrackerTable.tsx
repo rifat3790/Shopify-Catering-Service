@@ -4,17 +4,17 @@ import React, { useState } from 'react';
 import { useLanguage } from '@/context/LanguageContext';
 import { OrderData } from '@/lib/types';
 import LuxuryLoader from '@/components/LuxuryLoader';
-import { 
-  Search, 
-  Filter, 
-  Download, 
-  Printer, 
-  Trash2, 
-  Edit3, 
-  Plus, 
-  CheckCircle2, 
-  Clock, 
-  AlertCircle, 
+import {
+  Search,
+  Filter,
+  Download,
+  Printer,
+  Trash2,
+  Edit3,
+  Plus,
+  CheckCircle2,
+  Clock,
+  AlertCircle,
   Sparkles,
   RefreshCw,
   Utensils
@@ -100,9 +100,9 @@ export default function LiveTrackerTable({
 
   return (
     <div className="w-full bg-white dark:bg-slate-900/90 backdrop-blur-xl border border-slate-200 dark:border-emerald-900/50 rounded-2xl shadow-xl overflow-hidden">
-      
+
       {/* Authentic Forest Green Luxury Header Banner */}
-      <div className="bg-slate-50 dark:bg-gradient-to-r dark:from-emerald-950 dark:via-emerald-900 dark:to-emerald-950 px-5 sm:px-8 py-5 border-b border-slate-200 dark:border-emerald-800/80 text-slate-900 dark:text-white relative">
+      <div className="bg-slate-50 dark:bg-slate-950 dark:bg-gradient-to-r dark:from-emerald-950/80 dark:via-slate-900 dark:to-emerald-950/60 px-5 sm:px-8 py-5 border-b border-slate-200 dark:border-emerald-800/80 text-slate-900 dark:text-white relative">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <span className="text-2xl sm:text-3xl">🍽️</span>
@@ -111,8 +111,8 @@ export default function LiveTrackerTable({
                 Shopify Catering Service — Order & Payment Tracker
               </h2>
               <p className="text-xs sm:text-sm text-slate-600 dark:text-emerald-200/90 font-medium tracking-wide mt-0.5">
-                {language === 'bn' 
-                  ? 'দৈনিক খাবার ও রিফ্রেশমেন্ট অর্ডার ট্র্যাকার - রিয়েল-টাইম বিল ও কালেকশন স্ট্যাটাস' 
+                {language === 'bn'
+                  ? 'দৈনিক খাবার ও রিফ্রেশমেন্ট অর্ডার ট্র্যাকার - রিয়েল-টাইম বিল ও কালেকশন স্ট্যাটাস'
                   : 'Daily Food & Refreshment Order Tracker — Real-Time Bill & Collection Status'}
               </p>
             </div>
@@ -129,7 +129,7 @@ export default function LiveTrackerTable({
 
       {/* Control & Filter Toolbar */}
       <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/60 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-        
+
         {/* Search Input */}
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -150,11 +150,10 @@ export default function LiveTrackerTable({
               <button
                 key={st}
                 onClick={() => setStatusFilter(st)}
-                className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-all ${
-                  statusFilter === st
-                    ? 'bg-gradient-to-r from-emerald-600 to-amber-600 text-white shadow-md'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800'
-                }`}
+                className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-all ${statusFilter === st
+                  ? 'bg-gradient-to-r from-emerald-600 to-amber-600 text-white shadow-md'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800'
+                  }`}
               >
                 {st === 'All' ? (language === 'bn' ? 'সকল' : 'All') : st}
               </button>
@@ -237,16 +236,15 @@ export default function LiveTrackerTable({
                 return (
                   <tr
                     key={order._id || order.orderNumber}
-                    className={`hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors ${
-                      isIsmail ? 'bg-amber-500/5' : ''
-                    }`}
+                    className={`hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors ${isIsmail ? 'bg-amber-500/5' : ''
+                      }`}
                   >
                     {/* Customer Column */}
                     <td className="py-3.5 px-4 sm:px-6">
                       <div className="flex items-center gap-2.5">
                         <img
                           src={
-                            order.customerAvatar || 
+                            order.customerAvatar ||
                             `https://ui-avatars.com/api/?name=${encodeURIComponent(order.customerName || 'Customer')}&background=047857&color=fff`
                           }
                           alt={order.customerName}
@@ -323,13 +321,12 @@ export default function LiveTrackerTable({
                             e.target.value as OrderData['status']
                           )
                         }
-                        className={`text-xs font-bold py-1 px-3 rounded-full border outline-none cursor-pointer transition-colors ${
-                          isPaid
-                            ? 'bg-emerald-50 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-600/60 hover:bg-emerald-100'
-                            : isPending
+                        className={`text-xs font-bold py-1 px-3 rounded-full border outline-none cursor-pointer transition-colors ${isPaid
+                          ? 'bg-emerald-50 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-600/60 hover:bg-emerald-100'
+                          : isPending
                             ? 'bg-amber-50 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-600/60 hover:bg-amber-100'
                             : 'bg-rose-50 dark:bg-rose-950/80 text-rose-800 dark:text-rose-300 border-rose-300 dark:border-rose-600/60 hover:bg-rose-100'
-                        }`}
+                          }`}
                       >
                         <option value="Paid" className="bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400">Paid (পরিশোধ)</option>
                         <option value="Pending" className="bg-white dark:bg-slate-900 text-amber-700 dark:text-amber-400">Pending (অপেক্ষমাণ)</option>

@@ -710,7 +710,7 @@ function SuperAdminDashboardContent() {
               <div className="rounded-3xl bg-slate-900/90 border border-emerald-900/60 shadow-2xl overflow-hidden backdrop-blur-xl">
             
             {/* Table Header Bar */}
-            <div className="p-5 bg-gradient-to-r from-emerald-950 via-slate-950 to-emerald-950 border-b border-emerald-800/60 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="p-5 bg-slate-50 dark:bg-slate-950 dark:bg-gradient-to-r dark:from-emerald-950/80 dark:via-slate-900 dark:to-emerald-950/60 border-b border-slate-200 dark:border-emerald-800/60 flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <h2 className="text-lg font-bold font-serif text-white flex items-center gap-2">
                   <KeyRound className="w-5 h-5 text-amber-400" />

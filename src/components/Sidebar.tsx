@@ -233,7 +233,7 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
       {/* Dynamic User Balance Card */}
       <div className="px-5 py-4">
         {user ? (
-          <div className="p-3.5 rounded-2xl bg-slate-100 dark:bg-gradient-to-br dark:from-emerald-950/80 dark:via-slate-900 dark:to-slate-950 border border-slate-200 dark:border-emerald-700/50 shadow-md transition-all group space-y-2.5">
+          <div className="p-3.5 rounded-2xl bg-slate-100 dark:bg-slate-900/90 dark:bg-gradient-to-br dark:from-emerald-950/60 dark:via-slate-900 dark:to-slate-950 border border-slate-200 dark:border-emerald-700/50 shadow-md transition-all group space-y-2.5">
             {/* User Profile Header with @username and Edit Profile */}
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">

@@ -267,7 +267,8 @@ aside [class*="bg-slate-950"],
 }
 
 /* Sidebar User Profile Card */
-aside [class*="rounded-2xl"][class*="from-emerald-950"] {
+aside [class*="rounded-2xl"][class*="from-emerald-950"],
+aside [class*="rounded-2xl"][class*="bg-slate-100"] {
   background-image: none !important;
   background-color: #f8fafc !important;
   border-color: #cbd5e1 !important;
@@ -275,7 +276,9 @@ aside [class*="rounded-2xl"][class*="from-emerald-950"] {
 }
 
 aside [class*="rounded-2xl"][class*="from-emerald-950"] p,
-aside [class*="rounded-2xl"][class*="from-emerald-950"] span {
+aside [class*="rounded-2xl"][class*="from-emerald-950"] span,
+aside [class*="rounded-2xl"][class*="bg-slate-100"] p,
+aside [class*="rounded-2xl"][class*="bg-slate-100"] span {
   color: #0f172a !important;
 }
 
@@ -699,7 +702,16 @@ main,
 div[class*="from-emerald-950"],
 section[class*="from-emerald-950"],
 header[class*="from-emerald-950"] {
-  background-image: linear-gradient(135deg, rgba(var(--theme-primary-rgb), 0.28), var(--theme-bg-card), rgba(var(--theme-accent-rgb), 0.22)) !important;
+  background-color: var(--theme-bg-card, #0b1120) !important;
+  background-image: linear-gradient(135deg, rgba(var(--theme-primary-rgb), 0.22), var(--theme-bg-card, #0b1120) 50%, rgba(var(--theme-accent-rgb), 0.16)) !important;
+}
+
+/* Sidebar User Profile Card in Dark Mode */
+aside [class*="rounded-2xl"][class*="from-emerald-950"],
+aside [class*="rounded-2xl"][class*="bg-slate-100"] {
+  background-color: var(--theme-bg-card, #0b1120) !important;
+  background-image: linear-gradient(135deg, rgba(var(--theme-primary-rgb), 0.2), var(--theme-bg-base, #030712)) !important;
+  border-color: rgba(var(--theme-primary-rgb), 0.3) !important;
 }
 
 /* 6. Button & CTA Gradients */

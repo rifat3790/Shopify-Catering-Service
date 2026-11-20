@@ -174,7 +174,6 @@ export default function StorageMetricsCard() {
         
         {/* MongoDB Atlas Real-Time Card */}
         <div className="p-6 rounded-3xl bg-white dark:bg-slate-900/90 border border-slate-200/80 dark:border-emerald-500/40 shadow-xs dark:shadow-2xl space-y-6 relative overflow-hidden backdrop-blur-xl">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
 
           {/* Card Header */}
           <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
@@ -268,7 +267,6 @@ export default function StorageMetricsCard() {
 
         {/* Firebase Cloud Storage & Auth Services Card */}
         <div className="p-6 rounded-3xl bg-white dark:bg-slate-900/90 border border-slate-200/80 dark:border-amber-500/40 shadow-xs dark:shadow-2xl space-y-6 relative overflow-hidden backdrop-blur-xl">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
 
           {/* Card Header */}
           <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">

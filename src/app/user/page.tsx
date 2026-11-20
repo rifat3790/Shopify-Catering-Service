@@ -394,7 +394,7 @@ function UserDashboardContent() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             
             {/* Main Dynamic Balance */}
-            <div className="relative overflow-hidden p-6 rounded-3xl bg-white dark:bg-gradient-to-br dark:from-emerald-950 dark:via-slate-900 dark:to-emerald-950 border border-emerald-500/40 shadow-xl">
+            <div className="relative overflow-hidden p-6 rounded-3xl bg-white dark:bg-slate-900 dark:bg-gradient-to-br dark:from-emerald-950/80 dark:via-slate-900 dark:to-emerald-950/60 border border-slate-200 dark:border-emerald-500/40 shadow-xl">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider">
                   {language === 'bn' ? 'বর্তমান ক্যাটারিং ব্যালেন্স (Wallet)' : 'Current Catering Balance'}
@@ -480,7 +480,7 @@ function UserDashboardContent() {
           {/* My Orders & Download Receipt Image Section */}
           <div className="rounded-3xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-emerald-900/60 shadow-xl overflow-hidden backdrop-blur-xl">
             
-            <div className="p-5 bg-slate-50 dark:bg-gradient-to-r dark:from-emerald-950 dark:via-slate-950 dark:to-emerald-950 border-b border-slate-200 dark:border-emerald-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="p-5 bg-slate-50 dark:bg-slate-950 dark:bg-gradient-to-r dark:from-emerald-950/80 dark:via-slate-900 dark:to-emerald-950/60 border-b border-slate-200 dark:border-emerald-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h2 className="text-base sm:text-lg font-bold font-serif text-slate-800 dark:text-white flex items-center gap-2">
                   <Receipt className="w-5 h-5 text-amber-500 dark:text-amber-400" />

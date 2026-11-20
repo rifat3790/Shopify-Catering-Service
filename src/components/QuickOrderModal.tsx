@@ -346,7 +346,7 @@ export default function QuickOrderModal({
       <div className="relative w-full max-w-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-emerald-800/80 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
 
         {/* Modal Header */}
-        <div className="bg-slate-50 dark:bg-gradient-to-r dark:from-emerald-950 dark:via-emerald-900 dark:to-emerald-950 px-6 py-4 border-b border-slate-200 dark:border-emerald-800/80 flex items-center justify-between text-slate-900 dark:text-white">
+        <div className="bg-slate-50 dark:bg-slate-950 dark:bg-gradient-to-r dark:from-emerald-950/80 dark:via-slate-900 dark:to-emerald-950/60 px-6 py-4 border-b border-slate-200 dark:border-emerald-800/80 flex items-center justify-between text-slate-900 dark:text-white">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30">
               <Sparkles className="w-5 h-5" />

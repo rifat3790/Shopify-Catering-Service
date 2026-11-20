@@ -573,7 +573,7 @@ function PosPageContent() {
 
                     {/* Credit Change to Member Wallet Toggle */}
                     {dueAmount === 0 && changeToReturn > 0 && selectedMember && (
-                      <div className="p-3.5 rounded-2xl bg-slate-100/90 dark:bg-gradient-to-r dark:from-emerald-950/80 dark:via-slate-900 dark:to-amber-950/40 border border-slate-200/80 dark:border-amber-500/40 flex items-center justify-between gap-3 shadow-sm">
+                      <div className="p-3.5 rounded-2xl bg-slate-100/90 dark:bg-slate-900 dark:bg-gradient-to-r dark:from-emerald-950/60 dark:via-slate-900 dark:to-amber-950/40 border border-slate-200/80 dark:border-amber-500/40 flex items-center justify-between gap-3 shadow-sm">
                         <label className="flex items-center gap-2.5 cursor-pointer text-xs select-none">
                           <input
                             type="checkbox"

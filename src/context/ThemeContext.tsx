@@ -79,7 +79,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       primary = custom.primary || '#10b981';
       accent = custom.accent || '#f59e0b';
       bg = custom.bg || '#030712';
-      card = custom.card || '#0b1120';
+      const isBgLight = isLightColor(bg);
+      // Ensure card color stays dark in dark mode and light in light mode
+      if (!isBgLight && isLightColor(custom.card || '')) {
+        card = '#0b1120';
+      } else {
+        card = custom.card || (isBgLight ? '#ffffff' : '#0b1120');
+      }
       fontHeading = custom.fontHeading || "'Playfair Display', Georgia, serif";
       fontBody = custom.fontBody || "'Inter', system-ui, sans-serif";
     } else {
