@@ -145,15 +145,15 @@ export default function LiveTrackerTable({
         {/* Status Filters & Actions */}
         <div className="flex flex-wrap items-center gap-2">
           {/* Status Pills */}
-          <div className="flex items-center p-1 bg-slate-900 border border-slate-800 rounded-xl text-xs">
+          <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs gap-1">
             {(['All', 'Paid', 'Pending', 'Due'] as const).map((st) => (
               <button
                 key={st}
                 onClick={() => setStatusFilter(st)}
-                className={`px-3 py-1 rounded-lg font-medium transition-all ${
+                className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-all ${
                   statusFilter === st
-                    ? 'bg-emerald-700 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'bg-gradient-to-r from-emerald-600 to-amber-600 text-white shadow-md'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800'
                 }`}
               >
                 {st === 'All' ? (language === 'bn' ? 'সকল' : 'All') : st}
@@ -164,18 +164,18 @@ export default function LiveTrackerTable({
           {/* Export CSV */}
           <button
             onClick={exportCSV}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-medium transition-colors"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 text-xs font-semibold transition-all hover:scale-105 shadow-sm"
           >
-            <Download className="w-3.5 h-3.5 text-amber-400" />
+            <Download className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
             <span className="hidden sm:inline">{language === 'bn' ? 'এক্সপোর্ট CSV' : 'Export CSV'}</span>
           </button>
 
           {/* Add Order Button */}
           <button
             onClick={onOpenNewOrder}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-md shadow-emerald-950/40 hover:scale-[1.02] active:scale-[0.98] transition-all"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-white font-bold text-xs shadow-md shadow-emerald-950/30 hover:scale-[1.02] active:scale-[0.98] transition-all"
           >
-            <Plus className="w-4 h-4 text-slate-950" />
+            <Plus className="w-4 h-4 text-white" />
             <span>{language === 'bn' ? 'অর্ডার যুক্ত করুন' : 'Add Order'}</span>
           </button>
         </div>

@@ -293,11 +293,19 @@ aside [class*="hover:bg-slate-900"]:hover {
 
 /* Active Nav Item */
 aside nav a[class*="bg-emerald-900"],
-aside nav a[class*="border-emerald-500"] {
-  background-color: rgba(var(--theme-primary-rgb), 0.12) !important;
-  color: #047857 !important;
-  border-color: rgba(var(--theme-primary-rgb), 0.35) !important;
+aside nav a[class*="border-emerald-500"],
+aside nav a[class*="from-emerald-950"] {
+  background-image: linear-gradient(135deg, var(--theme-primary), var(--theme-accent)) !important;
+  color: #ffffff !important;
+  border-color: transparent !important;
+  box-shadow: 0 4px 12px -2px rgba(var(--theme-primary-rgb), 0.3) !important;
   font-weight: 700 !important;
+}
+
+aside nav a[class*="bg-emerald-900"] *,
+aside nav a[class*="border-emerald-500"] *,
+aside nav a[class*="from-emerald-950"] * {
+  color: #ffffff !important;
 }
 
 /* 7. Navbar Styling */
@@ -309,19 +317,19 @@ header[class*="bg-slate-950"] {
 }
 
 /* 8. Text Readability: Convert White & Silver to Dark Charcoal */
-[class*="text-white"]:not(button):not(button *):not(a[class*="from-"]):not(a[class*="from-"] *):not([role="button"]):not([role="button"] *):not(.btn-solid):not(.btn-solid *):not([class*="bg-emerald-600"]):not([class*="bg-emerald-600"] *):not([class*="bg-amber-500"]):not([class*="bg-amber-500"] *) {
+[class*="text-white"]:not(button):not(button *):not(a[class*="from-"]):not(a[class*="from-"] *):not([role="button"]):not([role="button"] *):not(.btn-solid):not(.btn-solid *):not([class*="bg-emerald-600"]):not([class*="bg-emerald-600"] *):not([class*="bg-amber-500"]):not([class*="bg-amber-500"] *):not(tfoot *):not(th) {
   color: #0f172a !important;
 }
 
-[class*="text-slate-100"]:not(button):not(button *) {
+[class*="text-slate-100"]:not(button):not(button *):not(tfoot *) {
   color: #0f172a !important;
 }
 
-[class*="text-slate-200"]:not(button):not(button *) {
+[class*="text-slate-200"]:not(button):not(button *):not(tfoot *) {
   color: #1e293b !important;
 }
 
-[class*="text-slate-300"]:not(button):not(button *) {
+[class*="text-slate-300"]:not(button):not(button *):not(tfoot *) {
   color: #334155 !important;
 }
 
@@ -359,12 +367,20 @@ header[class*="bg-slate-950"] {
   color: #0369a1 !important; /* Deep sky-700 (6.5:1 AAA contrast) */
 }
 
-/* 10. Buttons & Actions */
-/* Solid CTA Gradients retain pure white text */
-button[class*="from-"],
-a[class*="from-"],
-[role="button"][class*="from-"],
-.btn-solid {
+/* 10. UNIFIED BUTTONS & ACTIONS ACROSS THE APP */
+/* All Primary CTA Buttons share the cohesive brand gradient with pure white text */
+button[class*="from-emerald-"],
+button[class*="from-teal-"],
+button[class*="from-amber-"],
+button[class*="from-gold-"],
+a[class*="from-emerald-"],
+a[class*="from-teal-"],
+a[class*="from-amber-"],
+[role="button"][class*="from-emerald-"],
+[role="button"][class*="from-teal-"],
+.btn-solid,
+.btn-gradient {
+  background-image: linear-gradient(135deg, var(--theme-primary), var(--theme-accent)) !important;
   color: #ffffff !important;
 }
 
@@ -374,16 +390,36 @@ a[class*="from-"] *,
   color: #ffffff !important;
 }
 
-/* Secondary / Slate / Dark Buttons in Light Mode */
+/* Bubble Badges Inside Active Buttons / Tabs */
+button[class*="from-"] span[class*="rounded-full"],
+button[class*="bg-emerald"] span[class*="rounded-full"],
+button[class*="bg-amber"] span[class*="rounded-full"],
+a[class*="from-"] span[class*="rounded-full"] {
+  background-color: rgba(0, 0, 0, 0.32) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  font-weight: 700 !important;
+}
+
+/* Bubble Badges Inside Inactive Buttons / Tabs */
+button:not([class*="from-"]):not([class*="bg-emerald"]):not([class*="bg-amber"]) span[class*="rounded-full"] {
+  background-color: #e2e8f0 !important;
+  color: #1e293b !important;
+  border: 1px solid #cbd5e1 !important;
+  font-weight: 700 !important;
+}
+
+/* Secondary / Slate / Outline Buttons in Light Mode */
 button[class*="bg-slate-800"],
 a[class*="bg-slate-800"],
 button[class*="bg-slate-900"],
 a[class*="bg-slate-900"],
 button[class*="bg-slate-950"],
 a[class*="bg-slate-950"] {
-  background-color: #f1f5f9 !important;
-  border-color: #cbd5e1 !important;
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
   color: #1e293b !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
 }
 
 button[class*="bg-slate-800"]:hover,
@@ -392,11 +428,12 @@ button[class*="bg-slate-900"]:hover,
 a[class*="bg-slate-900"]:hover,
 button[class*="bg-slate-950"]:hover,
 a[class*="bg-slate-950"]:hover {
-  background-color: #e2e8f0 !important;
+  background-color: #f8fafc !important;
+  border-color: #94a3b8 !important;
   color: #0f172a !important;
 }
 
-/* Soft Emerald Buttons & Badges */
+/* Soft Action Pills */
 [class*="bg-emerald-950"],
 [class*="bg-emerald-500/10"],
 [class*="bg-emerald-500/20"] {
@@ -405,7 +442,6 @@ a[class*="bg-slate-950"]:hover {
   border-color: rgba(var(--theme-primary-rgb), 0.3) !important;
 }
 
-/* Soft Amber Buttons & Badges */
 [class*="bg-amber-950"],
 [class*="bg-amber-500/10"],
 [class*="bg-amber-500/20"] {
@@ -414,7 +450,6 @@ a[class*="bg-slate-950"]:hover {
   border-color: rgba(var(--theme-accent-rgb), 0.3) !important;
 }
 
-/* Soft Rose Buttons & Badges */
 [class*="bg-rose-950"],
 [class*="bg-rose-500/10"],
 [class*="bg-rose-500/20"] {
@@ -423,31 +458,79 @@ a[class*="bg-slate-950"]:hover {
   border-color: rgba(225, 29, 72, 0.3) !important;
 }
 
-/* 11. Date Filter Pills & Tab Bars */
+/* 11. Metric Card Badges & Indicators */
+span[class*="border-emerald-"][class*="rounded-full"] {
+  background-color: rgba(var(--theme-primary-rgb), 0.14) !important;
+  color: #047857 !important;
+  border-color: rgba(var(--theme-primary-rgb), 0.35) !important;
+  font-weight: 700 !important;
+}
+
+span[class*="border-amber-"][class*="rounded-full"] {
+  background-color: rgba(var(--theme-accent-rgb), 0.14) !important;
+  color: #b45309 !important;
+  border-color: rgba(var(--theme-accent-rgb), 0.35) !important;
+  font-weight: 700 !important;
+}
+
+span[class*="border-teal-"][class*="rounded-full"] {
+  background-color: rgba(var(--theme-primary-rgb), 0.14) !important;
+  color: #047857 !important;
+  border-color: rgba(var(--theme-primary-rgb), 0.35) !important;
+  font-weight: 700 !important;
+}
+
+span[class*="border-sky-"][class*="rounded-full"] {
+  background-color: rgba(2, 132, 199, 0.14) !important;
+  color: #0369a1 !important;
+  border-color: rgba(2, 132, 199, 0.35) !important;
+  font-weight: 700 !important;
+}
+
+/* 12. Date Filter Pills & Tab Bars */
 [class*="DateFilterPills"],
-div[class*="shadow-inner"][class*="bg-slate-900"] {
+div[class*="shadow-inner"][class*="bg-slate-900"],
+div[class*="shadow-inner"][class*="bg-slate-100"] {
   background-color: #f1f5f9 !important;
   border-color: #e2e8f0 !important;
   box-shadow: none !important;
 }
 
-button[class*="text-slate-400"] {
+button[class*="text-slate-400"],
+button[class*="text-slate-600"] {
   color: #475569 !important;
 }
 
-button[class*="text-slate-400"]:hover {
-  background-color: #e2e8f0 !important;
+/* 13. Live Tracker Table Header Banner */
+div[class*="from-emerald-950"] h2,
+div[class*="from-emerald-950"] [class*="text-amber-200"],
+div[class*="from-emerald-950"] [class*="text-amber-300"] {
   color: #0f172a !important;
+  font-weight: 700 !important;
 }
 
-/* Tab & Filter Pill Count Badges */
-span[class*="bg-slate-800"] {
-  background-color: #e2e8f0 !important;
-  color: #334155 !important;
-  border-color: #cbd5e1 !important;
+div[class*="from-emerald-950"] p,
+div[class*="from-emerald-950"] [class*="text-emerald-200"] {
+  color: #047857 !important;
+  font-weight: 600 !important;
 }
 
-/* 12. Inputs, Selects & Textareas */
+div[class*="from-emerald-950"] div[class*="bg-emerald-800"] {
+  background-color: rgba(var(--theme-primary-rgb), 0.14) !important;
+  border: 1px solid rgba(var(--theme-primary-rgb), 0.35) !important;
+  color: #047857 !important;
+}
+
+div[class*="from-emerald-950"] div[class*="bg-emerald-800"] span {
+  color: #047857 !important;
+  font-weight: 700 !important;
+}
+
+div[class*="from-emerald-950"] div[class*="bg-emerald-800"] span[class*="animate-pulse"] {
+  background-color: #047857 !important;
+}
+
+/* 14. Inputs, Selects & Textareas */
 input, select, textarea {
   background-color: #ffffff !important;
   color: #0f172a !important;
@@ -463,7 +546,7 @@ input:focus, select:focus, textarea:focus {
   box-shadow: 0 0 0 2px rgba(var(--theme-primary-rgb), 0.25) !important;
 }
 
-/* 13. Borders & Dividers */
+/* 15. Borders & Dividers */
 [class*="border-slate-800"],
 [class*="border-slate-700"],
 [class*="border-slate-900"],
@@ -474,25 +557,15 @@ input:focus, select:focus, textarea:focus {
   border-color: #e2e8f0 !important;
 }
 
-[class*="border-emerald-500"],
-[class*="border-emerald-600"],
-[class*="border-teal-"] {
-  border-color: rgba(var(--theme-primary-rgb), 0.35) !important;
-}
-
-[class*="border-amber-400"],
-[class*="border-amber-500"],
-[class*="border-amber-600"] {
-  border-color: rgba(var(--theme-accent-rgb), 0.35) !important;
-}
-
-/* 14. Tables & Data Grids */
+/* 16. Tables & Data Grids */
 table thead,
-table thead tr,
-table thead th {
+table thead tr {
   background-color: #f8fafc !important;
-  color: #334155 !important;
-  border-color: #e2e8f0 !important;
+  border-bottom: 2px solid #cbd5e1 !important;
+}
+
+table thead th {
+  color: #0f172a !important;
   font-weight: 700 !important;
 }
 
@@ -504,7 +577,36 @@ table tbody tr:hover {
   background-color: #f8fafc !important;
 }
 
-/* 15. Modals & Dialogs */
+/* Table Footer Summary Row */
+table tfoot tr {
+  background-color: #064e3b !important;
+  border-top: 2px solid #059669 !important;
+  color: #ffffff !important;
+}
+
+table tfoot td {
+  color: #ffffff !important;
+}
+
+table tfoot td[class*="text-amber-300"] {
+  color: #fde047 !important;
+}
+
+table tfoot td[class*="text-emerald-100"],
+table tfoot td[class*="text-emerald-200"],
+table tfoot td[class*="text-teal-300"] {
+  color: #a7f3d0 !important;
+}
+
+/* Footnotes & Legends */
+div[class*="border-t"] p[class*="italic"] {
+  color: #475569 !important;
+}
+div[class*="border-t"] span[class*="flex"] {
+  color: #334155 !important;
+}
+
+/* 17. Modals & Dialogs */
 [class*="fixed"][class*="z-50"] [class*="bg-slate-900"],
 [class*="fixed"][class*="z-[100]"] [class*="bg-slate-900"] {
   background-color: #ffffff !important;
@@ -513,7 +615,7 @@ table tbody tr:hover {
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15) !important;
 }
 
-/* 16. Light Scrollbars */
+/* 18. Light Scrollbars */
 ::-webkit-scrollbar-track {
   background: #f1f5f9 !important;
 }

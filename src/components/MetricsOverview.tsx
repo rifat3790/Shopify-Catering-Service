@@ -141,16 +141,16 @@ export default function MetricsOverview({ stats, isLoading }: MetricsProps) {
               <div className={`absolute -right-8 -bottom-8 w-28 h-28 rounded-full blur-2xl pointer-events-none opacity-20 group-hover:opacity-40 transition-opacity duration-500 ${card.glowColor}`} />
 
               <div className="flex items-center justify-between mb-3">
-                <div className={`p-2 rounded-xl bg-slate-950/80 border border-slate-800 ${card.iconColor} shadow-inner`}>
+                <div className={`p-2 rounded-xl bg-slate-100 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 ${card.iconColor} shadow-inner`}>
                   <Icon className="w-5 h-5" />
                 </div>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border bg-slate-950/80 ${card.badgeColor}`}>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${card.badgeColor} bg-slate-100 dark:bg-slate-950/80`}>
                   {card.badge}
                 </span>
               </div>
 
               <div>
-                <p className="text-xs font-bold text-slate-200 tracking-wider uppercase mb-1">
+                <p className="text-xs font-bold text-slate-700 dark:text-slate-200 tracking-wider uppercase mb-1">
                   {language === 'bn' ? card.titleBn : card.titleEn}
                 </p>
                 <div className="flex items-baseline gap-1">
@@ -162,12 +162,12 @@ export default function MetricsOverview({ stats, isLoading }: MetricsProps) {
                     )}
                   </h3>
                   {card.unit && (
-                    <span className="text-xs text-slate-400 font-semibold pl-0.5">
+                    <span className="text-xs text-slate-500 dark:text-slate-400 font-semibold pl-0.5">
                       {card.unit}
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-slate-300 font-medium mt-1.5 flex items-center gap-1">
+                <p className="text-xs text-slate-500 dark:text-slate-300 font-medium mt-1.5 flex items-center gap-1">
                   <span>{language === 'bn' ? card.subtextBn : card.subtextEn}</span>
                 </p>
               </div>

@@ -233,7 +233,7 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
       {/* Dynamic User Balance Card */}
       <div className="px-5 py-4">
         {user ? (
-          <div className="p-3.5 rounded-2xl bg-gradient-to-br from-emerald-950/80 via-slate-900 to-slate-950 border border-emerald-700/50 shadow-lg transition-all group space-y-2.5">
+          <div className="p-3.5 rounded-2xl bg-slate-100 dark:bg-gradient-to-br dark:from-emerald-950/80 dark:via-slate-900 dark:to-slate-950 border border-slate-200 dark:border-emerald-700/50 shadow-md transition-all group space-y-2.5">
             {/* User Profile Header with @username and Edit Profile */}
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">
@@ -246,10 +246,10 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
                   className="w-8 h-8 rounded-full object-cover ring-2 ring-emerald-500/40 shrink-0"
                 />
                 <div className="min-w-0">
-                  <p className="font-bold text-xs text-white truncate leading-tight">
+                  <p className="font-bold text-xs text-slate-900 dark:text-white truncate leading-tight">
                     {user.displayName || 'Member'}
                   </p>
-                  <p className="text-[10px] text-amber-400 font-mono truncate leading-tight">
+                  <p className="text-[10px] text-amber-600 dark:text-amber-400 font-mono truncate leading-tight font-semibold">
                     {user.username || `@${user.email?.split('@')[0] || 'user'}`}
                   </p>
                 </div>
@@ -260,16 +260,16 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
                   type="button"
                   onClick={() => setIsThemeModalOpen(true)}
                   title={language === 'bn' ? 'থিম কালার কাস্টমাইজ করুন' : 'Change Theme & Colors'}
-                  className="p-1.5 rounded-lg bg-slate-800 hover:bg-amber-900/60 text-slate-300 hover:text-amber-300 border border-slate-700 transition-all hover:scale-105"
+                  className="p-1.5 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-amber-900/60 text-slate-700 dark:text-slate-300 hover:text-amber-600 dark:hover:text-amber-300 border border-slate-300 dark:border-slate-700 transition-all hover:scale-105 shadow-sm"
                 >
-                  <Palette className="w-3 h-3 text-amber-400" />
+                  <Palette className="w-3 h-3 text-amber-500 dark:text-amber-400" />
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setIsProfileModalOpen(true)}
                   title={language === 'bn' ? 'প্রোফাইল এডিট করুন' : 'Edit Profile'}
-                  className="p-1.5 rounded-lg bg-slate-800 hover:bg-emerald-900/60 text-slate-300 hover:text-amber-300 border border-slate-700 transition-all hover:scale-105"
+                  className="p-1.5 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-emerald-900/60 text-slate-700 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-amber-300 border border-slate-300 dark:border-slate-700 transition-all hover:scale-105 shadow-sm"
                 >
                   <Edit3 className="w-3 h-3" />
                 </button>
@@ -280,23 +280,23 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
             <Link
               href="/user"
               onClick={() => setMobileOpen(false)}
-              className="flex items-center justify-between pt-2 border-t border-slate-800/80 hover:opacity-90 transition-opacity"
+              className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800/80 hover:opacity-90 transition-opacity"
             >
               <div>
-                <span className="text-[10px] font-semibold text-emerald-300 uppercase tracking-wider flex items-center gap-1">
-                  <Wallet className="w-3 h-3 text-amber-400" />
+                <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider flex items-center gap-1">
+                  <Wallet className="w-3 h-3 text-amber-500 dark:text-amber-400" />
                   <span>{language === 'bn' ? 'ব্যালেন্স' : 'Balance'}</span>
                 </span>
-                <span className="text-lg font-extrabold font-mono text-emerald-400 group-hover:text-amber-300 transition-colors">
+                <span className="text-lg font-extrabold font-mono text-emerald-700 dark:text-emerald-400 group-hover:text-amber-600 dark:group-hover:text-amber-300 transition-colors">
                   ৳{(user.balance || 0).toFixed(2)}
                 </span>
               </div>
 
               <div className="flex items-center gap-1">
-                <span className="text-[9px] uppercase font-bold px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/30">
                   {user.role}
                 </span>
-                <ChevronRight className="w-3.5 h-3.5 text-amber-400" />
+                <ChevronRight className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
               </div>
             </Link>
           </div>
@@ -319,13 +319,13 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
             onClick={handleOrderClick}
             className={`w-full mt-3 py-2.5 px-4 rounded-xl font-bold text-xs shadow-lg transition-all flex items-center justify-center gap-2 ${
               isOrderAllowedForMe
-                ? 'bg-gradient-to-r from-emerald-600 via-emerald-500 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-slate-950 shadow-emerald-950/50 hover:scale-[1.02] active:scale-[0.98]'
+                ? 'bg-gradient-to-r from-emerald-600 via-emerald-500 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-white shadow-emerald-950/40 hover:scale-[1.02] active:scale-[0.98]'
                 : 'bg-slate-900 border border-rose-500/40 text-rose-300 hover:bg-slate-850 hover:border-rose-400'
             }`}
           >
             {isOrderAllowedForMe ? (
               <>
-                <PlusCircle className="w-4 h-4 text-slate-950" />
+                <PlusCircle className="w-4 h-4 text-white" />
                 <span>{language === 'bn' ? 'নতুন খাবার অর্ডার' : 'New Quick Order'}</span>
               </>
             ) : (
@@ -357,23 +357,31 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
               onClick={() => setMobileOpen(false)}
               className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
                 isActive
-                  ? 'bg-gradient-to-r from-emerald-950 to-slate-900 text-amber-300 border border-emerald-500/50 shadow-md shadow-emerald-950/50'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-900'
+                  ? 'bg-gradient-to-r from-emerald-600 to-amber-600 text-white shadow-md shadow-emerald-950/30'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-900'
               } ${!allowed ? 'opacity-60' : ''}`}
             >
               <div className="flex items-center gap-2.5">
-                <Icon className={`w-4 h-4 ${isActive ? 'text-amber-400' : 'text-slate-400'}`} />
+                <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-500 dark:text-slate-400'}`} />
                 <span>{language === 'bn' ? item.labelBn : item.labelEn}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 {!allowed && (
-                  <span className="flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full font-bold bg-rose-950/60 text-rose-300 border border-rose-800">
+                  <span className={`flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full font-bold ${
+                    isActive
+                      ? 'bg-black/25 text-white border border-white/20'
+                      : 'bg-rose-100 text-rose-700 border border-rose-300 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800'
+                  }`}>
                     <Lock className="w-2.5 h-2.5" />
                     <span>Locked</span>
                   </span>
                 )}
                 {item.badge && allowed && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold font-mono leading-none ${
+                    isActive
+                      ? 'bg-black/25 text-white border border-white/20'
+                      : 'bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30'
+                  }`}>
                     {item.badge}
                   </span>
                 )}
