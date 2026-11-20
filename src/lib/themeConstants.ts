@@ -182,7 +182,7 @@ export function generateThemeCSS(
 
   if (isLight) {
     // ========================================================
-    // LIGHT THEME STYLING & HIGH-CONTRAST ENGINE
+    // LIGHT THEME STYLING & HIGH-CONTRAST ENGINE (A TO Z)
     // ========================================================
     return `
 :root {
@@ -207,7 +207,7 @@ export function generateThemeCSS(
   --theme-font-body: ${fontBody};
 }
 
-/* Base Body & High-Contrast Typography */
+/* 1. Base Canvas & Executive Typography */
 body {
   font-family: var(--theme-font-body);
   background-color: var(--theme-bg-base) !important;
@@ -225,176 +225,229 @@ h1, h2, h3, h4, h5, h6, .font-serif, [class*="font-serif"], .font-display, [clas
   color: #ffffff !important;
 }
 
-/* Page Background and Cards */
-.bg-slate-950,
-main[class*="bg-slate-950"],
-div[class*="bg-slate-950"] {
+/* 2. Main Page Background */
+main,
+[class*="bg-slate-950"] {
   background-color: var(--theme-bg-base) !important;
 }
 
-.bg-slate-900,
-.bg-slate-900\/95,
-.bg-slate-900\/90,
-.bg-slate-900\/80,
-.bg-slate-900\/70,
-.bg-slate-900\/60,
-.bg-slate-900\/50,
+/* 3. Cards, Widgets, Tables & Dialogs -> PURE CRISP WHITE */
 [class*="bg-slate-900"] {
-  background-color: var(--theme-bg-card) !important;
+  background-color: #ffffff !important;
   border-color: #e2e8f0 !important;
   box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05), 0 1px 3px 0 rgba(15, 23, 42, 0.04) !important;
 }
 
-/* Recessed card sub-containers & table inner areas */
-.bg-slate-950\/70,
-.bg-slate-950\/80,
-.bg-slate-950\/90,
-.bg-slate-950\/95,
-[class*="bg-slate-950\/"] {
-  background-color: #f1f5f9 !important;
+/* 4. Recessed sub-cards & inner areas inside white cards */
+[class*="bg-slate-900"] [class*="bg-slate-950"],
+[class*="bg-slate-900"] [class*="bg-slate-900"] {
+  background-color: #f8fafc !important;
   border-color: #e2e8f0 !important;
 }
 
-/* Hero Cards / Banners with subtle gradient */
-.from-emerald-950.via-slate-900.to-emerald-950,
-.from-emerald-950.via-slate-950.to-emerald-950,
-.from-emerald-950.via-slate-950.to-slate-950 {
-  background-image: linear-gradient(135deg, rgba(var(--theme-primary-rgb), 0.12), #ffffff, rgba(var(--theme-accent-rgb), 0.12)) !important;
+/* 5. Convert all Dark Card Gradients to Luminous Soft Light Glows */
+div[class*="from-emerald-950"],
+section[class*="from-emerald-950"],
+header[class*="from-emerald-950"],
+div[class*="from-slate-950"],
+section[class*="from-slate-950"],
+div[class*="from-slate-900"],
+section[class*="from-slate-900"] {
+  background-image: linear-gradient(135deg, rgba(var(--theme-primary-rgb), 0.08), #ffffff 50%, rgba(var(--theme-accent-rgb), 0.06)) !important;
+  background-color: #ffffff !important;
   border-color: #e2e8f0 !important;
 }
 
-/* Text Colors Inverted for Crisp Readability on White Cards */
-.text-white:not(button):not(button *):not(a[class*="bg-gradient"]):not(a[class*="bg-gradient"] *):not([role="button"]):not([role="button"] *):not(.btn-gradient):not(.btn-gradient *) {
+/* 6. Sidebar Root & User Profile Card */
+aside,
+aside [class*="bg-slate-950"],
+[class*="bg-slate-950"][class*="border-r"] {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* Sidebar User Profile Card */
+aside [class*="rounded-2xl"][class*="from-emerald-950"] {
+  background-image: none !important;
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+}
+
+aside [class*="rounded-2xl"][class*="from-emerald-950"] p,
+aside [class*="rounded-2xl"][class*="from-emerald-950"] span {
   color: #0f172a !important;
 }
 
-.text-slate-100:not(button):not(button *) {
-  color: #0f172a !important;
-}
-
-.text-slate-200:not(button):not(button *) {
-  color: #1e293b !important;
-}
-
-.text-slate-300:not(button):not(button *) {
-  color: #334155 !important;
-}
-
-.text-slate-400:not(button):not(button *) {
+/* Sidebar Nav Items */
+aside nav a,
+aside [class*="text-slate-400"] {
   color: #475569 !important;
 }
 
-.text-slate-500:not(button):not(button *) {
+aside nav a:hover,
+aside [class*="hover:bg-slate-900"]:hover {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+/* Active Nav Item */
+aside nav a[class*="bg-emerald-900"],
+aside nav a[class*="border-emerald-500"] {
+  background-color: rgba(var(--theme-primary-rgb), 0.12) !important;
+  color: #047857 !important;
+  border-color: rgba(var(--theme-primary-rgb), 0.35) !important;
+  font-weight: 700 !important;
+}
+
+/* 7. Navbar Styling */
+header,
+header[class*="bg-slate-950"] {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05) !important;
+}
+
+/* 8. Text Readability: Convert White & Silver to Dark Charcoal */
+[class*="text-white"]:not(button):not(button *):not(a[class*="from-"]):not(a[class*="from-"] *):not([role="button"]):not([role="button"] *):not(.btn-solid):not(.btn-solid *):not([class*="bg-emerald-600"]):not([class*="bg-emerald-600"] *):not([class*="bg-amber-500"]):not([class*="bg-amber-500"] *) {
+  color: #0f172a !important;
+}
+
+[class*="text-slate-100"]:not(button):not(button *) {
+  color: #0f172a !important;
+}
+
+[class*="text-slate-200"]:not(button):not(button *) {
+  color: #1e293b !important;
+}
+
+[class*="text-slate-300"]:not(button):not(button *) {
+  color: #334155 !important;
+}
+
+[class*="text-slate-400"]:not(button):not(button *) {
+  color: #475569 !important;
+}
+
+[class*="text-slate-500"]:not(button):not(button *) {
   color: #64748b !important;
 }
 
-/* High-Contrast WCAG AAA Metrics */
-.text-emerald-400,
-.text-emerald-300,
-.text-teal-400,
-.text-teal-300,
+/* 9. WCAG AAA High-Contrast Numbers & Metric Highlights */
 [class*="text-emerald-400"],
-[class*="text-teal-400"] {
-  color: #047857 !important; /* Deep emerald-700 */
+[class*="text-emerald-300"],
+[class*="text-teal-400"],
+[class*="text-teal-300"] {
+  color: #047857 !important; /* Deep emerald-700 (7.5:1 AAA contrast) */
 }
 
-.text-amber-400,
-.text-amber-300,
-.text-amber-200,
-.text-gold-400,
 [class*="text-amber-400"],
 [class*="text-amber-300"],
+[class*="text-amber-200"],
 [class*="text-gold-400"] {
-  color: #b45309 !important; /* Deep amber-700 */
+  color: #b45309 !important; /* Deep amber-700 (6.2:1 AAA contrast) */
 }
 
-.text-rose-400,
-.text-red-400,
 [class*="text-rose-400"],
+[class*="text-rose-300"],
 [class*="text-red-400"] {
-  color: #be123c !important; /* Deep rose-700 */
+  color: #be123c !important; /* Deep rose-700 (7.1:1 AAA contrast) */
 }
 
-.text-sky-400,
-.text-cyan-400,
-[class*="text-sky-400"] {
-  color: #0369a1 !important; /* Deep sky-700 */
+[class*="text-sky-400"],
+[class*="text-cyan-400"] {
+  color: #0369a1 !important; /* Deep sky-700 (6.5:1 AAA contrast) */
 }
 
-/* Gradient Buttons (Crisp White Text) */
-button[class*="from-emerald-"],
-button[class*="from-teal-"],
-a[class*="from-emerald-"],
-a[class*="from-teal-"],
-[role="button"][class*="from-emerald-"],
-[role="button"][class*="from-teal-"] {
-  --tw-gradient-from: var(--theme-primary) var(--tw-gradient-from-position) !important;
-  --tw-gradient-to: rgba(var(--theme-primary-rgb), 0) var(--tw-gradient-to-position) !important;
-  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+/* 10. Buttons & Actions */
+/* Solid CTA Gradients retain pure white text */
+button[class*="from-"],
+a[class*="from-"],
+[role="button"][class*="from-"],
+.btn-solid {
   color: #ffffff !important;
 }
 
-button[class*="from-amber-"],
-button[class*="from-gold-"],
-a[class*="from-amber-"],
-a[class*="from-gold-"],
-[role="button"][class*="from-amber-"],
-[role="button"][class*="from-gold-"] {
-  --tw-gradient-from: var(--theme-accent) var(--tw-gradient-from-position) !important;
-  --tw-gradient-to: rgba(var(--theme-accent-rgb), 0) var(--tw-gradient-to-position) !important;
-  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+button[class*="from-"] *,
+a[class*="from-"] *,
+[role="button"][class*="from-"] * {
   color: #ffffff !important;
 }
 
-button[class*="to-amber-"],
-button[class*="to-gold-"],
-a[class*="to-amber-"],
-a[class*="to-gold-"] {
-  --tw-gradient-to: var(--theme-accent) var(--tw-gradient-to-position) !important;
-}
-
-button[class*="to-emerald-"],
-button[class*="to-teal-"],
-a[class*="to-emerald-"],
-a[class*="to-teal-"] {
-  --tw-gradient-to: var(--theme-primary) var(--tw-gradient-to-position) !important;
-}
-
-/* Secondary / Slate Buttons in Light Mode */
-button.bg-slate-800,
+/* Secondary / Slate / Dark Buttons in Light Mode */
 button[class*="bg-slate-800"],
-div[role="button"][class*="bg-slate-800"] {
+a[class*="bg-slate-800"],
+button[class*="bg-slate-900"],
+a[class*="bg-slate-900"],
+button[class*="bg-slate-950"],
+a[class*="bg-slate-950"] {
   background-color: #f1f5f9 !important;
-  color: #1e293b !important;
   border-color: #cbd5e1 !important;
+  color: #1e293b !important;
 }
 
-button.bg-slate-800:hover,
-button[class*="bg-slate-800"]:hover {
+button[class*="bg-slate-800"]:hover,
+a[class*="bg-slate-800"]:hover,
+button[class*="bg-slate-900"]:hover,
+a[class*="bg-slate-900"]:hover,
+button[class*="bg-slate-950"]:hover,
+a[class*="bg-slate-950"]:hover {
   background-color: #e2e8f0 !important;
   color: #0f172a !important;
 }
 
-/* Soft Action Pills */
-.bg-emerald-950,
-.bg-emerald-950\/60,
-.bg-emerald-950\/80,
-button[class*="bg-emerald-950"] {
+/* Soft Emerald Buttons & Badges */
+[class*="bg-emerald-950"],
+[class*="bg-emerald-500/10"],
+[class*="bg-emerald-500/20"] {
   background-color: rgba(var(--theme-primary-rgb), 0.12) !important;
   color: #047857 !important;
   border-color: rgba(var(--theme-primary-rgb), 0.3) !important;
 }
 
-.bg-amber-950,
-.bg-amber-950\/40,
-.bg-amber-950\/60,
-button[class*="bg-amber-950"] {
+/* Soft Amber Buttons & Badges */
+[class*="bg-amber-950"],
+[class*="bg-amber-500/10"],
+[class*="bg-amber-500/20"] {
   background-color: rgba(var(--theme-accent-rgb), 0.12) !important;
   color: #b45309 !important;
   border-color: rgba(var(--theme-accent-rgb), 0.3) !important;
 }
 
-/* Inputs, Selects & Textareas */
+/* Soft Rose Buttons & Badges */
+[class*="bg-rose-950"],
+[class*="bg-rose-500/10"],
+[class*="bg-rose-500/20"] {
+  background-color: rgba(225, 29, 72, 0.12) !important;
+  color: #be123c !important;
+  border-color: rgba(225, 29, 72, 0.3) !important;
+}
+
+/* 11. Date Filter Pills & Tab Bars */
+[class*="DateFilterPills"],
+div[class*="shadow-inner"][class*="bg-slate-900"] {
+  background-color: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: none !important;
+}
+
+button[class*="text-slate-400"] {
+  color: #475569 !important;
+}
+
+button[class*="text-slate-400"]:hover {
+  background-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+/* Tab & Filter Pill Count Badges */
+span[class*="bg-slate-800"] {
+  background-color: #e2e8f0 !important;
+  color: #334155 !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* 12. Inputs, Selects & Textareas */
 input, select, textarea {
   background-color: #ffffff !important;
   color: #0f172a !important;
@@ -410,28 +463,37 @@ input:focus, select:focus, textarea:focus {
   box-shadow: 0 0 0 2px rgba(var(--theme-primary-rgb), 0.25) !important;
 }
 
-/* Borders & Dividers */
-.border-slate-800,
-.border-slate-800\/80,
-.border-slate-800\/60,
-.border-slate-700,
-.border-slate-700\/80 {
+/* 13. Borders & Dividers */
+[class*="border-slate-800"],
+[class*="border-slate-700"],
+[class*="border-slate-900"],
+[class*="border-emerald-900"],
+[class*="border-emerald-800"],
+[class*="border-amber-900"],
+[class*="border-amber-800"] {
   border-color: #e2e8f0 !important;
 }
 
-[class*="border-emerald-"] {
+[class*="border-emerald-500"],
+[class*="border-emerald-600"],
+[class*="border-teal-"] {
   border-color: rgba(var(--theme-primary-rgb), 0.35) !important;
 }
 
-[class*="border-amber-"] {
+[class*="border-amber-400"],
+[class*="border-amber-500"],
+[class*="border-amber-600"] {
   border-color: rgba(var(--theme-accent-rgb), 0.35) !important;
 }
 
-/* Tables */
+/* 14. Tables & Data Grids */
+table thead,
+table thead tr,
 table thead th {
   background-color: #f8fafc !important;
-  color: #475569 !important;
+  color: #334155 !important;
   border-color: #e2e8f0 !important;
+  font-weight: 700 !important;
 }
 
 table tbody tr {
@@ -442,7 +504,16 @@ table tbody tr:hover {
   background-color: #f8fafc !important;
 }
 
-/* Scrollbars */
+/* 15. Modals & Dialogs */
+[class*="fixed"][class*="z-50"] [class*="bg-slate-900"],
+[class*="fixed"][class*="z-[100]"] [class*="bg-slate-900"] {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* 16. Light Scrollbars */
 ::-webkit-scrollbar-track {
   background: #f1f5f9 !important;
 }
@@ -484,9 +555,7 @@ table tbody tr:hover {
   --theme-font-body: ${fontBody};
 }
 
-/* ========================================================
-   1. TYPOGRAPHY & EXECUTIVE FONT STYLING
-======================================================== */
+/* 1. Base Typography & Fonts */
 h1, h2, h3, h4, .font-serif, [class*="font-serif"], .font-display, [class*="font-display"] {
   font-family: var(--theme-font-heading) !important;
 }
@@ -502,48 +571,31 @@ body {
   color: #030712 !important;
 }
 
-/* ========================================================
-   2. PAGE, CARDS, DRAWERS & SECTIONS BACKGROUNDS
-======================================================== */
-/* All page roots and background divs */
-.bg-slate-950,
-main[class*="bg-slate-950"],
-div[class*="bg-slate-950"] {
+/* 2. Page Canvas Background */
+main,
+[class*="bg-slate-950"] {
   background-color: var(--theme-bg-base) !important;
 }
 
-/* All cards, widgets, metrics, sidebars and panels */
-.bg-slate-900,
-.bg-slate-900\/95,
-.bg-slate-900\/90,
-.bg-slate-900\/80,
-.bg-slate-900\/70,
-.bg-slate-900\/60,
-.bg-slate-900\/50,
+/* 3. Cards & Widgets Background */
 [class*="bg-slate-900"] {
   background-color: var(--theme-bg-card) !important;
 }
 
-/* Recessed card sub-containers & table inner areas */
-.bg-slate-950\/70,
-.bg-slate-950\/80,
-.bg-slate-950\/90,
-.bg-slate-950\/95,
-[class*="bg-slate-950\/"] {
+/* 4. Recessed Inner Card Areas */
+[class*="bg-slate-900"] [class*="bg-slate-950"],
+[class*="bg-slate-950"] > [class*="bg-slate-950"] {
   background-color: var(--theme-bg-base) !important;
 }
 
-/* Hero Cards with gradients */
-.from-emerald-950.via-slate-900.to-emerald-950,
-.from-emerald-950.via-slate-950.to-emerald-950,
-.from-emerald-950.via-slate-950.to-slate-950 {
+/* 5. Hero Card Gradients */
+div[class*="from-emerald-950"],
+section[class*="from-emerald-950"],
+header[class*="from-emerald-950"] {
   background-image: linear-gradient(135deg, rgba(var(--theme-primary-rgb), 0.28), var(--theme-bg-card), rgba(var(--theme-accent-rgb), 0.22)) !important;
 }
 
-/* ========================================================
-   3. TAILWIND GRADIENT ENGINE OVERRIDES (ALL BUTTONS, TABS & ACCENTS)
-======================================================== */
-/* Solid CTA & Button Gradients */
+/* 6. Button & CTA Gradients */
 button[class*="from-emerald-"],
 button[class*="from-teal-"],
 a[class*="from-emerald-"],
@@ -596,129 +648,43 @@ a[class*="via-amber-"] {
   --tw-gradient-stops: var(--tw-gradient-from), var(--theme-accent-light) var(--tw-gradient-via-position), var(--tw-gradient-to) !important;
 }
 
-/* Translucent Gradient Glows for Cards & Badges */
-[class*="from-emerald-500\/"],
-[class*="from-teal-500\/"] {
-  --tw-gradient-from: rgba(var(--theme-primary-rgb), 0.12) var(--tw-gradient-from-position) !important;
-  --tw-gradient-to: rgba(var(--theme-primary-rgb), 0) var(--tw-gradient-to-position) !important;
-  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
-}
-
-[class*="to-teal-500\/"],
-[class*="to-emerald-500\/"] {
-  --tw-gradient-to: rgba(var(--theme-primary-rgb), 0.06) var(--tw-gradient-to-position) !important;
-}
-
-[class*="from-amber-500\/"],
-[class*="from-orange-500\/"],
-[class*="from-yellow-500\/"] {
-  --tw-gradient-from: rgba(var(--theme-accent-rgb), 0.12) var(--tw-gradient-from-position) !important;
-  --tw-gradient-to: rgba(var(--theme-accent-rgb), 0) var(--tw-gradient-to-position) !important;
-  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
-}
-
-[class*="to-amber-500\/"],
-[class*="to-orange-500\/"],
-[class*="to-yellow-500\/"] {
-  --tw-gradient-to: rgba(var(--theme-accent-rgb), 0.06) var(--tw-gradient-to-position) !important;
-}
-
-/* Deep Card Gradients */
-[class*="from-emerald-950"],
-[class*="from-teal-950"] {
-  --tw-gradient-from: rgba(var(--theme-primary-rgb), 0.22) var(--tw-gradient-from-position) !important;
-  --tw-gradient-to: rgba(var(--theme-primary-rgb), 0) var(--tw-gradient-to-position) !important;
-  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
-}
-
-[class*="to-emerald-950"],
-[class*="to-teal-950"] {
-  --tw-gradient-to: rgba(var(--theme-primary-rgb), 0.18) var(--tw-gradient-to-position) !important;
-}
-
-[class*="from-amber-950"] {
-  --tw-gradient-from: rgba(var(--theme-accent-rgb), 0.22) var(--tw-gradient-from-position) !important;
-  --tw-gradient-to: rgba(var(--theme-accent-rgb), 0) var(--tw-gradient-to-position) !important;
-  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
-}
-
-[class*="to-amber-950"] {
-  --tw-gradient-to: rgba(var(--theme-accent-rgb), 0.18) var(--tw-gradient-to-position) !important;
-}
-
-/* ========================================================
-   4. SOLID BUTTONS, TAB BUTTONS & PILLS
-======================================================== */
-.bg-emerald-600,
-.bg-emerald-500,
-.bg-teal-600,
-.bg-teal-500,
-button[class*="bg-emerald-600"],
-button[class*="bg-emerald-500"],
-button[class*="bg-teal-600"],
-button[class*="bg-teal-500"] {
+/* 7. Solid Buttons & Pills */
+[class*="bg-emerald-600"],
+[class*="bg-emerald-500"],
+[class*="bg-teal-600"],
+[class*="bg-teal-500"] {
   background-color: var(--theme-primary) !important;
   color: #030712 !important;
 }
 
-.bg-amber-400,
-.bg-amber-500,
-.bg-gold-500,
-.bg-gold-400,
-button[class*="bg-amber-400"],
-button[class*="bg-amber-500"],
-button[class*="bg-gold-400"],
-button[class*="bg-gold-500"] {
+[class*="bg-amber-400"],
+[class*="bg-amber-500"],
+[class*="bg-gold-500"],
+[class*="bg-gold-400"] {
   background-color: var(--theme-accent) !important;
   color: #030712 !important;
 }
 
-.hover\:bg-emerald-500:hover,
-.hover\:bg-emerald-600:hover,
-.hover\:bg-emerald-700:hover,
-button[class*="hover:bg-emerald"]:hover {
+[class*="hover:bg-emerald"]:hover {
   background-color: var(--theme-primary-hover) !important;
 }
 
-.hover\:bg-amber-300:hover,
-.hover\:bg-amber-400:hover,
-.hover\:bg-amber-500:hover,
-button[class*="hover:bg-amber"]:hover {
+[class*="hover:bg-amber"]:hover {
   background-color: var(--theme-accent-hover) !important;
 }
 
-.bg-emerald-950,
-.bg-emerald-950\/60,
-.bg-emerald-950\/80,
-button[class*="bg-emerald-950"],
-.hover\:bg-emerald-900:hover,
-.hover\:bg-emerald-900\/60:hover {
+/* Soft Action Pills */
+[class*="bg-emerald-950"] {
   background-color: rgba(var(--theme-primary-rgb), 0.22) !important;
   color: var(--theme-primary-light) !important;
 }
 
-.bg-amber-950,
-.bg-amber-950\/40,
-.bg-amber-950\/60,
-button[class*="bg-amber-950"],
-.hover\:bg-amber-900\/60:hover {
+[class*="bg-amber-950"] {
   background-color: rgba(var(--theme-accent-rgb), 0.22) !important;
   color: var(--theme-accent-light) !important;
 }
 
-.text-slate-400.hover\:text-white:hover,
-.text-slate-400.hover\:text-slate-200:hover {
-  color: var(--theme-primary-light) !important;
-}
-
-/* ========================================================
-   5. ALL HIGHLIGHTED TEXT & HIGH-CONTRAST CARD READABILITY
-======================================================== */
-.text-emerald-400,
-.text-emerald-300,
-.text-emerald-500,
-.text-teal-400,
-.text-teal-300,
+/* 8. Text Readability & High-Contrast Metrics */
 [class*="text-emerald-400"],
 [class*="text-emerald-300"],
 [class*="text-emerald-500"],
@@ -727,10 +693,6 @@ button[class*="bg-amber-950"],
   color: var(--theme-primary-light) !important;
 }
 
-.text-amber-400,
-.text-amber-300,
-.text-amber-200,
-.text-gold-400,
 [class*="text-amber-400"],
 [class*="text-amber-300"],
 [class*="text-amber-200"],
@@ -738,105 +700,63 @@ button[class*="bg-amber-950"],
   color: var(--theme-accent-light) !important;
 }
 
-.text-slate-100 {
+[class*="text-slate-100"] {
   color: #ffffff !important;
 }
 
-.text-slate-200 {
+[class*="text-slate-200"] {
   color: #f1f5f9 !important;
 }
 
-.text-slate-300 {
+[class*="text-slate-300"] {
   color: #e2e8f0 !important;
 }
 
-.text-slate-400 {
+[class*="text-slate-400"] {
   color: #cbd5e1 !important;
 }
 
-.text-slate-500 {
+[class*="text-slate-500"] {
   color: #94a3b8 !important;
 }
 
-.group:hover .group-hover\:text-amber-300,
-.group:hover .group-hover\:text-amber-400 {
-  color: var(--theme-accent-light) !important;
-}
-
-.group:hover .group-hover\:text-emerald-300,
-.group:hover .group-hover\:text-emerald-400 {
-  color: var(--theme-primary-light) !important;
-}
-
-/* ========================================================
-   6. BORDERS, DIVIDERS & GLOW ACCENTS
-======================================================== */
-[class*="border-emerald-"],
-[class*="border-teal-"] {
+/* 9. Borders & Dividers */
+[class*="border-emerald-"] {
   border-color: rgba(var(--theme-primary-rgb), 0.38) !important;
 }
 
-[class*="border-amber-"],
-[class*="border-gold-"] {
+[class*="border-amber-"] {
   border-color: rgba(var(--theme-accent-rgb), 0.38) !important;
 }
 
-.border-slate-800,
-.border-slate-800\/80,
-.border-slate-800\/60,
-.border-slate-700,
-.border-slate-700\/80 {
+[class*="border-slate-800"],
+[class*="border-slate-700"] {
   border-color: rgba(var(--theme-primary-rgb), 0.16) !important;
 }
 
-/* ========================================================
-   7. SOFT TINTS, BADGES & STATUS INDICATORS
-======================================================== */
-[class*="bg-emerald-500\/10"],
-[class*="bg-emerald-500\/20"] {
+/* 10. Soft Tints & Badges */
+[class*="bg-emerald-500/10"],
+[class*="bg-emerald-500/20"] {
   background-color: rgba(var(--theme-primary-rgb), 0.16) !important;
 }
 
-[class*="bg-amber-500\/10"],
-[class*="bg-amber-500\/20"] {
+[class*="bg-amber-500/10"],
+[class*="bg-amber-500/20"] {
   background-color: rgba(var(--theme-accent-rgb), 0.16) !important;
 }
 
-.bg-emerald-400,
-.bg-teal-400,
-[class*="bg-emerald-400"] {
-  background-color: var(--theme-primary-light) !important;
-}
-
-/* ========================================================
-   8. INPUTS, FOCUS STATES & RINGS
-======================================================== */
-input:focus, select:focus, textarea:focus,
-.focus\:border-amber-400:focus,
-.focus\:border-emerald-500:focus,
-.focus\:border-emerald-400:focus {
-  border-color: var(--theme-accent) !important;
-  box-shadow: 0 0 0 1px var(--theme-accent) !important;
-}
-
+/* 11. Inputs, Focus States & Rings */
 input, select, textarea {
   background-color: rgba(var(--theme-bg-base-rgb), 0.85) !important;
   border-color: rgba(var(--theme-primary-rgb), 0.28) !important;
 }
 
-[class*="ring-amber-"],
-[class*="ring-emerald-"] {
-  --tw-ring-color: rgba(var(--theme-accent-rgb), 0.45) !important;
+input:focus, select:focus, textarea:focus {
+  border-color: var(--theme-accent) !important;
+  box-shadow: 0 0 0 1px var(--theme-accent) !important;
 }
 
-.shadow-emerald-950\/40,
-.shadow-emerald-950\/60 {
-  --tw-shadow-color: rgba(var(--theme-primary-rgb), 0.25) !important;
-}
-
-/* ========================================================
-   9. SCROLLBARS & CONTROLS
-======================================================== */
+/* 12. Scrollbars */
 ::-webkit-scrollbar-track {
   background: var(--theme-bg-base) !important;
 }

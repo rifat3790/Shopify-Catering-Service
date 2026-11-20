@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { useAuth } from './AuthContext';
 import { ThemePreset, ThemePresetId, CustomThemeConfig } from '@/lib/types';
-import { THEME_PRESETS, generateThemeCSS } from '@/lib/themeConstants';
+import { THEME_PRESETS, generateThemeCSS, isLightColor } from '@/lib/themeConstants';
 
 interface ThemeContextType {
   themeId: ThemePresetId;
@@ -101,6 +101,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
     styleTag.innerHTML = css;
     document.documentElement.setAttribute('data-theme', id);
+    const isLight = isLightColor(bg);
+    document.documentElement.setAttribute('data-mode', isLight ? 'light' : 'dark');
+    if (isLight) {
+      document.documentElement.classList.add('light-theme');
+      document.documentElement.classList.remove('dark-theme');
+    } else {
+      document.documentElement.classList.add('dark-theme');
+      document.documentElement.classList.remove('light-theme');
+    }
   };
 
   // 1. Initial hydration from localStorage
