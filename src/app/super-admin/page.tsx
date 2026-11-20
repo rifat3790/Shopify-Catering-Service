@@ -847,7 +847,7 @@ function SuperAdminDashboardContent() {
                           <option value="user">👤 User</option>
                         </select>
 
-                        <div className="grid grid-cols-3 gap-1">
+                        <div className="grid grid-cols-3 gap-2">
                           <button
                             onClick={() => openBalanceModal(u, 'add')}
                             className="py-1 px-2 rounded-lg bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/60 text-xs font-semibold flex items-center justify-center gap-0.5"
@@ -984,7 +984,7 @@ function SuperAdminDashboardContent() {
 
                           {/* Balance Actions & Delete Member */}
                           <td className="py-3.5 px-4 sm:px-6 text-right whitespace-nowrap">
-                            <div className="flex items-center justify-end gap-1.5">
+                            <div className="flex items-center justify-end gap-2">
                               <button
                                 onClick={() => openBalanceModal(u, 'add')}
                                 title="Add Balance (+)"

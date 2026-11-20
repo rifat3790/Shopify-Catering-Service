@@ -287,14 +287,14 @@ function MenuPageContent() {
         </div>
 
         {/* Category Filter Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-slate-200 dark:border-slate-800">
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-slate-200/80 dark:border-slate-800">
           {categories.map((cat) => (
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
-              className={`px-4 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${selectedCategory === cat
-                ? 'bg-gradient-to-r from-emerald-600 to-amber-600 text-white font-bold shadow-md'
-                : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'
+              className={`px-4 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all shadow-xs ${selectedCategory === cat
+                ? 'bg-gradient-to-r from-emerald-600 to-amber-600 text-white font-bold shadow-sm scale-[1.02]'
+                : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800'
                 }`}
             >
               {cat === 'All' ? (language === 'bn' ? 'সকল মেনু' : 'All Items') : cat}
@@ -306,15 +306,15 @@ function MenuPageContent() {
         {loading ? (
           <LuxuryLoader message="Loading catering dishes..." subMessage="Fetching available menu items" />
         ) : filteredItems.length === 0 ? (
-          <div className="text-center py-20 rounded-3xl bg-slate-900/40 border border-slate-800/80 p-8 max-w-lg mx-auto space-y-4">
-            <div className="w-16 h-16 rounded-3xl bg-slate-900 border border-slate-700 flex items-center justify-center mx-auto text-amber-400">
+          <div className="text-center py-20 rounded-3xl bg-white dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800/80 p-8 max-w-lg mx-auto space-y-4 shadow-xs">
+            <div className="w-16 h-16 rounded-3xl bg-slate-50 dark:bg-slate-900 border border-slate-200/80 dark:border-slate-700 flex items-center justify-center mx-auto text-amber-500 dark:text-amber-400">
               <Utensils className="w-8 h-8" />
             </div>
             <div>
-              <h3 className="font-serif font-bold text-white text-lg">
+              <h3 className="font-serif font-bold text-slate-900 dark:text-white text-lg">
                 {language === 'bn' ? 'মেনুতে কোনো খাবার নেই' : 'No Menu Items Available'}
               </h3>
-              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                 {isSuperOrAdmin
                   ? (language === 'bn'
                     ? 'মেনু বর্তমানে খালি। নতুন খাবার ও মূল্য নির্ধারণ করতে উপরের "+ নতুন খাবার যুক্ত করুন" বাটনে ক্লিক করুন।'
@@ -327,7 +327,7 @@ function MenuPageContent() {
             {isSuperOrAdmin && (
               <button
                 onClick={handleOpenAddDish}
-                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 text-slate-950 font-bold text-xs shadow-lg"
+                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-white font-bold text-xs shadow-md transition-all hover:scale-105"
               >
                 + {language === 'bn' ? 'প্রথম খাবার যুক্ত করুন' : 'Add First Dish'}
               </button>

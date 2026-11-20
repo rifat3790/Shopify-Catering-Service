@@ -340,18 +340,18 @@ export default function LiveTrackerTable({
 
                     {/* Actions Column */}
                     <td className="py-3.5 px-4 sm:px-6 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-1.5">
+                      <div className="flex items-center justify-end gap-2.5">
                         <button
                           onClick={() => onSelectInvoice(order)}
                           title="Print / View Invoice"
-                          className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-amber-700 dark:text-amber-400 border border-slate-200 dark:border-slate-700 transition-colors"
+                          className="p-2 rounded-xl bg-slate-100/80 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 text-amber-700 dark:text-amber-400 border border-slate-200/60 dark:border-slate-700 transition-all hover:scale-105 shadow-xs"
                         >
                           <Printer className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => onDeleteOrder(order._id || order.orderNumber)}
                           title="Delete Order"
-                          className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-rose-100 dark:hover:bg-rose-950/50 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 border border-slate-200 dark:border-slate-700 transition-colors"
+                          className="p-2 rounded-xl bg-slate-100/80 hover:bg-rose-100/80 dark:bg-slate-800 dark:hover:bg-rose-950/50 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 border border-slate-200/60 dark:border-slate-700 transition-all hover:scale-105 shadow-xs"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -365,23 +365,23 @@ export default function LiveTrackerTable({
 
           {/* Authentic Footer Summary Row matching Google Sheet */}
           <tfoot>
-            <tr className="bg-slate-100 dark:bg-emerald-950/95 border-t-2 border-emerald-500 font-bold text-slate-900 dark:text-white text-xs sm:text-sm">
-              <td className="py-4 px-4 sm:px-6 text-amber-800 dark:text-amber-300 font-serif">
+            <tr className="bg-slate-100/90 dark:bg-emerald-950/95 border-t-2 border-emerald-500 font-bold text-slate-900 dark:text-white text-xs sm:text-sm">
+              <td className="py-4 px-4 sm:px-6 text-slate-900 dark:text-amber-300 font-serif font-bold">
                 {language === 'bn' ? 'সর্বমোট হিসাব (Total)' : 'Grand Total Summary'}
               </td>
-              <td className="py-4 px-4 sm:px-6 text-emerald-800 dark:text-emerald-200">
+              <td className="py-4 px-4 sm:px-6 text-slate-600 dark:text-emerald-200 font-medium">
                 {completedOrders.length} {language === 'bn' ? 'টি সম্পন্ন অর্ডার' : 'Completed Orders'}
               </td>
-              <td className="py-4 px-4 sm:px-6 text-right text-amber-800 dark:text-amber-300 font-mono text-base">
+              <td className="py-4 px-4 sm:px-6 text-right text-amber-700 dark:text-amber-300 font-mono text-base font-bold">
                 ৳{totalBillSum.toFixed(2)}
               </td>
-              <td className="py-4 px-4 sm:px-6 text-right text-emerald-800 dark:text-teal-300 font-mono text-base">
+              <td className="py-4 px-4 sm:px-6 text-right text-emerald-700 dark:text-teal-300 font-mono text-base font-bold">
                 ৳{totalPaidSum.toFixed(2)}
               </td>
-              <td className="py-4 px-4 sm:px-6 text-right text-emerald-800 dark:text-emerald-400 font-mono text-base">
+              <td className="py-4 px-4 sm:px-6 text-right text-emerald-700 dark:text-emerald-400 font-mono text-base font-bold">
                 ৳{totalRefundSum.toFixed(2)}
               </td>
-              <td colSpan={2} className="py-4 px-4 sm:px-6 text-center text-amber-800 dark:text-amber-300 font-mono text-sm">
+              <td colSpan={2} className="py-4 px-4 sm:px-6 text-center text-slate-800 dark:text-amber-300 font-mono text-sm font-bold">
                 {collectionRate}% {language === 'bn' ? 'আদায়কৃত' : 'Collected'}
               </td>
             </tr>

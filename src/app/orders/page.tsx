@@ -245,10 +245,10 @@ function OrdersPageContent() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2.5 flex-wrap">
+          <div className="flex items-center gap-3 flex-wrap">
             <button
               onClick={() => fetchOrders()}
-              className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-sm"
+              className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-800 text-xs font-semibold transition-all flex items-center gap-1.5 shadow-xs"
             >
               <RefreshCw className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
               <span>রিফ্রেশ</span>
@@ -258,7 +258,7 @@ function OrdersPageContent() {
             <button
               onClick={handleDownloadAllInTab}
               disabled={filteredOrders.length === 0 || isDownloadingBulk}
-              className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-amber-700 dark:text-amber-300 border border-amber-500/40 hover:border-amber-500 text-xs font-semibold transition-all flex items-center gap-1.5 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-[0.98]"
+              className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-amber-700 dark:text-amber-300 border border-slate-200/80 dark:border-slate-800 text-xs font-semibold transition-all flex items-center gap-1.5 shadow-xs disabled:opacity-40 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-[0.98]"
               title={language === 'bn' ? 'বর্তমান ট্যাবের সকল রসিদ একসাথে ZIP আকারে ডাউনলোড' : 'Download all receipts in current tab as ZIP'}
             >
               {isDownloadingBulk ? (
@@ -277,7 +277,7 @@ function OrdersPageContent() {
             {isSuperOrAdmin && (
               <button
                 onClick={() => setIsOrderModalOpen(true)}
-                className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-white font-bold text-xs shadow-md transition-all flex items-center gap-1.5 hover:scale-105"
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-white font-bold text-xs shadow-sm transition-all flex items-center gap-1.5 hover:scale-105 active:scale-95"
               >
                 <Plus className="w-4 h-4 text-white" />
                 <span>{language === 'bn' ? 'নতুন অর্ডার যোগ করুন' : 'Add New Order'}</span>
@@ -347,15 +347,15 @@ function OrdersPageContent() {
             />
           </div>
 
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+          <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-slate-100/80 dark:bg-slate-950 border border-slate-200/60 dark:border-slate-800/80 overflow-x-auto pb-1 sm:pb-0">
             {['All', 'Paid', 'Due', 'Pending', 'Delivered'].map((status) => (
               <button
                 key={status}
                 onClick={() => setStatusFilter(status)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0 ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 ${
                   statusFilter === status
-                    ? 'bg-gradient-to-r from-emerald-600 to-amber-600 text-white font-bold shadow-md'
-                    : 'bg-slate-100 dark:bg-slate-950 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'
+                    ? 'bg-gradient-to-r from-emerald-600 to-amber-600 text-white font-bold shadow-xs scale-[1.02]'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/80 dark:hover:bg-slate-800/60'
                 }`}
               >
                 {status}
@@ -615,13 +615,13 @@ function OrdersPageContent() {
 
                         {/* Receipt Download & Action Buttons */}
                         <td className="px-4 py-3.5 text-center whitespace-nowrap">
-                          <div className="flex items-center justify-center gap-1.5">
+                          <div className="flex items-center justify-center gap-2.5">
                             
                             {/* 📸 Download PNG Receipt (Available for ALL users) */}
                             <button
                               onClick={() => downloadReceiptPng(order)}
                               title={language === 'bn' ? 'PNG রসিদ ডাউনলোড করুন' : 'Download PNG Receipt'}
-                              className="px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950 dark:hover:bg-emerald-900 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-600/50 text-[11px] font-semibold flex items-center gap-1 transition-all hover:scale-105 shadow-sm"
+                              className="px-2.5 py-1.5 rounded-xl bg-emerald-50/90 hover:bg-emerald-100 dark:bg-emerald-950 dark:hover:bg-emerald-900 text-emerald-800 dark:text-emerald-300 border border-emerald-500/20 dark:border-emerald-600/50 text-[11px] font-semibold flex items-center gap-1 transition-all hover:scale-105 shadow-xs"
                             >
                               <Download className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                               <span>PNG</span>
@@ -631,7 +631,7 @@ function OrdersPageContent() {
                             <button
                               onClick={() => setSelectedInvoice(order)}
                               title="View Full Invoice"
-                              className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-transparent transition-colors"
+                              className="p-1.5 rounded-xl bg-slate-100/80 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700 transition-all hover:scale-105 shadow-xs"
                             >
                               <Eye className="w-3.5 h-3.5" />
                             </button>
@@ -642,14 +642,14 @@ function OrdersPageContent() {
                                 <button
                                   onClick={() => handleOpenEdit(order)}
                                   title="Edit Order"
-                                  className="p-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-500/30 transition-colors"
+                                  className="p-1.5 rounded-xl bg-amber-50/90 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/60 text-amber-800 dark:text-amber-300 border border-amber-500/20 dark:border-amber-500/30 transition-all hover:scale-105 shadow-xs"
                                 >
                                   <Edit3 className="w-3.5 h-3.5" />
                                 </button>
                                 <button
                                   onClick={() => handleDeleteOrder(order)}
                                   title="Delete Order"
-                                  className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-500/30 transition-colors"
+                                  className="p-1.5 rounded-xl bg-rose-50/90 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 text-rose-800 dark:text-rose-300 border border-rose-500/20 dark:border-rose-500/30 transition-all hover:scale-105 shadow-xs"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>

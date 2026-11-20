@@ -15,6 +15,7 @@ import {
   Search,
   Plus,
   Wallet,
+  Building,
   Utensils,
   TrendingUp,
   RefreshCw,
@@ -25,6 +26,7 @@ import {
   Trash2,
   AlertTriangle,
   ShieldCheck,
+  MessageSquare
   MessageSquare,
   CheckCircle2,
   AlertCircle
@@ -33,7 +35,9 @@ import {
 function MembersPageContent() {
   const { user } = useAuth();
   const { language } = useLanguage();
-  
+  const [members, setMembers] = useState<UserRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+
   // Instant 0ms cache initialize
   const [members, setMembers] = useState<UserRecord[]>(() => {
     return getClientCache<UserRecord[]>('members_list') || [];
@@ -65,258 +69,267 @@ function MembersPageContent() {
   const [newDept, setNewDept] = useState('Development');
   const [newBalance, setNewBalance] = useState<number>(0);
 
-  const fetchMembers = async (silent = false) => {
-    if (!silent && (!members || members.length === 0)) {
-      setLoading(true);
-    }
-    try {
-      const res = await fetch('/api/users');
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success && json.data) {
-          setMembers(json.data);
-          setClientCache('members_list', json.data);
-        }
+  const fetchMembers = async () => {
+    setLoading(true);
+    const fetchMembers = async (silent = false) => {
+      if (!silent && (!members || members.length === 0)) {
+        setLoading(true);
       }
-    } catch (e) {
-      console.warn('Error fetching members:', e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchMembers(true);
-  }, []);
-
-  const handleAddMemberSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newName.trim() || !newEmail.trim()) return;
-
-    try {
-      const res = await fetch('/api/users/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: newName.trim(),
-          email: newEmail.trim(),
-          allowRevive: true,
-        })
-      });
-
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success && json.data && newBalance > 0) {
-          await fetch('/api/users', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              userId: json.data.id,
-              balanceAmount: newBalance,
-              action: 'set'
-            })
-          });
+      try {
+        const res = await fetch('/api/users');
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && json.data) setMembers(json.data);
+          if (json.success && json.data) {
+            setMembers(json.data);
+            setClientCache('members_list', json.data);
+          }
         }
-        fetchMembers();
-        setIsAddMemberOpen(false);
-        setNewName('');
-        setNewEmail('');
-        setNewBalance(0);
+      } catch (e) {
+        console.warn('Error fetching members:', e);
+      } finally {
+        setLoading(false);
       }
-    } catch (e) {
-      console.error(e);
-    }
-  };
+    };
 
-  const openBalanceModal = (u: UserRecord, action: 'add' | 'deduct' | 'set' = 'add') => {
-    setBalanceModalUser(u);
-    setBalanceAction(action);
-    setBalanceAmount(action === 'set' ? u.balance : (action === 'deduct' ? Math.min(100, u.balance) : 500));
-  };
+    useEffect(() => {
+      fetchMembers();
+      fetchMembers(true);
+    }, []);
 
-  const handleBalanceSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!balanceModalUser || balanceAmount < 0) return;
+    const handleAddMemberSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!newName.trim() || !newEmail.trim()) return;
 
-    try {
-      const res = await fetch('/api/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: balanceModalUser.id,
-          balanceAmount: balanceAmount,
-          action: balanceAction
-        })
-      });
-      if (res.ok) {
+      try {
+        const res = await fetch('/api/users/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: newName.trim(),
+            email: newEmail.trim(),
+            allowRevive: true,
+          })
+        });
+
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && json.data && newBalance > 0) {
+            await fetch('/api/users', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                userId: json.data.id,
+                balanceAmount: newBalance,
+                action: 'set'
+              })
+            });
+          }
+          fetchMembers();
+          setIsAddMemberOpen(false);
+          setNewName('');
+          setNewEmail('');
+          setNewBalance(0);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+
+    const openBalanceModal = (u: UserRecord, action: 'add' | 'deduct' | 'set' = 'add') => {
+      setBalanceModalUser(u);
+      setBalanceAction(action);
+      setBalanceAmount(action === 'set' ? u.balance : (action === 'deduct' ? Math.min(100, u.balance) : 500));
+    };
+
+    const handleBalanceSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!balanceModalUser || balanceAmount < 0) return;
+
+      try {
+        const res = await fetch('/api/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: balanceModalUser.id,
+            balanceAmount: balanceAmount,
+            action: balanceAction
+          })
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && json.data) {
+            setMembers(prev => prev.map(m => m.id === balanceModalUser.id ? json.data : m));
+            setMembers(prev => {
+              const next = prev.map(m => m.id === balanceModalUser.id ? json.data : m);
+              setClientCache('members_list', next);
+              return next;
+            });
+          } else {
+            fetchMembers();
+          }
+          setBalanceModalUser(null);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+
+    const handleDeleteMember = async () => {
+      if (!deleteModalUser) return;
+      setIsDeleting(true);
+      setDeleteError('');
+      try {
+        const res = await fetch(`/api/users/${encodeURIComponent(deleteModalUser.id)}?email=${encodeURIComponent(deleteModalUser.email)}`, {
+          method: 'DELETE',
+        });
         const json = await res.json();
-        if (json.success && json.data) {
+        if (json.success) {
+          setMembers(prev => prev.filter(m => m.id !== deleteModalUser.id && m.email !== deleteModalUser.email));
           setMembers(prev => {
-            const next = prev.map(m => m.id === balanceModalUser.id ? json.data : m);
+            const next = prev.filter(m => m.id !== deleteModalUser.id && m.email !== deleteModalUser.email);
             setClientCache('members_list', next);
             return next;
           });
-        } else {
+          setDeleteModalUser(null);
           fetchMembers();
+        } else {
+          setDeleteError(json.error || 'Failed to delete member from database');
         }
-        setBalanceModalUser(null);
+      } catch (err: any) {
+        setDeleteError(err.message || 'Error deleting member');
+      } finally {
+        setIsDeleting(false);
       }
-    } catch (e) {
-      console.error(e);
-    }
-  };
+    };
 
-  const handleDeleteMember = async () => {
-    if (!deleteModalUser) return;
-    setIsDeleting(true);
-    setDeleteError('');
-    try {
-      const res = await fetch(`/api/users/${encodeURIComponent(deleteModalUser.id)}?email=${encodeURIComponent(deleteModalUser.email)}`, {
-        method: 'DELETE',
-      });
-      const json = await res.json();
-      if (json.success) {
-        setMembers(prev => {
-          const next = prev.filter(m => m.id !== deleteModalUser.id && m.email !== deleteModalUser.email);
-          setClientCache('members_list', next);
-          return next;
-        });
-        setDeleteModalUser(null);
-        fetchMembers();
-      } else {
-        setDeleteError(json.error || 'Failed to delete member from database');
-      }
-    } catch (err: any) {
-      setDeleteError(err.message || 'Error deleting member');
-    } finally {
-      setIsDeleting(false);
-    }
-  };
+    const departments = ['All', 'Development', 'Marketing', 'Design & UX', 'Engineering', 'Operations', 'Support', 'Logistics'];
 
-  const departments = ['All', 'Development', 'Marketing', 'Design & UX', 'Engineering', 'Operations', 'Support', 'Logistics'];
+    const filteredMembers = members.filter(m => {
+      const matchSearch =
+        (m.name || '').toLowerCase().includes(search.toLowerCase()) ||
+        (m.username || '').toLowerCase().includes(search.toLowerCase()) ||
+        (m.email || '').toLowerCase().includes(search.toLowerCase());
+      const matchDept = departmentFilter === 'All' ? true : (m.department || '').toLowerCase().includes(departmentFilter.toLowerCase());
+      return matchSearch && matchDept;
+    });
 
-  const filteredMembers = members.filter(m => {
-    const matchSearch =
-      (m.name || '').toLowerCase().includes(search.toLowerCase()) ||
-      (m.username || '').toLowerCase().includes(search.toLowerCase()) ||
-      (m.email || '').toLowerCase().includes(search.toLowerCase());
-    const matchDept = departmentFilter === 'All' ? true : (m.department || '').toLowerCase().includes(departmentFilter.toLowerCase());
-    return matchSearch && matchDept;
-  });
+    const totalMembersBalance = members.reduce((sum, m) => sum + (m.balance || 0), 0);
+    const totalLifetimeSpent = members.reduce((sum, m) => sum + (m.totalSpent || 0), 0);
 
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col lg:flex-row">
+        <Sidebar onOpenNewOrder={() => setSelectedOrderMember('Member')} />
   const totalMembersBalance = members.reduce((sum, m) => sum + (Number(m.balance) || 0), 0);
   const totalLifetimeSpent = members.reduce((sum, m) => sum + (Number(m.totalSpent) || 0), 0);
   const totalMembersDue = members.reduce((sum, m) => sum + (Number(m.currentDue) || 0), 0);
   const dueMembersCount = members.filter(m => (Number(m.currentDue) || 0) > 0).length;
 
-  return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col lg:flex-row text-slate-900 dark:text-slate-100">
-      <Sidebar onOpenNewOrder={() => setSelectedOrderMember('Member')} />
+        return (
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col lg:flex-row text-slate-900 dark:text-slate-100">
+          <Sidebar onOpenNewOrder={() => setSelectedOrderMember('Member')} />
 
-      <main className="flex-1 w-full min-w-0 px-4 sm:px-6 lg:px-10 py-8 space-y-6">
+          <main className="flex-1 w-full min-w-0 px-4 sm:px-6 lg:px-10 py-8 space-y-6">
 
-        {/* Top Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-emerald-900/40">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-800 to-emerald-600 p-[2px] shadow-lg">
-              <div className="w-full h-full bg-white dark:bg-slate-950 rounded-[14px] flex items-center justify-center">
-                <Users className="w-6 h-6 text-amber-500 dark:text-amber-400" />
-              </div>
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-bold font-serif text-slate-900 dark:text-white">
-                  {language === 'bn' ? 'মেম্বার তালিকা ও ক্যাটারিং হিসাব' : 'Team Member Directory & Balances'}
-                </h1>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30">
-                  {members.length} Members
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                {language === 'bn'
-                  ? 'সকল মেম্বারের রিয়েল-টাইম ব্যালেন্স, যোগ/কর্তন/এডিট এবং সরাসরি খাবারের অর্ডার'
-                  : 'Manage all team members, individual meal balances (add, deduct, edit), and orders'}
-              </p>
-            </div>
-          </div>
+            {/* Top Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-emerald-900/40">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-800 to-emerald-600 p-[2px] shadow-lg">
+                  <div className="w-full h-full bg-white dark:bg-slate-950 rounded-[14px] flex items-center justify-center">
+                    <Users className="w-6 h-6 text-amber-500 dark:text-amber-400" />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-xl sm:text-2xl font-bold font-serif text-slate-900 dark:text-white">
+                      {language === 'bn' ? 'মেম্বার তালিকা ও ক্যাটারিং হিসাব' : 'Team Member Directory & Balances'}
+                    </h1>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                      {members.length} Members
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {language === 'bn'
+                      ? 'সকল মেম্বারের রিয়েল-টাইম ব্যালেন্স, যোগ/কর্তন/এডিট এবং সরাসরি খাবারের অর্ডার'
+                      : 'Manage all team members, individual meal balances (add, deduct, edit), and orders'}
+                  </p>
+                </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => fetchMembers()}
-              className="p-2.5 rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-slate-800 shadow-sm"
-              title="Refresh"
-            >
-              <RefreshCw className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            </button>
-            <button
-              onClick={() => setIsAddMemberOpen(true)}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-white font-bold text-xs shadow-md transition-all hover:scale-105"
-            >
-              <Plus className="w-4 h-4 text-white" />
-              <span>{language === 'bn' ? 'নতুন মেম্বার যুক্ত করুন' : 'Add New Member'}</span>
-            </button>
-          </div>
-        </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => fetchMembers()}
+                    className="p-2.5 rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-slate-800 shadow-sm"
+                    title="Refresh"
+                  >
+                    <RefreshCw className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  </button>
+                  <button
+                    onClick={() => setIsAddMemberOpen(true)}
+                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-white font-bold text-xs shadow-md transition-all hover:scale-105"
+                  >
+                    <Plus className="w-4 h-4 text-white" />
+                    <span>{language === 'bn' ? 'নতুন মেম্বার যুক্ত করুন' : 'Add New Member'}</span>
+                  </button>
+                </div>
 
-        {/* Member Analytics Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="p-5 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-emerald-600/30 shadow-md">
-            <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-200 tracking-wider uppercase mb-2">
-              <span>{language === 'bn' ? 'মোট মেম্বার ব্যালেন্স' : 'Total Member Wallet Funds'}</span>
-              <Wallet className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            </div>
-            <p className="text-2xl font-extrabold font-mono text-emerald-600 dark:text-emerald-400">৳{totalMembersBalance.toFixed(2)}</p>
-            <p className="text-xs text-slate-500 dark:text-slate-300 font-medium mt-1">
-              {totalMembersBalance > 0
-                ? (language === 'bn' ? 'রিফ্রেশমেন্টের জন্য ব্যালেন্স প্রস্তুত' : 'Available for refreshments')
-                : (language === 'bn' ? 'সকল ওয়ালেট ব্যালেন্স শূন্য' : 'Zero Available Funds (৳0.00)')}
-            </p>
-          </div>
+                {/* Member Analytics Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="p-5 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-emerald-600/30 shadow-md">
+                    <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-200 tracking-wider uppercase mb-2">
+                      <span>{language === 'bn' ? 'মোট মেম্বার ব্যালেন্স' : 'Total Member Wallet Funds'}</span>
+                      <Wallet className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    <p className="text-2xl font-extrabold font-mono text-emerald-600 dark:text-emerald-400">৳{totalMembersBalance.toFixed(2)}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-300 font-medium mt-1">
+                      {totalMembersBalance > 0
+                        ? (language === 'bn' ? 'রিফ্রেশমেন্টের জন্য ব্যালেন্স প্রস্তুত' : 'Available for refreshments')
+                        : (language === 'bn' ? 'সকল ওয়ালেট ব্যালেন্স শূন্য' : 'Zero Available Funds (৳0.00)')}
+                    </p>
+                  </div>
 
-          <div className="p-5 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-amber-500/30 shadow-md">
-            <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-200 tracking-wider uppercase mb-2">
-              <span>{language === 'bn' ? 'মোট ক্যাটারিং খরচ' : 'Total Lifetime Food Spent'}</span>
-              <TrendingUp className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-            </div>
-            <p className="text-2xl font-extrabold font-mono text-amber-600 dark:text-amber-300">৳{totalLifetimeSpent.toFixed(2)}</p>
-            <p className="text-xs text-slate-500 dark:text-slate-300 font-medium mt-1">Settled Catering Orders</p>
-          </div>
+                  <div className="p-5 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-amber-500/30 shadow-md">
+                    <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-200 tracking-wider uppercase mb-2">
+                      <span>{language === 'bn' ? 'মোট ক্যাটারিং খরচ' : 'Total Lifetime Food Spent'}</span>
+                      <TrendingUp className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <p className="text-2xl font-extrabold font-mono text-amber-600 dark:text-amber-300">৳{totalLifetimeSpent.toFixed(2)}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-300 font-medium mt-1">Settled Catering Orders</p>
+                  </div>
 
-          <div className={`p-5 rounded-2xl bg-white dark:bg-slate-900/90 border shadow-md ${totalMembersDue > 0 ? 'border-rose-400 dark:border-rose-500/40' : 'border-teal-300 dark:border-teal-500/30'}`}>
-            <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-200 tracking-wider uppercase mb-2">
-              <span>{language === 'bn' ? 'মোট বকেয়া পাওনা হিসাব' : 'Total Outstanding Dues'}</span>
-              {totalMembersDue > 0 ? (
-                <AlertCircle className="w-4 h-4 text-rose-500 dark:text-rose-400" />
-              ) : (
-                <CheckCircle2 className="w-4 h-4 text-teal-500 dark:text-teal-400" />
-              )}
-            </div>
-            <p className={`text-2xl font-extrabold font-mono ${totalMembersDue > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-teal-600 dark:text-teal-300'}`}>
-              ৳{totalMembersDue.toFixed(2)}
-            </p>
-            <p className={`text-xs font-medium mt-1 ${totalMembersDue > 0 ? 'text-rose-600 dark:text-rose-300' : 'text-slate-500 dark:text-slate-300'}`}>
-              {totalMembersDue > 0
-                ? (language === 'bn' ? `${dueMembersCount} জন মেম্বারের বকেয়া পাওনা রয়েছে` : `${dueMembersCount} members with pending dues`)
-                : (language === 'bn' ? 'সকল মেম্বার একাউন্ট ক্লিয়ার (বকেয়া নেই)' : 'Zero outstanding dues • All accounts clear')}
-            </p>
-          </div>
-        </div>
+                  <div className={`p-5 rounded-2xl bg-white dark:bg-slate-900/90 border shadow-md ${totalMembersDue > 0 ? 'border-rose-400 dark:border-rose-500/40' : 'border-teal-300 dark:border-teal-500/30'}`}>
+                    <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-200 tracking-wider uppercase mb-2">
+                      <span>{language === 'bn' ? 'মোট বকেয়া পাওনা হিসাব' : 'Total Outstanding Dues'}</span>
+                      {totalMembersDue > 0 ? (
+                        <AlertCircle className="w-4 h-4 text-rose-500 dark:text-rose-400" />
+                      ) : (
+                        <CheckCircle2 className="w-4 h-4 text-teal-500 dark:text-teal-400" />
+                      )}
+                    </div>
+                    <p className={`text-2xl font-extrabold font-mono ${totalMembersDue > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-teal-600 dark:text-teal-300'}`}>
+                      ৳{totalMembersDue.toFixed(2)}
+                    </p>
+                    <p className={`text-xs font-medium mt-1 ${totalMembersDue > 0 ? 'text-rose-600 dark:text-rose-300' : 'text-slate-500 dark:text-slate-300'}`}>
+                      {totalMembersDue > 0
+                        ? (language === 'bn' ? `${dueMembersCount} জন মেম্বারের বকেয়া পাওনা রয়েছে` : `${dueMembersCount} members with pending dues`)
+                        : (language === 'bn' ? 'সকল মেম্বার একাউন্ট ক্লিয়ার (বকেয়া নেই)' : 'Zero outstanding dues • All accounts clear')}
+                    </p>
+                  </div>
 
-        {/* Filter and Search Bar */}
-        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 shadow-sm">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              type="text"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder={language === 'bn' ? 'মেম্বার নাম বা ইমেইল খুঁজুন...' : 'Search member name or email...'}
-              className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-amber-400"
-            />
-          </div>
+                  {/* Filter and Search Bar */}
+                  <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 shadow-sm">
+                    <div className="relative flex-1 max-w-md">
+                      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input
+                        type="text"
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                        placeholder={language === 'bn' ? 'মেম্বার নাম বা ইমেইল খুঁজুন...' : 'Search member name or email...'}
+                        className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-amber-400"
+                      />
+                    </div>
 
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-            {departments.map(dept => (
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                      {departments.map(dept => (
               <button
                 key={dept}
                 onClick={() => setDepartmentFilter(dept)}
@@ -325,133 +338,215 @@ function MembersPageContent() {
                   : 'bg-slate-100 dark:bg-slate-950 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'
                   }`}
               >
-                {dept}
+                <RefreshCw className="w-4 h-4 text-emerald-400" />
               </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Member Grid Cards */}
-        {loading ? (
-          <LuxuryLoader message="Loading team members..." subMessage="Fetching dynamic balances & profiles" />
-        ) : filteredMembers.length === 0 ? (
-          <div className="text-center py-16 text-slate-400 text-xs">
-            {language === 'bn'
-              ? 'কোনো মেম্বার অ্যাকাউন্ট পাওয়া যায়নি। মেম্বাররা লগইন করলে বা উপরে "+ Add Member" বাটনে ক্লিক করলে দেখতে পাবেন।'
-              : 'No registered members found. Members appear dynamically upon sign-in or via "+ Add Member" above.'}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {filteredMembers.map(member => {
-              const isMemberRootSuper = member.email?.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase();
-
-              return (
-                <div
-                  key={member.id}
-                  className="p-5 rounded-3xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 hover:border-emerald-500/70 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.01] flex flex-col justify-between space-y-4"
+              <button
+                onClick={() => setIsAddMemberOpen(true)}
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-md transition-all hover:scale-105"
+              >
+                <Plus className="w-4 h-4 text-slate-950" />
+                <span>{language === 'bn' ? 'নতুন মেম্বার যুক্ত করুন' : 'Add New Member'}</span>
+              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => fetchMembers()}
+                  className="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800"
+                  title="Refresh"
                 >
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <img
-                          src={member.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.name)}&background=047857&color=fff`}
-                          alt={member.name}
-                          className="w-12 h-12 rounded-2xl object-cover ring-2 ring-emerald-500/30"
-                        />
-                        <div className="min-w-0">
-                          <h3 className="font-serif font-bold text-slate-900 dark:text-white text-base leading-snug truncate">
-                            {member.name}
-                          </h3>
-                          <p className="text-[11px] text-amber-700 dark:text-amber-300 font-mono font-semibold truncate">
-                            {member.username || `@${member.email.split('@')[0]}`}
-                          </p>
-                          <span className="inline-block mt-0.5 px-2 py-0.2 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border border-emerald-500/20">
-                            {member.department}
-                          </span>
+                  <RefreshCw className="w-4 h-4 text-emerald-400" />
+                </button>
+                <button
+                  onClick={() => setIsAddMemberOpen(true)}
+                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-md transition-all hover:scale-105"
+                >
+                  <Plus className="w-4 h-4 text-slate-950" />
+                  <span>{language === 'bn' ? 'নতুন মেম্বার যুক্ত করুন' : 'Add New Member'}</span>
+                </button>
+              </div>
+            </div>
+
+                    {/* Member Analytics Cards */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div className="p-5 rounded-2xl bg-slate-900/90 border border-emerald-600/30 shadow-lg">
+                        <div className="flex items-center justify-between text-xs font-bold text-slate-200 tracking-wider uppercase mb-2">
+                          <span>{language === 'bn' ? 'মোট মেম্বার ব্যালেন্স' : 'Total Member Wallet Funds'}</span>
+                          <Wallet className="w-4 h-4 text-emerald-400" />
                         </div>
+                        <p className="text-2xl font-extrabold font-mono text-emerald-400">৳{totalMembersBalance.toFixed(2)}</p>
+                        <p className="text-xs text-slate-300 font-medium mt-1">Available for refreshments</p>
                       </div>
 
-                      {/* Super Admin Delete Button */}
-                      {isSuper && (
-                        <div>
-                          {isMemberRootSuper ? (
-                            <span title="Root Super Admin is protected" className="p-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-400 inline-flex items-center">
-                              <ShieldCheck className="w-3.5 h-3.5" />
-                            </span>
-                          ) : (
+                      return (
+                      <div
+                        key={member.id}
+                        className="p-5 rounded-3xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 hover:border-emerald-500/70 shadow-lg transition-all duration-300 hover:scale-[1.01] flex flex-col justify-between space-y-4"
+                      >
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <img
+                                src={member.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.name)}&background=047857&color=fff`}
+                                alt={member.name}
+                                className="w-12 h-12 rounded-2xl object-cover ring-2 ring-emerald-500/30"
+                              />
+                              <div className="min-w-0">
+                                <h3 className="font-serif font-bold text-slate-900 dark:text-white text-base leading-snug truncate">
+                                  {member.name}
+                                </h3>
+                                <p className="text-[11px] text-amber-600 dark:text-amber-300 font-mono font-semibold truncate">
+                                  {member.username || `@${member.email.split('@')[0]}`}
+                                </p>
+                                <span className="inline-block mt-0.5 px-2 py-0.2 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
+                                  {member.department}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Super Admin Delete Button */}
+                            {isSuper && (
+                              <div>
+                                {isMemberRootSuper ? (
+                                  <span title="Root Super Admin is protected" className="p-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 inline-flex items-center">
+                                    <ShieldCheck className="w-3.5 h-3.5" />
+                                  </span>
+                                ) : (
+                                  <button
+                                    onClick={() => {
+                                      setDeleteError('');
+                                      setDeleteModalUser(member);
+                                    }}
+                                    title="Delete Member (Permanent DB removal)"
+                                    className="p-2 rounded-xl bg-slate-100 dark:bg-slate-950 hover:bg-rose-100 dark:hover:bg-rose-950 text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 border border-slate-200 dark:border-slate-800 hover:border-rose-400 transition-all hover:scale-105"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 space-y-1.5 text-xs">
+                            <div className="flex justify-between items-center">
+                              <span className="text-slate-600 dark:text-slate-400">{language === 'bn' ? 'ব্যালেন্স:' : 'Balance:'}</span>
+                              <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 text-sm">৳{(member.balance || 0).toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-slate-600 dark:text-slate-400">{language === 'bn' ? 'মোট খরচ:' : 'Total Spent:'}</span>
+                              <span className="font-mono font-medium text-amber-600 dark:text-amber-200">৳{(member.totalSpent || 0).toFixed(2)}</span>
+                            </div>
+                            {(Number(member.currentDue) || 0) > 0 && (
+                              <div className="flex justify-between items-center pt-1 border-t border-slate-200 dark:border-slate-800/80">
+                                <span className="text-rose-600 dark:text-rose-400 font-medium">{language === 'bn' ? 'বকেয়া পাওনা:' : 'Current Due:'}</span>
+                                <span className="font-mono font-bold text-rose-600 dark:text-rose-400">৳{(Number(member.currentDue) || 0).toFixed(2)}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          {/* Balance Manage Buttons */}
+                          <div className="grid grid-cols-3 gap-1">
                             <button
-                              onClick={() => {
-                                setDeleteError('');
-                                setDeleteModalUser(member);
-                              }}
-                              title="Delete Member (Permanent DB removal)"
-                              className="p-2 rounded-xl bg-slate-100 hover:bg-rose-100 dark:bg-slate-950 dark:hover:bg-rose-950 text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 border border-slate-200 dark:border-slate-800 hover:border-rose-300 dark:hover:border-rose-800/80 transition-all hover:scale-105"
+                              onClick={() => openBalanceModal(member, 'add')}
+                              className="py-1.5 px-1 rounded-lg bg-emerald-50 dark:bg-emerald-950 hover:bg-emerald-100 dark:hover:bg-emerald-900 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700/60 font-bold text-[11px] flex items-center justify-center gap-0.5 transition-colors"
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <PlusCircle className="w-3 h-3" />
+                              <span>Add</span>
                             </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
+                            <button
+                              onClick={() => openBalanceModal(member, 'deduct')}
+                              className="py-1.5 px-1 rounded-lg bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 dark:hover:bg-rose-900 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-800/60 font-bold text-[11px] flex items-center justify-center gap-0.5 transition-colors"
+                            >
+                              <MinusCircle className="w-3 h-3" />
+                              <span>Deduct</span>
+                            </button>
+                            <button
+                              onClick={() => openBalanceModal(member, 'set')}
+                              className="py-1.5 px-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-amber-300 border border-slate-300 dark:border-slate-700 font-bold text-[11px] flex items-center justify-center gap-0.5 transition-colors"
+                            >
+                              <Edit3 className="w-3 h-3" />
+                              <span>Edit</span>
+                            </button>
+                          </div>
+                          <p className="text-2xl font-bold text-white">Dynamic Store</p>
+                          <p className="text-[11px] text-slate-400 mt-1">Zero Dummy Accounts</p>
+                          <div className={`p-5 rounded-2xl bg-slate-900/80 border shadow-lg ${totalMembersDue > 0 ? 'border-rose-500/40' : 'border-teal-500/30'}`}>
+                            <div className="flex items-center justify-between text-xs text-slate-400 mb-2 font-medium">
+                              <span>{language === 'bn' ? 'মোট বকেয়া পাওনা হিসাব' : 'Total Outstanding Dues'}</span>
+                              {totalMembersDue > 0 ? (
+                                <AlertCircle className="w-4 h-4 text-rose-400" />
+                              ) : (
+                                <CheckCircle2 className="w-4 h-4 text-teal-400" />
+                              )}
+                            </div>
+                            <p className={`text-2xl font-bold font-mono ${totalMembersDue > 0 ? 'text-rose-400' : 'text-teal-300'}`}>
+                              ৳{totalMembersDue.toFixed(2)}
+                            </p>
+                            <p className={`text-[11px] mt-1 ${totalMembersDue > 0 ? 'text-rose-400' : 'text-teal-400/80'}`}>
+                              {totalMembersDue > 0
+                                ? (language === 'bn' ? `${dueMembersCount} জন মেম্বারের বকেয়া পাওনা রয়েছে` : `${dueMembersCount} members with pending dues`)
+                                : (language === 'bn' ? 'সকল মেম্বার একাউন্ট ক্লিয়ার (বকেয়া নেই)' : 'Zero outstanding dues • All accounts clear')}
+                            </p>
+                          </div>
 
-                    <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 space-y-1.5 text-xs">
-                      <div className="flex justify-between items-center">
-                        <span className="text-slate-600 dark:text-slate-400">{language === 'bn' ? 'ব্যালেন্স:' : 'Balance:'}</span>
-                        <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400 text-sm">৳{(member.balance || 0).toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-slate-600 dark:text-slate-400">{language === 'bn' ? 'মোট খরচ:' : 'Total Spent:'}</span>
-                        <span className="font-mono font-medium text-amber-700 dark:text-amber-200">৳{(member.totalSpent || 0).toFixed(2)}</span>
-                      </div>
-                      {(Number(member.currentDue) || 0) > 0 && (
-                        <div className="flex justify-between items-center pt-1 border-t border-slate-200 dark:border-slate-800/80">
-                          <span className="text-rose-700 dark:text-rose-400 font-medium">{language === 'bn' ? 'বকেয়া পাওনা:' : 'Current Due:'}</span>
-                          <span className="font-mono font-bold text-rose-700 dark:text-rose-400">৳{(Number(member.currentDue) || 0).toFixed(2)}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                          {/* Member Actions: Order & Chat/Call */}
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              onClick={() => setSelectedOrderMember(member.name)}
+                              className="py-2 px-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-white font-bold text-xs shadow-sm transition-all flex items-center justify-center gap-1.5"
+                            >
+                              <Utensils className="w-3.5 h-3.5" />
+                              <span>{language === 'bn' ? 'অর্ডার দিন' : 'Order Food'}</span>
+                            </button>
+                            <Link
+                              href={`/chat?memberId=${encodeURIComponent(member.id)}`}
+                              className="py-2 px-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-amber-300 font-bold text-xs border border-slate-300 dark:border-amber-500/30 transition-all flex items-center justify-center gap-1.5"
+                            >
+                              <MessageSquare className="w-3.5 h-3.5" />
+                              <span>{language === 'bn' ? 'মেসেজ ও কল' : 'Chat & Call'}</span>
+                            </Link>
+                          </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     {/* Balance Manage Buttons */}
-                    <div className="grid grid-cols-3 gap-1">
+                    <div className="grid grid-cols-3 gap-2">
                       <button
                         onClick={() => openBalanceModal(member, 'add')}
-                        className="py-1.5 px-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950 dark:hover:bg-emerald-900 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700/60 font-bold text-[11px] flex items-center justify-center gap-0.5 shadow-sm"
+                        className="py-2 px-2 rounded-xl bg-emerald-50/90 hover:bg-emerald-100 dark:bg-emerald-950/70 dark:hover:bg-emerald-900 text-emerald-800 dark:text-emerald-300 border border-emerald-500/20 dark:border-emerald-700/60 font-semibold text-xs flex items-center justify-center gap-1 shadow-xs transition-all hover:scale-[1.02]"
                       >
-                        <PlusCircle className="w-3 h-3" />
+                        <PlusCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                         <span>Add</span>
                       </button>
                       <button
                         onClick={() => openBalanceModal(member, 'deduct')}
-                        className="py-1.5 px-1 rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/60 dark:hover:bg-rose-900 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-800/60 font-bold text-[11px] flex items-center justify-center gap-0.5 shadow-sm"
+                        className="py-2 px-2 rounded-xl bg-rose-50/90 hover:bg-rose-100 dark:bg-rose-950/60 dark:hover:bg-rose-900 text-rose-800 dark:text-rose-300 border border-rose-500/20 dark:border-rose-800/60 font-semibold text-xs flex items-center justify-center gap-1 shadow-xs transition-all hover:scale-[1.02]"
                       >
-                        <MinusCircle className="w-3 h-3" />
+                        <MinusCircle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
                         <span>Deduct</span>
                       </button>
                       <button
                         onClick={() => openBalanceModal(member, 'set')}
-                        className="py-1.5 px-1 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-amber-800 dark:text-amber-300 border border-slate-300 dark:border-slate-700 font-bold text-[11px] flex items-center justify-center gap-0.5 shadow-sm"
+                        className="py-2 px-2 rounded-xl bg-amber-50/90 hover:bg-amber-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-amber-800 dark:text-amber-300 border border-amber-500/20 dark:border-slate-700 font-semibold text-xs flex items-center justify-center gap-1 shadow-xs transition-all hover:scale-[1.02]"
                       >
-                        <Edit3 className="w-3 h-3" />
+                        <Edit3 className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
                         <span>Edit</span>
                       </button>
                     </div>
 
                     {/* Member Actions: Order & Chat/Call */}
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-2 gap-2.5">
                       <button
                         onClick={() => setSelectedOrderMember(member.name)}
-                        className="py-2 px-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-white font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow-md shadow-emerald-950/20"
+                        className="py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-white font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow-sm hover:scale-[1.02] active:scale-[0.98]"
                       >
                         <Utensils className="w-3.5 h-3.5" />
                         <span>{language === 'bn' ? 'অর্ডার দিন' : 'Order Food'}</span>
                       </button>
                       <Link
                         href={`/chat?memberId=${encodeURIComponent(member.id)}`}
-                        className="py-2 px-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-amber-500 text-slate-800 hover:text-slate-900 dark:text-amber-300 dark:hover:text-slate-950 font-bold text-xs border border-slate-300 dark:border-amber-500/30 transition-all flex items-center justify-center gap-1.5 shadow-sm"
+                        className="py-2.5 px-3 rounded-xl bg-slate-100/90 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs border border-slate-200/80 dark:border-slate-700/80 transition-all flex items-center justify-center gap-1.5 shadow-xs hover:scale-[1.02] active:scale-[0.98]"
                       >
-                        <MessageSquare className="w-3.5 h-3.5" />
+                        <MessageSquare className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
                         <span>{language === 'bn' ? 'মেসেজ ও কল' : 'Chat & Call'}</span>
                       </Link>
                     </div>
@@ -462,357 +557,455 @@ function MembersPageContent() {
           </div>
         )}
 
-      </main>
+                                                {/* Super Admin Delete Button */}
+                                                {isSuper && (
+                                                  <div>
+                                                    {isMemberRootSuper ? (
+                                                      <span title="Root Super Admin is protected" className="p-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 inline-flex items-center">
+                                                        <ShieldCheck className="w-3.5 h-3.5" />
+                                                      </span>
+                                                    ) : (
+                                                      <button
+                                                        onClick={() => {
+                                                          setDeleteError('');
+                                                          setDeleteModalUser(member);
+                                                        }}
+                                                        title="Delete Member (Permanent DB removal)"
+                                                        className="p-2 rounded-xl bg-slate-950 hover:bg-rose-950 text-slate-500 hover:text-rose-400 border border-slate-800 hover:border-rose-800/80 transition-all hover:scale-105"
+                                                      >
+                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                      </button>
+                                                    )}
+                                                  </div>
+                                                )}
+                                              </div>
 
-      {/* Balance Modal (Add, Deduct, Set) */}
-      {balanceModalUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
-          <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-amber-500/50 rounded-3xl p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
-              <div className="flex items-center gap-2">
-                <Coins className="w-5 h-5 text-amber-500 dark:text-amber-400" />
-                <h3 className="font-bold text-slate-900 dark:text-white text-base">
-                  ব্যালেন্স নিয়ন্ত্রণ (Manage Balance)
-                </h3>
-              </div>
-              <button
-                onClick={() => setBalanceModalUser(null)}
-                className="text-slate-400 hover:text-slate-900 dark:hover:text-white"
-              >
-                ✕
-              </button>
-            </div>
+                                              <div className="p-3 rounded-2xl bg-slate-950 border border-slate-800/80 space-y-1.5 text-xs">
+                                                <div className="flex justify-between items-center">
+                                                  <span className="text-slate-400">{language === 'bn' ? 'ব্যালেন্স:' : 'Balance:'}</span>
+                                                  <span className="font-mono font-bold text-emerald-400 text-sm">৳{member.balance.toFixed(2)}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center">
+                                                  <span className="text-slate-400">{language === 'bn' ? 'মোট খরচ:' : 'Total Spent:'}</span>
+                                                  <span className="font-mono font-medium text-amber-200">৳{member.totalSpent.toFixed(2)}</span>
+                                                </div>
+                                              </div>
+                                            </div>
 
-            <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-1">
-              <p className="text-xs text-slate-700 dark:text-slate-300">
-                গ্রাহক: <strong className="text-amber-700 dark:text-amber-300">{balanceModalUser.name}</strong> ({balanceModalUser.email})
-              </p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                বর্তমান ব্যালেন্স: <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400 text-sm">৳{balanceModalUser.balance.toFixed(2)}</span>
-              </p>
-            </div>
+                                            <div className="space-y-2">
+                                              {/* Balance Manage Buttons */}
+                                              <div className="grid grid-cols-3 gap-1">
+                                                <button
+                                                  onClick={() => openBalanceModal(member, 'add')}
+                                                  className="py-1.5 px-1 rounded-lg bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/60 font-semibold text-[11px] flex items-center justify-center gap-0.5"
+                                                >
+                                                  <PlusCircle className="w-3 h-3" />
+                                                  <span>Add</span>
+                                                </button>
+                                                <button
+                                                  onClick={() => openBalanceModal(member, 'deduct')}
+                                                  className="py-1.5 px-1 rounded-lg bg-rose-950/60 hover:bg-rose-900 text-rose-300 border border-rose-800/60 font-semibold text-[11px] flex items-center justify-center gap-0.5"
+                                                >
+                                                  <MinusCircle className="w-3 h-3" />
+                                                  <span>Deduct</span>
+                                                </button>
+                                                <button
+                                                  onClick={() => openBalanceModal(member, 'set')}
+                                                  className="py-1.5 px-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 font-semibold text-[11px] flex items-center justify-center gap-0.5"
+                                                >
+                                                  <Edit3 className="w-3 h-3" />
+                                                  <span>Edit</span>
+                                                </button>
+                                                <div className="p-3 rounded-2xl bg-slate-950 border border-slate-800/80 space-y-1.5 text-xs">
+                                                  <div className="flex justify-between items-center">
+                                                    <span className="text-slate-400">{language === 'bn' ? 'ব্যালেন্স:' : 'Balance:'}</span>
+                                                    <span className="font-mono font-bold text-emerald-400 text-sm">৳{(member.balance || 0).toFixed(2)}</span>
+                                                  </div>
 
-            <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800">
-              <button
-                type="button"
-                onClick={() => setBalanceAction('add')}
-                className={`py-2 text-xs font-bold rounded-xl transition-all ${balanceAction === 'add'
-                  ? 'bg-emerald-600 text-white shadow-md'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-              >
-                + যোগ (Add)
-              </button>
+                                                  {/* Member Actions: Order & Chat/Call */}
+                                                  <div className="grid grid-cols-2 gap-2">
+                                                    <button
+                                                      onClick={() => setSelectedOrderMember(member.name)}
+                                                      className="py-2 px-2.5 rounded-xl bg-slate-800 hover:bg-emerald-600 text-slate-200 hover:text-slate-950 font-bold text-xs transition-all flex items-center justify-center gap-1.5"
+                                                    >
+                                                      <Utensils className="w-3.5 h-3.5" />
+                                                      <span>{language === 'bn' ? 'অর্ডার দিন' : 'Order Food'}</span>
+                                                    </button>
+                                                    <Link
+                                                      href={`/chat?memberId=${encodeURIComponent(member.id)}`}
+                                                      className="py-2 px-2.5 rounded-xl bg-slate-900 hover:bg-amber-500 text-amber-300 hover:text-slate-950 font-bold text-xs border border-amber-500/30 transition-all flex items-center justify-center gap-1.5"
+                                                    >
+                                                      <MessageSquare className="w-3.5 h-3.5" />
+                                                      <span>{language === 'bn' ? 'মেসেজ ও কল' : 'Chat & Call'}</span>
+                                                    </Link>
+                                                    <div className="flex justify-between items-center">
+                                                      <span className="text-slate-400">{language === 'bn' ? 'মোট খরচ:' : 'Total Spent:'}</span>
+                                                      <span className="font-mono font-medium text-amber-200">৳{(member.totalSpent || 0).toFixed(2)}</span>
+                                                    </div>
+                                                    {(Number(member.currentDue) || 0) > 0 && (
+                                                      <div className="flex justify-between items-center pt-1 border-t border-slate-800/80">
+                                                        <span className="text-rose-400 font-medium">{language === 'bn' ? 'বকেয়া পাওনা:' : 'Current Due:'}</span>
+                                                        <span className="font-mono font-bold text-rose-400">৳{(Number(member.currentDue) || 0).toFixed(2)}</span>
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                </div>
+                                                );
+              })}
+                                              </div>
+          )}
 
-              <button
-                type="button"
-                onClick={() => setBalanceAction('deduct')}
-                className={`py-2 text-xs font-bold rounded-xl transition-all ${balanceAction === 'deduct'
-                  ? 'bg-rose-600 text-white shadow-md'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-              >
-                - কর্তন (Deduct)
-              </button>
+                                            </main>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setBalanceAction('set');
-                  setBalanceAmount(balanceModalUser.balance);
-                }}
-                className={`py-2 text-xs font-bold rounded-xl transition-all ${balanceAction === 'set'
-                  ? 'bg-amber-500 text-white shadow-md'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-              >
-                ✏️ এডিট (Set)
-              </button>
-            </div>
+                                            {/* Balance Modal (Add, Deduct, Set) */}
+                                            {balanceModalUser && (
+                                              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
+                                                <div className="w-full max-w-md bg-slate-900 border border-amber-500/50 rounded-3xl p-6 shadow-2xl space-y-4">
+                                                  <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                                                    <div className="flex items-center gap-2">
+                                                      <Coins className="w-5 h-5 text-amber-400" />
+                                                      <h3 className="font-bold text-white text-base">
+                                                        ব্যালেন্স নিয়ন্ত্রণ (Manage Balance)
+                                                      </h3>
+                                                    </div>
+                                                    <button
+                                                      onClick={() => setBalanceModalUser(null)}
+                                                      className="text-slate-400 hover:text-white"
+                                                    >
+                                                      ✕
+                                                    </button>
+                                                  </div>
 
-            <form onSubmit={handleBalanceSubmit} className="space-y-4">
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-400 uppercase mb-1">
-                  {balanceAction === 'add'
-                    ? 'কত টাকা যোগ করতে চান? (BDT ৳)'
-                    : (balanceAction === 'deduct' ? 'কত টাকা কর্তন করতে চান? (BDT ৳)' : 'নতুন মোট ব্যালেন্স কত নির্ধারণ করতে চান? (BDT ৳)')}
-                </label>
+                                                  <div className="p-3 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
+                                                    <p className="text-xs text-slate-300">
+                                                      গ্রাহক: <strong className="text-amber-300">{balanceModalUser.name}</strong> ({balanceModalUser.email})
+                                                    </p>
+                                                    <p className="text-xs text-slate-400">
+                                                      বর্তমান ব্যালেন্স: <span className="font-mono font-bold text-emerald-400 text-sm">৳{balanceModalUser.balance.toFixed(2)}</span>
+                                                    </p>
+                                                  </div>
 
-                {balanceAction !== 'set' && (
-                  <div className="grid grid-cols-4 gap-1.5 mb-2">
-                    {[100, 200, 500, 1000].map(amt => (
-                      <button
-                        type="button"
-                        key={amt}
-                        onClick={() => setBalanceAmount(amt)}
-                        className={`py-1 text-xs font-bold rounded-lg ${balanceAmount === amt ? 'bg-amber-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
-                          }`}
-                      >
-                        ৳{amt}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                                                  <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-950 rounded-2xl border border-slate-800">
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => setBalanceAction('add')}
+                                                      className={`py-2 text-xs font-bold rounded-xl transition-all ${balanceAction === 'add'
+                                                        ? 'bg-emerald-600 text-slate-950 shadow-md'
+                                                        : 'text-slate-400 hover:text-white'
+                                                        }`}
+                                                    >
+                                                      + যোগ (Add)
+                                                    </button>
 
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={balanceAmount}
-                  onChange={e => setBalanceAmount(Number(e.target.value))}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl font-mono text-emerald-700 dark:text-emerald-400 font-bold text-base focus:outline-none focus:border-amber-400"
-                />
-              </div>
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => setBalanceAction('deduct')}
+                                                      className={`py-2 text-xs font-bold rounded-xl transition-all ${balanceAction === 'deduct'
+                                                        ? 'bg-rose-600 text-white shadow-md'
+                                                        : 'text-slate-400 hover:text-white'
+                                                        }`}
+                                                    >
+                                                      - কর্তন (Deduct)
+                                                    </button>
 
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
-                <span className="text-slate-600 dark:text-slate-400">নতুন ব্যালেন্স দাঁড়াবে:</span>
-                <span className="font-mono font-bold text-amber-700 dark:text-amber-300 text-sm">
-                  ৳{balanceAction === 'add'
-                    ? (balanceModalUser.balance + Number(balanceAmount)).toFixed(2)
-                    : (balanceAction === 'deduct'
-                      ? Math.max(0, balanceModalUser.balance - Number(balanceAmount)).toFixed(2)
-                      : Number(balanceAmount).toFixed(2))}
-                </span>
-              </div>
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => {
+                                                        setBalanceAction('set');
+                                                        setBalanceAmount(balanceModalUser.balance);
+                                                      }}
+                                                      className={`py-2 text-xs font-bold rounded-xl transition-all ${balanceAction === 'set'
+                                                        ? 'bg-amber-400 text-slate-950 shadow-md'
+                                                        : 'text-slate-400 hover:text-white'
+                                                        }`}
+                                                    >
+                                                      ✏️ এডিট (Set)
+                                                    </button>
+                                                  </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setBalanceModalUser(null)}
-                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs text-slate-700 dark:text-slate-300 transition-colors"
-                >
-                  বাতিল
-                </button>
-                <button
-                  type="submit"
-                  className={`px-5 py-2 rounded-xl font-bold text-xs shadow-lg ${balanceAction === 'deduct'
-                    ? 'bg-rose-600 text-white hover:bg-rose-500'
-                    : 'bg-gradient-to-r from-emerald-600 to-amber-600 text-white'
-                    }`}
-                >
-                  {balanceAction === 'add' ? 'ব্যালেন্স যোগ করুন' : (balanceAction === 'deduct' ? 'ব্যালেন্স কর্তন করুন' : 'ব্যালেন্স পরিবর্তন করুন')}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+                                                  <form onSubmit={handleBalanceSubmit} className="space-y-4">
+                                                    <div>
+                                                      <label className="block text-[11px] font-semibold text-slate-400 uppercase mb-1">
+                                                        {balanceAction === 'add'
+                                                          ? 'কত টাকা যোগ করতে চান? (BDT ৳)'
+                                                          : (balanceAction === 'deduct' ? 'কত টাকা কর্তন করতে চান? (BDT ৳)' : 'নতুন মোট ব্যালেন্স কত নির্ধারণ করতে চান? (BDT ৳)')}
+                                                      </label>
 
-      {/* Add Member Modal */}
-      {isAddMemberOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
-          <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-emerald-700/80 rounded-3xl p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
-              <h3 className="font-serif font-bold text-slate-900 dark:text-white text-base">
-                {language === 'bn' ? 'নতুন মেম্বার যুক্ত করুন' : 'Register New Team Member'}
-              </h3>
-              <button onClick={() => setIsAddMemberOpen(false)} className="text-slate-400 hover:text-slate-900 dark:hover:text-white">✕</button>
-            </div>
+                                                      {balanceAction !== 'set' && (
+                                                        <div className="grid grid-cols-4 gap-1.5 mb-2">
+                                                          {[100, 200, 500, 1000].map(amt => (
+                                                            <button
+                                                              type="button"
+                                                              key={amt}
+                                                              onClick={() => setBalanceAmount(amt)}
+                                                              className={`py-1 text-xs font-bold rounded-lg ${balanceAmount === amt ? 'bg-amber-400 text-slate-950' : 'bg-slate-800 text-slate-300'
+                                                                }`}
+                                                            >
+                                                              ৳{amt}
+                                                            </button>
+                                                          ))}
+                                                        </div>
+                                                      )}
 
-            <form onSubmit={handleAddMemberSubmit} className="space-y-3.5">
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-400 uppercase mb-1">
-                  মেম্বারের পূর্ণ নাম *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={newName}
-                  onChange={e => setNewName(e.target.value)}
-                  placeholder="e.g. Tanvir Ahmed"
-                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-400"
-                />
-              </div>
+                                                      <input
+                                                        type="number"
+                                                        min="0"
+                                                        step="1"
+                                                        value={balanceAmount}
+                                                        onChange={e => setBalanceAmount(Number(e.target.value))}
+                                                        className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl font-mono text-emerald-400 font-bold text-base focus:outline-none focus:border-amber-400"
+                                                      />
+                                                    </div>
 
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-400 uppercase mb-1">
-                  ইমেইল অ্যাড্রেস *
-                </label>
-                <input
-                  type="email"
-                  required
-                  value={newEmail}
-                  onChange={e => setNewEmail(e.target.value)}
-                  placeholder="tanvir@shopify.com"
-                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-400"
-                />
-              </div>
+                                                    <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-between text-xs">
+                                                      <span className="text-slate-400">নতুন ব্যালেন্স দাঁড়াবে:</span>
+                                                      <span className="font-mono font-bold text-amber-300 text-sm">
+                                                        ৳{balanceAction === 'add'
+                                                          ? (balanceModalUser.balance + Number(balanceAmount)).toFixed(2)
+                                                          : (balanceAction === 'deduct'
+                                                            ? Math.max(0, balanceModalUser.balance - Number(balanceAmount)).toFixed(2)
+                                                            : Number(balanceAmount).toFixed(2))}
+                                                      </span>
+                                                    </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-400 uppercase mb-1">
-                    ডিপার্টমেন্ট
-                  </label>
-                  <select
-                    value={newDept}
-                    onChange={e => setNewDept(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none"
-                  >
-                    <option value="Development">Development</option>
-                    <option value="Marketing">Marketing</option>
-                    <option value="Design & UX">Design & UX</option>
-                    <option value="Engineering">Engineering</option>
-                    <option value="Operations">Operations</option>
-                    <option value="Support">Support</option>
-                    <option value="Logistics">Logistics</option>
-                  </select>
-                </div>
+                                                    <div className="flex items-center justify-end gap-2 pt-2">
+                                                      <button
+                                                        type="button"
+                                                        onClick={() => setBalanceModalUser(null)}
+                                                        className="px-4 py-2 rounded-xl bg-slate-800 text-xs text-slate-300"
+                                                      >
+                                                        বাতিল
+                                                      </button>
+                                                      <button
+                                                        type="submit"
+                                                        className={`px-5 py-2 rounded-xl font-bold text-xs shadow-lg ${balanceAction === 'deduct'
+                                                          ? 'bg-rose-600 text-white hover:bg-rose-500'
+                                                          : 'bg-gradient-to-r from-emerald-600 to-amber-600 text-slate-950'
+                                                          }`}
+                                                      >
+                                                        {balanceAction === 'add' ? 'ব্যালেন্স যোগ করুন' : (balanceAction === 'deduct' ? 'ব্যালেন্স কর্তন করুন' : 'ব্যালেন্স পরিবর্তন করুন')}
+                                                      </button>
+                                                    </div>
+                                                  </form>
+                                                </div>
+                                              </div>
+                                            )}
 
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-400 uppercase mb-1">
-                    প্রাথমিক ব্যালেন্স (৳)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={newBalance}
-                    onChange={e => setNewBalance(Number(e.target.value))}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-mono font-bold text-emerald-700 dark:text-emerald-400 focus:outline-none focus:border-amber-400"
-                  />
-                </div>
-              </div>
+                                            {/* Add Member Modal */}
+                                            {isAddMemberOpen && (
+                                              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
+                                                <div className="w-full max-w-md bg-slate-900 border border-emerald-700/80 rounded-3xl p-6 shadow-2xl space-y-4">
+                                                  <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                                                    <h3 className="font-serif font-bold text-white text-base">
+                                                      {language === 'bn' ? 'নতুন মেম্বার যুক্ত করুন' : 'Register New Team Member'}
+                                                    </h3>
+                                                    <button onClick={() => setIsAddMemberOpen(false)} className="text-slate-400 hover:text-white">✕</button>
+                                                  </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setIsAddMemberOpen(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-xs text-slate-700 dark:text-slate-300 transition-colors"
-                >
-                  বাতিল
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 text-white font-bold text-xs shadow-md"
-                >
-                  মেম্বার সংরক্ষণ করুন
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+                                                  <form onSubmit={handleAddMemberSubmit} className="space-y-3.5">
+                                                    <div>
+                                                      <label className="block text-[11px] font-semibold text-slate-400 uppercase mb-1">
+                                                        মেম্বারের পূর্ণ নাম *
+                                                      </label>
+                                                      <input
+                                                        type="text"
+                                                        required
+                                                        value={newName}
+                                                        onChange={e => setNewName(e.target.value)}
+                                                        placeholder="e.g. Tanvir Ahmed"
+                                                        className="w-full px-3.5 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-amber-400"
+                                                      />
+                                                    </div>
 
-      {/* Quick Order Modal */}
-      {selectedOrderMember && (
-        <QuickOrderModal
-          isOpen={true}
-          prefillCustomer={selectedOrderMember}
-          onClose={() => setSelectedOrderMember(null)}
-          onSubmit={async (data) => {
-            await fetch('/api/orders', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                ...data,
-                customerName: selectedOrderMember,
-              }),
-            });
-            fetchMembers();
-          }}
-        />
-      )}
+                                                    <div>
+                                                      <label className="block text-[11px] font-semibold text-slate-400 uppercase mb-1">
+                                                        ইমেইল অ্যাড্রেস *
+                                                      </label>
+                                                      <input
+                                                        type="email"
+                                                        required
+                                                        value={newEmail}
+                                                        onChange={e => setNewEmail(e.target.value)}
+                                                        placeholder="tanvir@shopify.com"
+                                                        className="w-full px-3.5 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-amber-400"
+                                                      />
+                                                    </div>
 
-      {/* Permanent Member Deletion Confirmation Modal */}
-      {deleteModalUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
-          <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-rose-600/50 rounded-3xl p-6 shadow-2xl space-y-4">
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                      <div>
+                                                        <label className="block text-[11px] font-semibold text-slate-400 uppercase mb-1">
+                                                          ডিপার্টমেন্ট
+                                                        </label>
+                                                        <select
+                                                          value={newDept}
+                                                          onChange={e => setNewDept(e.target.value)}
+                                                          className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none"
+                                                        >
+                                                          <option value="Development">Development</option>
+                                                          <option value="Marketing">Marketing</option>
+                                                          <option value="Design & UX">Design & UX</option>
+                                                          <option value="Engineering">Engineering</option>
+                                                          <option value="Operations">Operations</option>
+                                                          <option value="Support">Support</option>
+                                                          <option value="Logistics">Logistics</option>
+                                                        </select>
+                                                      </div>
 
-            {/* Modal Header */}
-            <div className="text-center space-y-2">
-              <div className="w-12 h-12 rounded-2xl bg-rose-50 dark:bg-rose-950/80 border border-rose-200 dark:border-rose-700/60 flex items-center justify-center mx-auto text-rose-600 dark:text-rose-400">
-                <Trash2 className="w-6 h-6 animate-pulse" />
-              </div>
-              <h3 className="font-serif font-bold text-slate-900 dark:text-white text-lg">
-                Permanently Delete Member?
-              </h3>
-              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                This action is irreversible. The member profile and all associated catering database records will be permanently purged.
-              </p>
-            </div>
+                                                      <div>
+                                                        <label className="block text-[11px] font-semibold text-slate-400 uppercase mb-1">
+                                                          প্রাথমিক ব্যালেন্স (৳)
+                                                        </label>
+                                                        <input
+                                                          type="number"
+                                                          min="0"
+                                                          value={newBalance}
+                                                          onChange={e => setNewBalance(Number(e.target.value))}
+                                                          className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs font-mono font-bold text-emerald-400 focus:outline-none focus:border-amber-400"
+                                                        />
+                                                      </div>
+                                                    </div>
 
-            {/* Target Member Card */}
-            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2">
-              <div className="flex items-center gap-3">
-                <img
-                  src={deleteModalUser.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(deleteModalUser.name)}&background=047857&color=fff`}
-                  alt={deleteModalUser.name}
-                  className="w-10 h-10 rounded-xl object-cover ring-1 ring-rose-500/30"
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="font-bold text-slate-900 dark:text-white text-sm truncate">{deleteModalUser.name}</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-mono truncate">{deleteModalUser.email}</p>
-                </div>
-              </div>
+                                                    <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+                                                      <button
+                                                        type="button"
+                                                        onClick={() => setIsAddMemberOpen(false)}
+                                                        className="px-4 py-2 rounded-xl bg-slate-800 text-xs text-slate-300"
+                                                      >
+                                                        বাতিল
+                                                      </button>
+                                                      <button
+                                                        type="submit"
+                                                        className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 text-slate-950 font-bold text-xs"
+                                                      >
+                                                        মেম্বার সংরক্ষণ করুন
+                                                      </button>
+                                                    </div>
+                                                  </form>
+                                                </div>
+                                              </div>
+                                            )}
 
-              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200 dark:border-slate-900 text-xs">
-                <div>
-                  <span className="text-slate-500">Department:</span>
-                  <p className="text-slate-800 dark:text-slate-300 font-medium">{deleteModalUser.department}</p>
-                </div>
-                <div>
-                  <span className="text-slate-500">Remaining Balance:</span>
-                  <p className={`font-mono font-bold ${deleteModalUser.balance > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-slate-500 dark:text-slate-400'}`}>
-                    ৳{deleteModalUser.balance.toFixed(2)}
-                  </p>
-                </div>
-              </div>
+                                            {/* Quick Order Modal */}
+                                            {selectedOrderMember && (
+                                              <QuickOrderModal
+                                                isOpen={true}
+                                                prefillCustomer={selectedOrderMember}
+                                                onClose={() => setSelectedOrderMember(null)}
+                                                onSubmit={async (data) => {
+                                                  await fetch('/api/orders', {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({
+                                                      ...data,
+                                                      customerName: selectedOrderMember,
+                                                    }),
+                                                  });
+                                                  fetchMembers();
+                                                }}
+                                              />
+                                            )}
 
-              {deleteModalUser.balance > 0 && (
-                <div className="flex items-center gap-1.5 p-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-600/30 text-[11px] text-amber-800 dark:text-amber-300">
-                  <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
-                  <span>Warning: This user still has an active balance of ৳{deleteModalUser.balance.toFixed(2)}.</span>
-                </div>
-              )}
-            </div>
+                                            {/* Permanent Member Deletion Confirmation Modal */}
+                                            {deleteModalUser && (
+                                              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
+                                                <div className="w-full max-w-md bg-slate-900 border border-rose-600/50 rounded-3xl p-6 shadow-2xl space-y-4">
 
-            {deleteError && (
-              <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-300 text-xs">
-                {deleteError}
-              </div>
-            )}
+                                                  {/* Modal Header */}
+                                                  <div className="text-center space-y-2">
+                                                    <div className="w-12 h-12 rounded-2xl bg-rose-950/80 border border-rose-700/60 flex items-center justify-center mx-auto text-rose-400">
+                                                      <Trash2 className="w-6 h-6 animate-pulse" />
+                                                    </div>
+                                                    <h3 className="font-serif font-bold text-white text-lg">
+                                                      Permanently Delete Member?
+                                                    </h3>
+                                                    <p className="text-xs text-slate-400 leading-relaxed">
+                                                      This action is irreversible. The member profile and all associated catering database records will be permanently purged.
+                                                    </p>
+                                                  </div>
 
-            {/* Modal Actions */}
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
-              <button
-                type="button"
-                disabled={isDeleting}
-                onClick={() => setDeleteModalUser(null)}
-                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs text-slate-700 dark:text-slate-300 font-semibold transition-colors disabled:opacity-50"
-              >
-                Cancel
-              </button>
+                                                  {/* Target Member Card */}
+                                                  <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
+                                                    <div className="flex items-center gap-3">
+                                                      <img
+                                                        src={deleteModalUser.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(deleteModalUser.name)}&background=047857&color=fff`}
+                                                        alt={deleteModalUser.name}
+                                                        className="w-10 h-10 rounded-xl object-cover ring-1 ring-rose-500/30"
+                                                      />
+                                                      <div className="min-w-0 flex-1">
+                                                        <p className="font-bold text-white text-sm truncate">{deleteModalUser.name}</p>
+                                                        <p className="text-xs text-slate-400 font-mono truncate">{deleteModalUser.email}</p>
+                                                      </div>
+                                                    </div>
 
-              <button
-                type="button"
-                disabled={isDeleting}
-                onClick={handleDeleteMember}
-                className="px-5 py-2 rounded-xl bg-gradient-to-r from-rose-700 to-rose-600 hover:from-rose-600 hover:to-rose-500 text-white font-bold text-xs shadow-lg shadow-rose-950/50 flex items-center gap-1.5 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
-              >
-                {isDeleting ? (
-                  <>
-                    <div className="w-3.5 h-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                    <span>Purging from Database...</span>
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Confirm Permanent Delete</span>
-                  </>
-                )}
-              </button>
-            </div>
+                                                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-900 text-xs">
+                                                      <div>
+                                                        <span className="text-slate-500">Department:</span>
+                                                        <p className="text-slate-300 font-medium">{deleteModalUser.department}</p>
+                                                      </div>
+                                                      <div>
+                                                        <span className="text-slate-500">Remaining Balance:</span>
+                                                        <p className={`font-mono font-bold ${deleteModalUser.balance > 0 ? 'text-amber-400' : 'text-slate-400'}`}>
+                                                          ৳{deleteModalUser.balance.toFixed(2)}
+                                                        </p>
+                                                      </div>
+                                                    </div>
 
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+                                                    {deleteModalUser.balance > 0 && (
+                                                      <div className="flex items-center gap-1.5 p-2 rounded-xl bg-amber-950/40 border border-amber-600/30 text-[11px] text-amber-300">
+                                                        <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-amber-400" />
+                                                        <span>Warning: This user still has an active balance of ৳{deleteModalUser.balance.toFixed(2)}.</span>
+                                                      </div>
+                                                    )}
+                                                  </div>
 
-export default function MembersPage() {
-  return (
-    <AuthGuard allowedRoles={['super_admin', 'admin']}>
-      <MembersPageContent />
-    </AuthGuard>
-  );
-}
+                                                  {deleteError && (
+                                                    <div className="p-3 rounded-xl bg-rose-950/60 border border-rose-800 text-rose-300 text-xs">
+                                                      {deleteError}
+                                                    </div>
+                                                  )}
+
+                                                  {/* Modal Actions */}
+                                                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+                                                    <button
+                                                      type="button"
+                                                      disabled={isDeleting}
+                                                      onClick={() => setDeleteModalUser(null)}
+                                                      className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 font-semibold transition-colors disabled:opacity-50"
+                                                    >
+                                                      Cancel
+                                                    </button>
+
+                                                    <button
+                                                      type="button"
+                                                      disabled={isDeleting}
+                                                      onClick={handleDeleteMember}
+                                                      className="px-5 py-2 rounded-xl bg-gradient-to-r from-rose-700 to-rose-600 hover:from-rose-600 hover:to-rose-500 text-white font-bold text-xs shadow-lg shadow-rose-950/50 flex items-center gap-1.5 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
+                                                    >
+                                                      {isDeleting ? (
+                                                        <>
+                                                          <div className="w-3.5 h-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                                                          <span>Purging from Database...</span>
+                                                        </>
+                                                      ) : (
+                                                        <>
+                                                          <Trash2 className="w-3.5 h-3.5" />
+                                                          <span>Confirm Permanent Delete</span>
+                                                        </>
+                                                      )}
+                                                    </button>
+                                                  </div>
+
+                                                </div>
+                                              </div>
+                                            )}
+                                          </div>
+                                        );
+                                      }
+
+  export default function MembersPage() {
+    return (
+                                      <AuthGuard allowedRoles={['super_admin', 'admin']}>
+                                        <MembersPageContent />
+                                      </AuthGuard>
+                                      );
+  }

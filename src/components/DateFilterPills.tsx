@@ -36,7 +36,7 @@ export default function DateFilterPills({
         <span>{language === 'bn' ? 'সময়কাল:' : 'Period:'}</span>
       </div>
 
-      <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-slate-900/90 border border-slate-200 dark:border-emerald-900/40 shadow-inner">
+      <div className="flex items-center gap-1 p-1 rounded-2xl bg-slate-100/90 dark:bg-slate-900/90 border border-slate-200/70 dark:border-slate-800 shadow-xs">
         {options.map((opt) => {
           const isActive = selected === opt.id;
           const count = counts ? counts[opt.id] : undefined;
@@ -46,10 +46,10 @@ export default function DateFilterPills({
               key={opt.id}
               type="button"
               onClick={() => onChange(opt.id)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0 flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 flex items-center gap-1.5 ${
                 isActive
-                  ? 'bg-gradient-to-r from-emerald-600 to-amber-600 text-white font-bold shadow-md shadow-emerald-950/30 scale-[1.02]'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800/80'
+                  ? 'bg-gradient-to-r from-emerald-600 to-amber-600 text-white font-bold shadow-sm scale-[1.02]'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/90 dark:hover:bg-slate-800/60'
               }`}
             >
               <span>{language === 'bn' ? opt.labelBn : opt.labelEn}</span>
@@ -57,8 +57,8 @@ export default function DateFilterPills({
                 <span
                   className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-bold leading-none ${
                     isActive
-                      ? 'bg-black/30 text-white border border-white/30'
-                      : 'bg-slate-200 text-slate-800 border border-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700'
+                      ? 'bg-black/20 text-white border border-white/25'
+                      : 'bg-slate-200/70 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
                   }`}
                 >
                   {count}

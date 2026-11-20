@@ -802,18 +802,18 @@ function ChatHubContent() {
             </div>
 
             {/* Scrollable Directory List */}
-            <div className="flex-1 overflow-y-auto divide-y divide-slate-900/80">
+            <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-900/80">
               {loading ? (
                 <div className="py-12">
                   <LuxuryLoader message="Loading team directory..." size="sm" />
                 </div>
               ) : activeTab === 'active' ? (
                 filteredActiveMembers.length === 0 ? (
-                  <div className="p-8 text-center text-xs text-slate-400 space-y-2">
-                    <div className="w-10 h-10 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-emerald-400 mx-auto">
-                      <span className="w-2.5 h-2.5 rounded-full bg-slate-600" />
+                  <div className="p-8 text-center text-xs text-slate-500 dark:text-slate-400 space-y-2">
+                    <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-emerald-600 dark:text-emerald-400 mx-auto">
+                      <span className="w-2.5 h-2.5 rounded-full bg-slate-400 dark:bg-slate-600" />
                     </div>
-                    <p className="font-semibold text-slate-300">No other colleagues online right now</p>
+                    <p className="font-semibold text-slate-700 dark:text-slate-300">No other colleagues online right now</p>
                     <p className="text-[11px] text-slate-500">Colleagues will automatically appear online here in real time.</p>
                   </div>
                 ) : (
@@ -829,8 +829,8 @@ function ChatHubContent() {
                         }}
                         className={`p-3.5 flex items-center justify-between gap-3 cursor-pointer transition-all ${
                           isSelected
-                            ? 'bg-emerald-950/60 border-l-4 border-amber-400 text-white'
-                            : 'hover:bg-slate-900/60 text-slate-300'
+                            ? 'bg-emerald-50 dark:bg-emerald-950/60 border-l-4 border-amber-500 dark:border-amber-400 text-slate-900 dark:text-white'
+                            : 'hover:bg-slate-100/70 dark:hover:bg-slate-900/60 text-slate-700 dark:text-slate-300'
                         }`}
                       >
                         <div className="flex items-center gap-3 min-w-0">
@@ -840,19 +840,19 @@ function ChatHubContent() {
                               alt={m.name}
                               className="w-10 h-10 rounded-full object-cover ring-2 ring-emerald-500/50"
                             />
-                            <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 border-2 border-slate-950 animate-pulse" />
+                            <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 border-2 border-white dark:border-slate-950 animate-pulse" />
                           </div>
 
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-1.5">
-                              <p className="font-bold text-xs text-white truncate">{m.name}</p>
-                              <span className="text-[10px] font-mono text-amber-300 font-semibold truncate">
+                              <p className="font-bold text-xs text-slate-900 dark:text-white truncate">{m.name}</p>
+                              <span className="text-[10px] font-mono text-amber-700 dark:text-amber-300 font-semibold truncate">
                                 {m.username || `@${m.email.split('@')[0]}`}
                               </span>
                             </div>
-                            <p className="text-[11px] text-slate-400 truncate">{m.department}</p>
-                            <span className="text-[10px] text-emerald-400 font-medium flex items-center gap-1">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{m.department}</p>
+                            <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-medium flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                               Active Now
                             </span>
                           </div>
@@ -868,7 +868,7 @@ function ChatHubContent() {
                               setMobileView('chat');
                             }}
                             title={`Message ${m.name}`}
-                            className="p-2 rounded-xl bg-slate-900 hover:bg-emerald-600 text-slate-300 hover:text-slate-950 border border-slate-800 transition-all hover:scale-105"
+                            className="p-2 rounded-xl bg-slate-100 hover:bg-emerald-600 dark:bg-slate-900 dark:hover:bg-emerald-600 text-slate-700 hover:text-white dark:text-slate-300 dark:hover:text-slate-950 border border-slate-200/80 dark:border-slate-800 transition-all hover:scale-105 shadow-xs"
                           >
                             <MessageSquare className="w-3.5 h-3.5" />
                           </button>
@@ -880,7 +880,7 @@ function ChatHubContent() {
                               handleStartCall(m, null);
                             }}
                             title={`Audio Call ${m.name}`}
-                            className="p-2 rounded-xl bg-slate-900 hover:bg-amber-500 text-amber-300 hover:text-slate-950 border border-amber-500/40 transition-all hover:scale-105"
+                            className="p-2 rounded-xl bg-slate-100 hover:bg-amber-500 dark:bg-slate-900 dark:hover:bg-amber-500 text-amber-700 hover:text-white dark:text-amber-300 dark:hover:text-slate-950 border border-slate-200/80 dark:border-amber-500/40 transition-all hover:scale-105 shadow-xs"
                           >
                             <Phone className="w-3.5 h-3.5" />
                           </button>
@@ -892,7 +892,7 @@ function ChatHubContent() {
               ) : activeTab === 'members' ? (
                 filteredMembers.length === 0 ? (
                   <div className="p-8 text-center text-xs text-slate-400 space-y-1">
-                    <p className="font-semibold text-slate-300">No other members registered</p>
+                    <p className="font-semibold text-slate-700 dark:text-slate-300">No other members registered</p>
                     <p className="text-[11px] text-slate-500">Real users who log in will instantly appear here.</p>
                   </div>
                 ) : (
@@ -910,8 +910,8 @@ function ChatHubContent() {
                         }}
                         className={`p-3.5 flex items-center justify-between gap-3 cursor-pointer transition-all ${
                           isSelected
-                            ? 'bg-emerald-950/60 border-l-4 border-amber-400 text-white'
-                            : 'hover:bg-slate-900/60 text-slate-300'
+                            ? 'bg-emerald-50 dark:bg-emerald-950/60 border-l-4 border-amber-500 dark:border-amber-400 text-slate-900 dark:text-white'
+                            : 'hover:bg-slate-100/70 dark:hover:bg-slate-900/60 text-slate-700 dark:text-slate-300'
                         }`}
                       >
                         <div className="flex items-center gap-3 min-w-0">
@@ -920,11 +920,11 @@ function ChatHubContent() {
                             <img
                               src={m.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(m.name)}&background=047857&color=fff`}
                               alt={m.name}
-                              className="w-10 h-10 rounded-full object-cover ring-1 ring-slate-700"
+                              className="w-10 h-10 rounded-full object-cover ring-1 ring-slate-300 dark:ring-slate-700"
                             />
                             <span 
-                              className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-950 ${
-                                m.isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'
+                              className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white dark:border-slate-950 ${
+                                m.isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-slate-400 dark:bg-slate-600'
                               }`}
                               title={m.isOnline ? 'Active Online' : 'Offline'}
                             />
@@ -932,18 +932,18 @@ function ChatHubContent() {
 
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-1.5">
-                              <p className="font-bold text-xs text-white truncate">{m.name}</p>
+                              <p className="font-bold text-xs text-slate-900 dark:text-white truncate">{m.name}</p>
                               {isBlocked && (
-                                <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-rose-950 text-rose-400 border border-rose-800/40">
+                                <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-400 border border-rose-300 dark:border-rose-800/40">
                                   Blocked
                                 </span>
                               )}
                             </div>
-                            <p className="text-[10px] text-amber-300 font-mono truncate font-semibold">
+                            <p className="text-[10px] text-amber-700 dark:text-amber-300 font-mono truncate font-semibold">
                               {m.username || `@${m.email.split('@')[0]}`}
                             </p>
-                            <p className="text-[11px] text-slate-400 truncate">{m.department}</p>
-                            <span className="text-[10px] text-emerald-400 font-mono">
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{m.department}</p>
+                            <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-mono">
                               {formatLastSeen(m.lastSeen, m.isOnline)}
                             </span>
                           </div>
