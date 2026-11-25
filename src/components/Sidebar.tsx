@@ -9,6 +9,7 @@ import { useToast } from '@/context/ToastContext';
 import ProfileModal from './ProfileModal';
 import QuickOrderModal from './QuickOrderModal';
 import { RoutePermissions, DEFAULT_ROUTE_PERMISSIONS } from '@/lib/types';
+import { getClientCache, setClientCache } from '@/lib/clientCache';
 import { 
   UtensilsCrossed, 
   LayoutDashboard, 
@@ -48,7 +49,9 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [internalOrderOpen, setInternalOrderOpen] = useState(false);
-  const [routePerms, setRoutePerms] = useState<RoutePermissions>(DEFAULT_ROUTE_PERMISSIONS);
+  const [routePerms, setRoutePerms] = useState<RoutePermissions>(() => {
+    return getClientCache<RoutePermissions>('route_perms') || DEFAULT_ROUTE_PERMISSIONS;
+  });
   const [orderControl, setOrderControl] = useState<{
     ordersEnabled: boolean;
     dailyCutoffTime: string;
@@ -58,11 +61,12 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
   } | null>(null);
 
   useEffect(() => {
-    fetch('/api/admin/permissions')
+    fetch(`/api/admin/permissions?t=${Date.now()}`, { cache: 'no-store' })
       .then(r => r.json())
       .then(data => {
         if (data.success && data.data) {
           setRoutePerms(data.data);
+          setClientCache('route_perms', data.data);
         }
       })
       .catch(() => {});
@@ -111,7 +115,7 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
       labelBn: 'ক্যাটারিং মেনু',
       icon: MenuSquare,
       badge: '',
-      show: true,
+      show: !user || isSuper || isRouteAllowed('/menu'),
     },
     {
       href: '/orders',
@@ -119,7 +123,7 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
       labelBn: 'অর্ডার ডিটেইলস',
       icon: Receipt,
       badge: 'All',
-      show: !!user, // Available to all authenticated users
+      show: !!user && (isSuper || isRouteAllowed('/orders')),
     },
     {
       href: '/chat',
@@ -127,7 +131,7 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
       labelBn: 'টিম চ্যাট ও কল',
       icon: MessageSquare,
       badge: 'Live',
-      show: !!user,
+      show: !!user && (isSuper || isRouteAllowed('/chat')),
     },
     {
       href: '/tracker',
@@ -135,7 +139,7 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
       labelBn: 'অর্ডার ট্র্যাকার',
       icon: TableProperties,
       badge: 'Live',
-      show: isAdmin || isRouteAllowed('/tracker'),
+      show: !!user && (isSuper || isRouteAllowed('/tracker')),
     },
     {
       href: '/members',
@@ -143,7 +147,7 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
       labelBn: 'মেম্বার তালিকা',
       icon: Users,
       badge: '',
-      show: isAdmin || isRouteAllowed('/members'),
+      show: !!user && (isSuper || isRouteAllowed('/members')),
     },
     {
       href: '/pos',
@@ -151,7 +155,7 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
       labelBn: 'কাউন্টার পিওএস',
       icon: Calculator,
       badge: 'Fast',
-      show: isAdmin || isRouteAllowed('/pos'),
+      show: !!user && (isSuper || isRouteAllowed('/pos')),
     },
   ];
 
@@ -339,7 +343,7 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
       </div>
 
       {/* Main Navigation Tabs */}
-      <div className="flex-1 overflow-y-auto px-4 py-2 space-y-1">
+      <div className="flex-1 overflow-y-auto px-4 py-2 space-y-1.5">
         <p className="px-3 py-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
           {language === 'bn' ? 'মডিউল ও মেনু' : 'Navigation'}
         </p>
@@ -347,7 +351,6 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
         {navItems.filter(item => item.show).map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
-          const allowed = isRouteAllowed(item.href);
 
           return (
             <Link
@@ -359,24 +362,14 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
                 isActive
                   ? 'bg-gradient-to-r from-emerald-500 to-amber-500 text-slate-950 font-bold shadow-md shadow-emerald-950/30'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-900'
-              } ${!allowed ? 'opacity-60' : ''}`}
+              }`}
             >
               <div className="flex items-center gap-2.5">
                 <Icon className={`w-4 h-4 ${isActive ? 'text-slate-950' : 'text-slate-500 dark:text-slate-400'}`} />
                 <span className={isActive ? 'text-slate-950 font-bold' : ''}>{language === 'bn' ? item.labelBn : item.labelEn}</span>
               </div>
               <div className="flex items-center gap-1.5">
-                {!allowed && (
-                  <span className={`flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full font-bold ${
-                    isActive
-                      ? 'bg-black/25 text-slate-950 border border-black/20'
-                      : 'bg-rose-100 text-rose-700 border border-rose-300 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800'
-                  }`}>
-                    <Lock className="w-2.5 h-2.5" />
-                    <span>Locked</span>
-                  </span>
-                )}
-                {item.badge && allowed && (
+                {item.badge && (
                   <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold font-mono leading-none ${
                     isActive
                       ? 'bg-black/20 text-slate-950 border border-black/10'
@@ -397,27 +390,29 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
               {language === 'bn' ? 'অনুমোদিত ড্যাশবোর্ড' : 'Your Portals'}
             </p>
 
-            {rolePortals.map((item) => {
-              const Icon = item.icon;
-              const isActive = pathname === item.href;
+            <div className="mt-1.5 flex flex-col gap-2">
+              {rolePortals.map((item) => {
+                const Icon = item.icon;
+                const isActive = pathname === item.href;
 
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  prefetch={true}
-                  onClick={() => setMobileOpen(false)}
-                  className={`flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all ${
-                    isActive
-                      ? 'bg-gradient-to-r from-emerald-500 to-amber-500 text-slate-950 font-bold shadow-md'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-900/60'
-                  }`}
-                >
-                  <Icon className={`w-4 h-4 ${isActive ? 'text-slate-950' : item.color}`} />
-                  <span className={isActive ? 'text-slate-950 font-bold' : ''}>{language === 'bn' ? item.labelBn : item.labelEn}</span>
-                </Link>
-              );
-            })}
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    prefetch={true}
+                    onClick={() => setMobileOpen(false)}
+                    className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all border ${
+                      isActive
+                        ? 'bg-gradient-to-r from-emerald-500 to-amber-500 text-slate-950 font-bold shadow-md border-transparent'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-50/70 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-900 border-slate-200/70 dark:border-slate-800/80'
+                    }`}
+                  >
+                    <Icon className={`w-4 h-4 ${isActive ? 'text-slate-950' : item.color}`} />
+                    <span className={isActive ? 'text-slate-950 font-bold' : ''}>{language === 'bn' ? item.labelBn : item.labelEn}</span>
+                  </Link>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>

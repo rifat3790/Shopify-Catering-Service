@@ -15,7 +15,8 @@ import { useToast } from '@/context/ToastContext';
 import { OrderData, UserRecord } from '@/lib/types';
 import { getClientCache, setClientCache } from '@/lib/clientCache';
 import { filterOrdersByDate, DateFilterType } from '@/lib/dateFilterUtils';
-import { downloadReceiptPng, downloadOrdersAsZip } from '@/lib/receiptGenerator';
+import { downloadReceiptPng, downloadFullOrdersTableAsImage } from '@/lib/receiptGenerator';
+import { LuxurySpinnerIcon } from '@/components/LuxuryLoader';
 import { useTheme } from '@/context/ThemeContext';
 import Link from 'next/link';
 import { 
@@ -71,26 +72,26 @@ function UserDashboardContent() {
     if (myOrders.length === 0) {
       toast.warning(
         language === 'bn' ? 'বর্তমান ট্যাবে কোনো অর্ডার নেই!' : 'No orders found in current period!',
-        'No Invoices'
+        'No Orders'
       );
       return;
     }
 
     setIsDownloadingBulk(true);
-    setDownloadProgress(0);
     try {
-      const tabName = `Personal_${dateFilter}_${effectiveName}`.replace(/[^a-zA-Z0-9_-]/g, '_');
-      await downloadOrdersAsZip(myOrders, tabName, (completed) => {
-        setDownloadProgress(completed);
-      });
+      await downloadFullOrdersTableAsImage(
+        myOrders,
+        `${dateFilter.toUpperCase()} • ${effectiveName}`,
+        `${effectiveName} — Personal Catering Order Statement`
+      );
       toast.success(
         language === 'bn'
-          ? `${myOrders.length} টি ইনভয়েস সফলভাবে জিপ ফাইল হিসেবে ডাউনলোড হয়েছে!`
-          : `Downloaded ${myOrders.length} invoices as ZIP!`,
-        'Invoices Downloaded 📦'
+          ? `${myOrders.length} টি অর্ডারের সম্পূর্ণ টেবিল ইমেজ (PNG) হিসেবে ডাউনলোড হয়েছে!`
+          : `Downloaded consolidated ledger table (${myOrders.length} orders) as 1 PNG image!`,
+        'Table Image Downloaded'
       );
     } catch (err: any) {
-      toast.error(err.message || 'Failed to download invoices', 'Download Error');
+      toast.error(err.message || 'Failed to download order table image', 'Download Error');
     } finally {
       setIsDownloadingBulk(false);
     }
@@ -498,22 +499,22 @@ function UserDashboardContent() {
               </div>
 
               <div className="flex items-center gap-2.5 self-start sm:self-auto flex-wrap">
-                {/* Download All Invoices in Current Tab as ZIP */}
+                {/* Download Consolidated Table Image */}
                 <button
                   onClick={handleDownloadAllInTab}
                   disabled={myOrders.length === 0 || isDownloadingBulk}
                   className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-amber-700 dark:text-amber-300 border border-amber-500/40 hover:border-amber-500 text-xs font-semibold transition-all flex items-center gap-1.5 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-[0.98]"
-                  title={language === 'bn' ? 'বর্তমান ট্যাবের সকল রসিদ একসাথে ZIP আকারে ডাউনলোড' : 'Download all receipts in current tab as ZIP'}
+                  title={language === 'bn' ? 'বর্তমান ট্যাবের সকল অর্ডার একটি টেবিল ইমেজ (PNG) হিসেবে ডাউনলোড' : 'Download complete order table as a single PNG image'}
                 >
                   {isDownloadingBulk ? (
-                    <div className="w-3.5 h-3.5 rounded-full border-2 border-amber-400 border-t-transparent animate-spin" />
+                    <LuxurySpinnerIcon size="xs" />
                   ) : (
                     <Download className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
                   )}
                   <span>
                     {isDownloadingBulk
-                      ? `${language === 'bn' ? 'প্রস্তুত হচ্ছে...' : 'Generating...'} ${downloadProgress}/${myOrders.length}`
-                      : (language === 'bn' ? `সব ইনভয়েস ডাউনলোড (${myOrders.length})` : `Download All (${myOrders.length})`)}
+                      ? (language === 'bn' ? 'তৈরি হচ্ছে...' : 'Generating...')
+                      : (language === 'bn' ? `সব অর্ডার টেবিল (${myOrders.length})` : `Download All (${myOrders.length})`)}
                   </span>
                 </button>
 

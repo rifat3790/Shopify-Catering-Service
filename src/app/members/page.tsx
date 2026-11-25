@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import AuthGuard from '@/components/AuthGuard';
-import LuxuryLoader from '@/components/LuxuryLoader';
+import LuxuryLoader, { LuxurySpinnerIcon } from '@/components/LuxuryLoader';
 import QuickOrderModal from '@/components/QuickOrderModal';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
@@ -44,6 +44,7 @@ function MembersPageContent() {
   });
   const [search, setSearch] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('All');
+  const [statusTab, setStatusTab] = useState<'all' | 'approved' | 'pending'>('all');
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   const [selectedOrderMember, setSelectedOrderMember] = useState<string | null>(null);
 
@@ -74,7 +75,7 @@ function MembersPageContent() {
       setLoading(true);
     }
     try {
-      const res = await fetch('/api/users');
+      const res = await fetch(`/api/users?t=${Date.now()}`, { cache: 'no-store' });
       if (res.ok) {
         const json = await res.json();
         if (json.success && json.data) {
@@ -196,26 +197,34 @@ function MembersPageContent() {
 
   const handleDeleteMember = async () => {
     if (!deleteModalUser) return;
-    setIsDeleting(true);
+    const target = deleteModalUser;
+    const previousMembers = members;
+
+    // Instant 0ms optimistic removal so admin never waits or refreshes repeatedly
+    const nextList = members.filter(m => m.id !== target.id && m.email !== target.email);
+    setMembers(nextList);
+    setClientCache('members_list', nextList);
+    setDeleteModalUser(null);
     setDeleteError('');
+
     try {
-      const res = await fetch(`/api/users/${encodeURIComponent(deleteModalUser.id)}?email=${encodeURIComponent(deleteModalUser.email)}`, {
+      const res = await fetch(`/api/users/${encodeURIComponent(target.id)}?email=${encodeURIComponent(target.email)}`, {
         method: 'DELETE',
+        cache: 'no-store',
       });
       const json = await res.json();
-      if (json.success) {
-        setMembers(prev => {
-          const next = prev.filter(m => m.id !== deleteModalUser.id && m.email !== deleteModalUser.email);
-          setClientCache('members_list', next);
-          return next;
-        });
-        setDeleteModalUser(null);
-        fetchMembers();
-      } else {
+      if (!json.success) {
+        // Revert only if backend failed
+        setMembers(previousMembers);
+        setClientCache('members_list', previousMembers);
         setDeleteError(json.error || 'Failed to delete member from database');
+        setDeleteModalUser(target);
       }
     } catch (err: any) {
+      setMembers(previousMembers);
+      setClientCache('members_list', previousMembers);
       setDeleteError(err.message || 'Error deleting member');
+      setDeleteModalUser(target);
     } finally {
       setIsDeleting(false);
     }
@@ -223,13 +232,28 @@ function MembersPageContent() {
 
   const departments = ['All', 'Development', 'Marketing', 'Design & UX', 'Engineering', 'Operations', 'Support', 'Logistics'];
 
+  const pendingCount = members.filter(m => m.status === 'pending').length;
+  const approvedCount = members.filter(m => m.status !== 'pending').length;
+  const onlineCount = members.filter(m => m.status !== 'pending' && m.isOnline).length;
+  const uniqueDeptsCount = new Set(members.filter(m => m.status !== 'pending').map(m => m.department).filter(Boolean)).size;
+
   const filteredMembers = members.filter(m => {
+    // Non-admins viewing Team Directory only see active/approved team members
+    if (!isAdminOrSuper && m.status === 'pending') return false;
+
     const matchSearch =
       (m.name || '').toLowerCase().includes(search.toLowerCase()) ||
       (m.username || '').toLowerCase().includes(search.toLowerCase()) ||
       (m.email || '').toLowerCase().includes(search.toLowerCase());
     const matchDept = departmentFilter === 'All' ? true : (m.department || '').toLowerCase().includes(departmentFilter.toLowerCase());
-    return matchSearch && matchDept;
+    const matchStatus = !isAdminOrSuper
+      ? true
+      : statusTab === 'all'
+      ? true
+      : statusTab === 'pending'
+      ? m.status === 'pending'
+      : m.status !== 'pending';
+    return matchSearch && matchDept && matchStatus;
   });
 
   const totalMembersBalance = members.reduce((sum, m) => sum + (Number(m.balance) || 0), 0);
@@ -254,16 +278,22 @@ function MembersPageContent() {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-bold font-serif text-slate-900 dark:text-white">
-                  {language === 'bn' ? 'মেম্বার তালিকা ও ক্যাটারিং হিসাব' : 'Team Member Directory & Balances'}
+                  {isAdminOrSuper
+                    ? (language === 'bn' ? 'মেম্বার তালিকা ও ক্যাটারিং হিসাব' : 'Team Member Directory & Balances')
+                    : (language === 'bn' ? 'টিম মেম্বার ডিরেক্টরি' : 'Team Member Directory')}
                 </h1>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30">
-                  {members.length} Members
+                  {isAdminOrSuper ? members.length : approvedCount} Members
                 </span>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                {language === 'bn'
-                  ? 'সকল মেম্বারের রিয়েল-টাইম ব্যালেন্স, যোগ/কর্তন/এডিট এবং সরাসরি খাবারের অর্ডার'
-                  : 'Manage all team members, individual meal balances (add, deduct, edit), and orders'}
+                {isAdminOrSuper
+                  ? (language === 'bn'
+                      ? 'সকল মেম্বারের রিয়েল-টাইম ব্যালেন্স, যোগ/কর্তন/এডিট এবং সরাসরি খাবারের অর্ডার'
+                      : 'Manage all team members, individual meal balances (add, deduct, edit), and orders')
+                  : (language === 'bn'
+                      ? 'টিমের সকল সক্রিয় মেম্বারের তালিকা, ডিপার্টমেন্ট ও লাইভ চ্যাট/কল'
+                      : 'View active team members, departments, online status & direct messaging')}
               </p>
             </div>
           </div>
@@ -276,59 +306,131 @@ function MembersPageContent() {
             >
               <RefreshCw className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
             </button>
+            {isAdminOrSuper && (
+              <button
+                onClick={() => setIsAddMemberOpen(true)}
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-white font-bold text-xs shadow-md transition-all hover:scale-105"
+              >
+                <Plus className="w-4 h-4 text-white" />
+                <span>{language === 'bn' ? 'নতুন মেম্বার যুক্ত করুন' : 'Add New Member'}</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Analytics Cards (Full Financial KPIs for Admin/Super Admin, Clean Team Directory Stats for Regular Users) */}
+        {isAdminOrSuper ? (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200/80 dark:border-emerald-600/30 shadow-xs">
+              <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-200 tracking-wider uppercase mb-2">
+                <span>{language === 'bn' ? 'মোট মেম্বার ব্যালেন্স' : 'Total Member Wallet Funds'}</span>
+                <Wallet className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <p className="text-2xl font-extrabold font-mono text-emerald-600 dark:text-emerald-400">৳{totalMembersBalance.toFixed(2)}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-300 font-medium mt-1">
+                {totalMembersBalance > 0
+                  ? (language === 'bn' ? 'রিফ্রেশমেন্টের জন্য ব্যালেন্স প্রস্তুত' : 'Available for refreshments')
+                  : (language === 'bn' ? 'সকল ওয়ালেট ব্যালেন্স শূন্য' : 'Zero Available Funds (৳0.00)')}
+              </p>
+            </div>
+
+            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200/80 dark:border-amber-500/30 shadow-xs">
+              <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-200 tracking-wider uppercase mb-2">
+                <span>{language === 'bn' ? 'মোট ক্যাটারিং খরচ' : 'Total Lifetime Food Spent'}</span>
+                <TrendingUp className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+              </div>
+              <p className="text-2xl font-extrabold font-mono text-amber-600 dark:text-amber-300">৳{totalLifetimeSpent.toFixed(2)}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-300 font-medium mt-1">Settled Catering Orders</p>
+            </div>
+
+            <div className={`p-5 rounded-2xl bg-white dark:bg-slate-900/90 border shadow-xs ${totalMembersDue > 0 ? 'border-rose-300/80 dark:border-rose-500/40' : 'border-teal-300/80 dark:border-teal-500/30'}`}>
+              <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-200 tracking-wider uppercase mb-2">
+                <span>{language === 'bn' ? 'মোট বকেয়া পাওনা হিসাব' : 'Total Outstanding Dues'}</span>
+                {totalMembersDue > 0 ? (
+                  <AlertCircle className="w-4 h-4 text-rose-500 dark:text-rose-400" />
+                ) : (
+                  <CheckCircle2 className="w-4 h-4 text-teal-500 dark:text-teal-400" />
+                )}
+              </div>
+              <p className={`text-2xl font-extrabold font-mono ${totalMembersDue > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-teal-600 dark:text-teal-300'}`}>
+                ৳{totalMembersDue.toFixed(2)}
+              </p>
+              <p className={`text-xs font-medium mt-1 ${totalMembersDue > 0 ? 'text-rose-600 dark:text-rose-300' : 'text-slate-500 dark:text-slate-300'}`}>
+                {totalMembersDue > 0
+                  ? (language === 'bn' ? `${dueMembersCount} জন মেম্বারের বকেয়া পাওনা রয়েছে` : `${dueMembersCount} members with pending dues`)
+                  : (language === 'bn' ? 'সকল মেম্বার একাউন্ট ক্লিয়ার (বকেয়া নেই)' : 'Zero outstanding dues • All accounts clear')}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200/80 dark:border-emerald-600/30 shadow-xs">
+              <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-200 tracking-wider uppercase mb-2">
+                <span>{language === 'bn' ? 'মোট সক্রিয় মেম্বার' : 'Active Team Members'}</span>
+                <Users className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <p className="text-2xl font-extrabold font-mono text-emerald-600 dark:text-emerald-400">{approvedCount}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-300 font-medium mt-1">Verified Shopify Organization Staff</p>
+            </div>
+
+            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200/80 dark:border-amber-500/30 shadow-xs">
+              <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-200 tracking-wider uppercase mb-2">
+                <span>{language === 'bn' ? 'ডিপার্টমেন্টসমূহ' : 'Departments'}</span>
+                <ShieldCheck className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+              </div>
+              <p className="text-2xl font-extrabold font-mono text-amber-600 dark:text-amber-300">{uniqueDeptsCount || 1}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-300 font-medium mt-1">Cross-functional Teams</p>
+            </div>
+
+            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200/80 dark:border-teal-500/30 shadow-xs">
+              <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-200 tracking-wider uppercase mb-2">
+                <span>{language === 'bn' ? 'অনলাইনে সক্রিয়' : 'Online Right Now'}</span>
+                <CheckCircle2 className="w-4 h-4 text-teal-500 dark:text-teal-400" />
+              </div>
+              <p className="text-2xl font-extrabold font-mono text-teal-600 dark:text-teal-300">{onlineCount}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-300 font-medium mt-1">Real-time Active Presence</p>
+            </div>
+          </div>
+        )}
+
+        {/* Member Status Tabs (Pending vs Active Filter for Admins & Super Admin) */}
+        {isAdminOrSuper && (
+          <div className="flex flex-wrap items-center gap-2 p-1.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 w-fit shadow-xs">
             <button
-              onClick={() => setIsAddMemberOpen(true)}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-white font-bold text-xs shadow-md transition-all hover:scale-105"
+              onClick={() => setStatusTab('all')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                statusTab === 'all'
+                  ? 'bg-gradient-to-r from-emerald-600 to-amber-600 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
             >
-              <Plus className="w-4 h-4 text-white" />
-              <span>{language === 'bn' ? 'নতুন মেম্বার যুক্ত করুন' : 'Add New Member'}</span>
+              All Members ({members.length})
+            </button>
+            <button
+              onClick={() => setStatusTab('approved')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                statusTab === 'approved'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-300'
+              }`}
+            >
+              Active / Approved ({approvedCount})
+            </button>
+            <button
+              onClick={() => setStatusTab('pending')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                statusTab === 'pending'
+                  ? 'bg-amber-500 text-slate-950 shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-300'
+              }`}
+            >
+              <span>Pending Approval ({pendingCount})</span>
+              {pendingCount > 0 && (
+                <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+              )}
             </button>
           </div>
-        </div>
-
-        {/* Member Analytics Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="p-5 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200/80 dark:border-emerald-600/30 shadow-xs">
-            <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-200 tracking-wider uppercase mb-2">
-              <span>{language === 'bn' ? 'মোট মেম্বার ব্যালেন্স' : 'Total Member Wallet Funds'}</span>
-              <Wallet className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            </div>
-            <p className="text-2xl font-extrabold font-mono text-emerald-600 dark:text-emerald-400">৳{totalMembersBalance.toFixed(2)}</p>
-            <p className="text-xs text-slate-500 dark:text-slate-300 font-medium mt-1">
-              {totalMembersBalance > 0
-                ? (language === 'bn' ? 'রিফ্রেশমেন্টের জন্য ব্যালেন্স প্রস্তুত' : 'Available for refreshments')
-                : (language === 'bn' ? 'সকল ওয়ালেট ব্যালেন্স শূন্য' : 'Zero Available Funds (৳0.00)')}
-            </p>
-          </div>
-
-          <div className="p-5 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200/80 dark:border-amber-500/30 shadow-xs">
-            <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-200 tracking-wider uppercase mb-2">
-              <span>{language === 'bn' ? 'মোট ক্যাটারিং খরচ' : 'Total Lifetime Food Spent'}</span>
-              <TrendingUp className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-            </div>
-            <p className="text-2xl font-extrabold font-mono text-amber-600 dark:text-amber-300">৳{totalLifetimeSpent.toFixed(2)}</p>
-            <p className="text-xs text-slate-500 dark:text-slate-300 font-medium mt-1">Settled Catering Orders</p>
-          </div>
-
-          <div className={`p-5 rounded-2xl bg-white dark:bg-slate-900/90 border shadow-xs ${totalMembersDue > 0 ? 'border-rose-300/80 dark:border-rose-500/40' : 'border-teal-300/80 dark:border-teal-500/30'}`}>
-            <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-200 tracking-wider uppercase mb-2">
-              <span>{language === 'bn' ? 'মোট বকেয়া পাওনা হিসাব' : 'Total Outstanding Dues'}</span>
-              {totalMembersDue > 0 ? (
-                <AlertCircle className="w-4 h-4 text-rose-500 dark:text-rose-400" />
-              ) : (
-                <CheckCircle2 className="w-4 h-4 text-teal-500 dark:text-teal-400" />
-              )}
-            </div>
-            <p className={`text-2xl font-extrabold font-mono ${totalMembersDue > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-teal-600 dark:text-teal-300'}`}>
-              ৳{totalMembersDue.toFixed(2)}
-            </p>
-            <p className={`text-xs font-medium mt-1 ${totalMembersDue > 0 ? 'text-rose-600 dark:text-rose-300' : 'text-slate-500 dark:text-slate-300'}`}>
-              {totalMembersDue > 0
-                ? (language === 'bn' ? `${dueMembersCount} জন মেম্বারের বকেয়া পাওনা রয়েছে` : `${dueMembersCount} members with pending dues`)
-                : (language === 'bn' ? 'সকল মেম্বার একাউন্ট ক্লিয়ার (বকেয়া নেই)' : 'Zero outstanding dues • All accounts clear')}
-            </p>
-          </div>
-        </div>
+        )}
 
         {/* Filter and Search Bar */}
         <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 shadow-xs">
@@ -441,66 +543,88 @@ function MembersPageContent() {
                       </div>
                     </div>
 
-                    <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800/80 space-y-1.5 text-xs">
-                      <div className="flex justify-between items-center">
-                        <span className="text-slate-600 dark:text-slate-400">{language === 'bn' ? 'ব্যালেন্স:' : 'Balance:'}</span>
-                        <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400 text-sm">৳{(member.balance || 0).toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-slate-600 dark:text-slate-400">{language === 'bn' ? 'মোট খরচ:' : 'Total Spent:'}</span>
-                        <span className="font-mono font-medium text-amber-700 dark:text-amber-200">৳{(member.totalSpent || 0).toFixed(2)}</span>
-                      </div>
-                      {(Number(member.currentDue) || 0) > 0 && (
-                        <div 
-                          onClick={() => openBalanceModal(member, 'set', 'due')}
-                          title="Click to manage or clear due"
-                          className="flex justify-between items-center pt-1 border-t border-slate-200/80 dark:border-slate-800/80 cursor-pointer hover:bg-rose-500/10 rounded-lg p-1 transition-colors"
-                        >
-                          <span className="text-rose-700 dark:text-rose-400 font-medium flex items-center gap-1">
-                            <span>{language === 'bn' ? 'বকেয়া পাওনা:' : 'Current Due:'}</span>
-                            <span className="text-[10px] underline">(Edit)</span>
-                          </span>
-                          <span className="font-mono font-bold text-rose-700 dark:text-rose-400">৳{(Number(member.currentDue) || 0).toFixed(2)}</span>
+                    {isAdminOrSuper ? (
+                      <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800/80 space-y-1.5 text-xs">
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-600 dark:text-slate-400">{language === 'bn' ? 'ব্যালেন্স:' : 'Balance:'}</span>
+                          <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400 text-sm">৳{(member.balance || 0).toFixed(2)}</span>
                         </div>
-                      )}
-                    </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-600 dark:text-slate-400">{language === 'bn' ? 'মোট খরচ:' : 'Total Spent:'}</span>
+                          <span className="font-mono font-medium text-amber-700 dark:text-amber-200">৳{(member.totalSpent || 0).toFixed(2)}</span>
+                        </div>
+                        {(Number(member.currentDue) || 0) > 0 && (
+                          <div 
+                            onClick={() => openBalanceModal(member, 'set', 'due')}
+                            title="Click to manage or clear due"
+                            className="flex justify-between items-center pt-1 border-t border-slate-200/80 dark:border-slate-800/80 cursor-pointer hover:bg-rose-500/10 rounded-lg p-1 transition-colors"
+                          >
+                            <span className="text-rose-700 dark:text-rose-400 font-medium flex items-center gap-1">
+                              <span>{language === 'bn' ? 'বকেয়া পাওনা:' : 'Current Due:'}</span>
+                              <span className="text-[10px] underline">(Edit)</span>
+                            </span>
+                            <span className="font-mono font-bold text-rose-700 dark:text-rose-400">৳{(Number(member.currentDue) || 0).toFixed(2)}</span>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800/80 space-y-1.5 text-xs">
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-500 dark:text-slate-400">Role:</span>
+                          <span className="uppercase font-bold text-[10px] px-2 py-0.5 rounded bg-slate-200/70 dark:bg-slate-800 text-slate-800 dark:text-slate-200">
+                            {member.role === 'super_admin' ? 'Super Admin' : member.role === 'admin' ? 'Admin' : 'Team Member'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-500 dark:text-slate-400">Status:</span>
+                          <span className={`font-semibold flex items-center gap-1.5 ${member.isOnline ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'}`}>
+                            <span className={`w-2 h-2 rounded-full ${member.isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+                            <span>{member.isOnline ? 'Online Now' : 'Team Member'}</span>
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-3">
-                    {/* Balance Manage Buttons */}
-                    <div className="grid grid-cols-3 gap-2">
-                      <button
-                        onClick={() => openBalanceModal(member, 'add')}
-                        className="py-2 px-2 rounded-xl bg-emerald-50/90 hover:bg-emerald-100 dark:bg-emerald-950/70 dark:hover:bg-emerald-900 text-emerald-800 dark:text-emerald-300 border border-emerald-500/20 dark:border-emerald-700/60 font-semibold text-xs flex items-center justify-center gap-1 shadow-xs transition-all hover:scale-[1.02]"
-                      >
-                        <PlusCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                        <span>Add</span>
-                      </button>
-                      <button
-                        onClick={() => openBalanceModal(member, 'deduct')}
-                        className="py-2 px-2 rounded-xl bg-rose-50/90 hover:bg-rose-100 dark:bg-rose-950/60 dark:hover:bg-rose-900 text-rose-800 dark:text-rose-300 border border-rose-500/20 dark:border-rose-800/60 font-semibold text-xs flex items-center justify-center gap-1 shadow-xs transition-all hover:scale-[1.02]"
-                      >
-                        <MinusCircle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
-                        <span>Deduct</span>
-                      </button>
-                      <button
-                        onClick={() => openBalanceModal(member, 'set')}
-                        className="py-2 px-2 rounded-xl bg-amber-50/90 hover:bg-amber-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-amber-800 dark:text-amber-300 border border-amber-500/20 dark:border-slate-700 font-semibold text-xs flex items-center justify-center gap-1 shadow-xs transition-all hover:scale-[1.02]"
-                      >
-                        <Edit3 className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                        <span>Edit</span>
-                      </button>
-                    </div>
+                    {/* Balance Manage Buttons (Admin & Super Admin Only) */}
+                    {isAdminOrSuper && (
+                      <div className="grid grid-cols-3 gap-2">
+                        <button
+                          onClick={() => openBalanceModal(member, 'add')}
+                          className="py-2 px-2 rounded-xl bg-emerald-50/90 hover:bg-emerald-100 dark:bg-emerald-950/70 dark:hover:bg-emerald-900 text-emerald-800 dark:text-emerald-300 border border-emerald-500/20 dark:border-emerald-700/60 font-semibold text-xs flex items-center justify-center gap-1 shadow-xs transition-all hover:scale-[1.02]"
+                        >
+                          <PlusCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                          <span>Add</span>
+                        </button>
+                        <button
+                          onClick={() => openBalanceModal(member, 'deduct')}
+                          className="py-2 px-2 rounded-xl bg-rose-50/90 hover:bg-rose-100 dark:bg-rose-950/60 dark:hover:bg-rose-900 text-rose-800 dark:text-rose-300 border border-rose-500/20 dark:border-rose-800/60 font-semibold text-xs flex items-center justify-center gap-1 shadow-xs transition-all hover:scale-[1.02]"
+                        >
+                          <MinusCircle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+                          <span>Deduct</span>
+                        </button>
+                        <button
+                          onClick={() => openBalanceModal(member, 'set')}
+                          className="py-2 px-2 rounded-xl bg-amber-50/90 hover:bg-amber-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-amber-800 dark:text-amber-300 border border-amber-500/20 dark:border-slate-700 font-semibold text-xs flex items-center justify-center gap-1 shadow-xs transition-all hover:scale-[1.02]"
+                        >
+                          <Edit3 className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                          <span>Edit</span>
+                        </button>
+                      </div>
+                    )}
 
-                    {/* Member Actions: Order & Chat/Call */}
-                    <div className="grid grid-cols-2 gap-2.5">
-                      <button
-                        onClick={() => setSelectedOrderMember(member.name)}
-                        className="py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-white font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow-sm hover:scale-[1.02] active:scale-[0.98]"
-                      >
-                        <Utensils className="w-3.5 h-3.5" />
-                        <span>{language === 'bn' ? 'অর্ডার দিন' : 'Order Food'}</span>
-                      </button>
+                    {/* Member Actions */}
+                    <div className={isAdminOrSuper ? 'grid grid-cols-2 gap-2.5' : 'grid grid-cols-1'}>
+                      {isAdminOrSuper && (
+                        <button
+                          onClick={() => setSelectedOrderMember(member.name)}
+                          className="py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-white font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow-sm hover:scale-[1.02] active:scale-[0.98]"
+                        >
+                          <Utensils className="w-3.5 h-3.5" />
+                          <span>{language === 'bn' ? 'অর্ডার দিন' : 'Order Food'}</span>
+                        </button>
+                      )}
                       <Link
                         href={`/chat?memberId=${encodeURIComponent(member.id)}`}
                         className="py-2.5 px-3 rounded-xl bg-slate-100/90 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs border border-slate-200/80 dark:border-slate-700/80 transition-all flex items-center justify-center gap-1.5 shadow-xs hover:scale-[1.02] active:scale-[0.98]"
@@ -1014,7 +1138,7 @@ function MembersPageContent() {
               >
                 {isDeleting ? (
                   <>
-                    <div className="w-3.5 h-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                    <LuxurySpinnerIcon size="xs" />
                     <span>Purging from Database...</span>
                   </>
                 ) : (
@@ -1035,7 +1159,7 @@ function MembersPageContent() {
 
 export default function MembersPage() {
   return (
-    <AuthGuard allowedRoles={['super_admin', 'admin']}>
+    <AuthGuard>
       <MembersPageContent />
     </AuthGuard>
   );

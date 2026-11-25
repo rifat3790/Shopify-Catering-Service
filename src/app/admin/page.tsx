@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Sidebar from '@/components/Sidebar';
 import AuthGuard from '@/components/AuthGuard';
-import LuxuryLoader from '@/components/LuxuryLoader';
+import LuxuryLoader, { LuxurySpinnerIcon } from '@/components/LuxuryLoader';
 import MetricsOverview from '@/components/MetricsOverview';
 import LiveTrackerTable from '@/components/LiveTrackerTable';
 import QuickOrderModal from '@/components/QuickOrderModal';
@@ -12,7 +12,8 @@ import OrderControlCard from '@/components/OrderControlCard';
 import DateFilterPills from '@/components/DateFilterPills';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
-import { OrderData, MenuItemData, UserRecord, PasswordResetRequest } from '@/lib/types';
+import { useToast } from '@/context/ToastContext';
+import { OrderData, MenuItemData, UserRecord, PasswordResetRequest, DailyDutyAssignment } from '@/lib/types';
 import { getClientCache, setClientCache, clearClientCache } from '@/lib/clientCache';
 import { filterOrdersByDate, calculateStatsFromOrders, DateFilterType } from '@/lib/dateFilterUtils';
 import Link from 'next/link';
@@ -33,12 +34,16 @@ import {
   KeyRound,
   Copy,
   Check,
-  Clock
+  Clock,
+  Calendar,
+  ShoppingBag,
+  UserCheck
 } from 'lucide-react';
 
 function AdminPageContent() {
   const { user } = useAuth();
   const { language } = useLanguage();
+  const { toast } = useToast();
 
   // Instant 0ms cache initialize
   const [orders, setOrders] = useState<OrderData[]>(() => {
@@ -68,8 +73,26 @@ function AdminPageContent() {
   });
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<OrderData | null>(null);
-  const [activeTab, setActiveTab] = useState<'orders' | 'menu' | 'balance' | 'resets' | 'timing'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'menu' | 'balance' | 'resets' | 'timing' | 'duties'>('orders');
   const [dateFilter, setDateFilter] = useState<DateFilterType>('today');
+
+  // Daily Duty Roster state for Admin
+  const [duties, setDuties] = useState<DailyDutyAssignment[]>([]);
+  const [loadingDuties, setLoadingDuties] = useState(false);
+  const [dutyDate, setDutyDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [dutyUserId, setDutyUserId] = useState('');
+  const [dutyInstructions, setDutyInstructions] = useState('Collect money, purchase snacks & refreshments, and deliver on time.');
+  const [isAssigningDuty, setIsAssigningDuty] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const t = params.get('tab');
+      if (t && ['orders', 'menu', 'balance', 'resets', 'timing', 'duties'].includes(t)) {
+        setActiveTab(t as any);
+      }
+    }
+  }, []);
 
   // Filter orders by date range
   const filteredByDateOrders = useMemo(() => {
@@ -186,8 +209,78 @@ function AdminPageContent() {
     }
   };
 
+  const fetchDuties = async () => {
+    setLoadingDuties(true);
+    try {
+      const res = await fetch(`/api/duty?t=${Date.now()}`, { cache: 'no-store' });
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        setDuties(json.data);
+      }
+    } catch (e) {
+      console.warn('Error fetching duties:', e);
+    } finally {
+      setLoadingDuties(false);
+    }
+  };
+
+  const handleAssignDuty = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!dutyUserId || !dutyDate) return;
+    const selectedMember = members.find(m => m.id === dutyUserId);
+    if (!selectedMember) return;
+
+    setIsAssigningDuty(true);
+    try {
+      const res = await fetch('/api/duty', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date: dutyDate,
+          assignedUserId: selectedMember.id,
+          assignedUserName: selectedMember.name,
+          assignedUserEmail: selectedMember.email,
+          assignedUserAvatar: selectedMember.avatar,
+          assignedUserPhone: selectedMember.phone,
+          assignedByUserId: user?.uid || 'admin',
+          assignedByName: user?.displayName || user?.name || 'Admin',
+          instructions: dutyInstructions,
+        }),
+      });
+      const json = await res.json();
+      if (json.success && json.data) {
+        setDuties(prev => {
+          const filtered = prev.filter(d => d.date !== json.data.date);
+          return [json.data, ...filtered].sort((a, b) => b.date.localeCompare(a.date));
+        });
+        toast.success(
+          language === 'bn'
+            ? `${selectedMember.name} কে ${dutyDate} তারিখের দায়িত্ব দেওয়া হয়েছে ও টেলিগ্রাম গ্রুপে জানানো হয়েছে!`
+            : `Assigned ${selectedMember.name} for ${dutyDate} & notified Telegram groups!`,
+          'Duty Assigned'
+        );
+      } else {
+        toast.error(json.error || 'Failed to assign duty', 'Error');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Network error assigning duty', 'Error');
+    } finally {
+      setIsAssigningDuty(false);
+    }
+  };
+
+  const handleDeleteDuty = async (duty: DailyDutyAssignment) => {
+    if (!confirm(`Cancel duty assignment for ${duty.date}?`)) return;
+    try {
+      await fetch(`/api/duty?date=${duty.date}`, { method: 'DELETE' });
+      setDuties(prev => prev.filter(d => d.date !== duty.date));
+      toast.success('Duty assignment cancelled', 'Removed');
+    } catch (e) {}
+  };
+
   useEffect(() => {
     fetchAdminData();
+    fetchDuties();
   }, []);
 
   const handleUpdateStatus = async (id: string, newStatus: OrderData['status']) => {
@@ -408,6 +501,17 @@ function AdminPageContent() {
               <Clock className="w-3.5 h-3.5" />
               <span>{language === 'bn' ? 'অর্ডার কাট-অফ ও টাইমিং' : 'Order Cutoff & Timing'}</span>
             </button>
+            <button
+              onClick={() => setActiveTab('duties')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                activeTab === 'duties'
+                  ? 'bg-gradient-to-r from-emerald-600 to-amber-600 text-white shadow-md'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800'
+              }`}
+            >
+              <Calendar className="w-3.5 h-3.5" />
+              <span>{language === 'bn' ? 'দৈনিক দায়িত্ব রোস্টার' : 'Assign Daily Duty'}</span>
+            </button>
           </div>
 
           {activeTab === 'orders' ? (
@@ -497,7 +601,7 @@ function AdminPageContent() {
                 </div>
               )}
             </div>
-          ) : (
+          ) : activeTab === 'balance' ? (
             /* Balance Management Tab for Admin */
             <div className="rounded-3xl bg-slate-900/90 border border-amber-500/40 p-6 shadow-2xl space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
@@ -597,7 +701,168 @@ function AdminPageContent() {
                 </div>
               )}
             </div>
-          )}
+          ) : activeTab === 'duties' ? (
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 rounded-3xl bg-slate-900 border border-amber-500/30 shadow-2xl">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                      <Calendar className="w-5 h-5" />
+                    </div>
+                    <h2 className="text-xl font-bold font-serif text-white">
+                      {language === 'bn' ? 'দৈনিক ক্যাটারিং দায়িত্ব রোস্টার' : 'Daily Catering Duty Rotation & Assignment'}
+                    </h2>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1">
+                    {language === 'bn'
+                      ? 'প্রতিদিন কোন মেম্বার টাকা সংগ্রহ করবে, নাস্তা ক্রয় করবে ও ডেলিভারি দিবে তা নির্ধারণ করুন (টেলিগ্রামে তাৎক্ষণিক অ্যালার্ট যাবে)'
+                      : 'Select who handles money collection, snack purchase, and delivery each day. Broadcasts instant alerts to Telegram.'}
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => fetchDuties()}
+                  disabled={loadingDuties}
+                  className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 border border-slate-700 transition-all flex items-center gap-1.5 self-start sm:self-auto"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 text-amber-400 ${loadingDuties ? 'animate-spin' : ''}`} />
+                  <span>{language === 'bn' ? 'রিফ্রেশ' : 'Refresh'}</span>
+                </button>
+              </div>
+
+              <div className="p-6 rounded-3xl bg-slate-900 border border-amber-500/30 shadow-2xl space-y-4">
+                <div className="flex items-center gap-2 pb-3 border-b border-slate-800">
+                  <ShoppingBag className="w-5 h-5 text-amber-400" />
+                  <h3 className="font-bold text-white text-base">
+                    {language === 'bn' ? 'দায়িত্ব নির্ধারণ করুন' : 'Assign Member for Duty'}
+                  </h3>
+                </div>
+
+                <form onSubmit={handleAssignDuty} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">
+                      Select Date
+                    </label>
+                    <input
+                      type="date"
+                      value={dutyDate}
+                      onChange={e => setDutyDate(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-amber-400 font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">
+                      Select Responsible Member
+                    </label>
+                    <select
+                      required
+                      value={dutyUserId}
+                      onChange={e => setDutyUserId(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-amber-400 cursor-pointer"
+                    >
+                      <option value="">-- Choose a Team Member --</option>
+                      {members
+                        .filter(m => m.status !== 'pending')
+                        .map(m => (
+                          <option key={m.id} value={m.id}>
+                            {m.name} ({m.role.toUpperCase()}) — {m.email}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">
+                      Instructions / Notes
+                    </label>
+                    <input
+                      type="text"
+                      value={dutyInstructions}
+                      onChange={e => setDutyInstructions(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-amber-400"
+                    />
+                  </div>
+
+                  <div className="md:col-span-3 flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={isAssigningDuty || !dutyUserId}
+                      className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-amber-500 hover:from-emerald-400 hover:to-amber-400 text-slate-950 font-bold text-xs shadow-lg flex items-center gap-2 transition-all hover:scale-105 disabled:opacity-50"
+                    >
+                      {isAssigningDuty ? <LuxurySpinnerIcon size="xs" /> : <UserCheck className="w-4 h-4" />}
+                      <span>{isAssigningDuty ? 'Assigning & Sending Alerts...' : 'Assign Daily Duty Now'}</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              <div className="rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl overflow-hidden">
+                <div className="w-full overflow-x-auto">
+                  <table className="w-full min-w-[700px] text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-950 border-b border-slate-800 text-slate-400 uppercase font-semibold">
+                        <th className="py-3.5 px-5">Date</th>
+                        <th className="py-3.5 px-5">Assigned Member</th>
+                        <th className="py-3.5 px-5">Instructions</th>
+                        <th className="py-3.5 px-5 text-center">Status</th>
+                        <th className="py-3.5 px-5 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800">
+                      {loadingDuties ? (
+                        <tr>
+                          <td colSpan={5} className="py-8">
+                            <LuxuryLoader message="Loading daily duty schedule..." />
+                          </td>
+                        </tr>
+                      ) : duties.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="py-12 text-center text-slate-400">
+                            No daily duties scheduled yet. Assign a member above!
+                          </td>
+                        </tr>
+                      ) : (
+                        duties.map(d => (
+                          <tr key={d.id || d.date} className="hover:bg-slate-800/40">
+                            <td className="py-3.5 px-5 font-mono font-bold text-amber-300">{d.date}</td>
+                            <td className="py-3.5 px-5">
+                              <div className="flex items-center gap-2.5">
+                                <img
+                                  src={d.assignedUserAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(d.assignedUserName)}&background=047857&color=fff`}
+                                  alt={d.assignedUserName}
+                                  className="w-8 h-8 rounded-xl object-cover"
+                                />
+                                <div>
+                                  <p className="font-bold text-white">{d.assignedUserName}</p>
+                                  <p className="text-[10px] text-slate-400 font-mono">{d.assignedUserEmail}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-3.5 px-5 text-slate-300 max-w-xs truncate">{d.instructions}</td>
+                            <td className="py-3.5 px-5 text-center">
+                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 uppercase">
+                                {d.status}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-5 text-right">
+                              <button
+                                onClick={() => handleDeleteDuty(d)}
+                                className="p-1.5 rounded-lg bg-rose-950/60 hover:bg-rose-900 text-rose-300 border border-rose-800/60 transition-colors"
+                                title="Cancel Duty"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           {/* Tab 4: Password Reset Requests & OTP Codes */}
           {activeTab === 'resets' && (

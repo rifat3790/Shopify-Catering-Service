@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { useLanguage } from '@/context/LanguageContext';
+import { LuxurySpinnerIcon } from '@/components/LuxuryLoader';
 import { 
   ShoppingBag, 
   Receipt, 
@@ -156,7 +157,7 @@ export default function MetricsOverview({ stats, isLoading }: MetricsProps) {
                 <div className="flex items-baseline gap-1">
                   <h3 className={`text-xl sm:text-2xl font-extrabold font-mono tracking-tight ${card.valueColor}`}>
                     {isLoading ? (
-                      <span className="inline-block w-16 h-6 bg-slate-800 animate-pulse rounded" />
+                      <span className="inline-flex items-center py-1"><LuxurySpinnerIcon size="sm" /></span>
                     ) : (
                       card.value
                     )}

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import Setting from '@/lib/models/Setting';
 import { SUPER_ADMIN_EMAIL } from '@/lib/dataStore';
+import { sendOrderClosedAndTableReport, getBangladeshTimeInfo } from '@/lib/telegramService';
 
 export interface OrderControlData {
   ordersEnabled: boolean;
@@ -133,11 +134,22 @@ export async function POST(request: Request) {
     };
 
     if (Setting) {
+      const prevDoc = await Setting.findOne({ key: 'order_control' }).lean();
+      const wasEnabled = (prevDoc as any)?.value?.ordersEnabled !== false;
+
       await Setting.findOneAndUpdate(
         { key: 'order_control' },
         { value: newSettings },
         { upsert: true, new: true }
       );
+
+      // If admin just switched orders from OPEN to CLOSED, immediately notify Telegram + post today's order table image
+      if (wasEnabled && newSettings.ordersEnabled === false) {
+        const { todayStr } = getBangladeshTimeInfo();
+        sendOrderClosedAndTableReport(false, todayStr).catch((err) =>
+          console.warn('Telegram close alert warning:', err)
+        );
+      }
     }
 
     const evaluation = evaluateOrderAllowed(newSettings);

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '@/context/LanguageContext';
+import LuxuryLoader from '@/components/LuxuryLoader';
 import { 
   Database, 
   HardDrive, 
@@ -110,9 +111,8 @@ export default function StorageMetricsCard() {
 
   if (loading && !data) {
     return (
-      <div className="p-8 rounded-3xl bg-slate-900/90 border border-slate-800 animate-pulse text-center space-y-3">
-        <Database className="w-8 h-8 text-amber-400 mx-auto animate-spin" />
-        <p className="text-sm font-semibold text-slate-300">Connecting to MongoDB Atlas & Firebase Cloud Storage metrics...</p>
+      <div className="p-8 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-2xl">
+        <LuxuryLoader message="Connecting to MongoDB Atlas & Firebase Cloud Storage..." subMessage="Fetching real-time cluster telemetry" />
       </div>
     );
   }

@@ -6,6 +6,7 @@ import {
   updateDailyDutyStatus, 
   deleteDailyDuty 
 } from '@/lib/dataStore';
+import { sendTelegramDutyNotification } from '@/lib/telegramService';
 
 // GET: fetch duties (all or for a specific date)
 export async function GET(request: Request) {
@@ -68,6 +69,11 @@ export async function POST(request: Request) {
       instructions,
       tasks,
     });
+
+    // Immediately broadcast assigned responsibility to configured Telegram groups
+    await sendTelegramDutyNotification(duty, false).catch((e) =>
+      console.warn('Telegram duty notify skipped:', e)
+    );
 
     return NextResponse.json({
       success: true,

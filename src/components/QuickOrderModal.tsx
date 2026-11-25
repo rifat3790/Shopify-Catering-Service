@@ -33,10 +33,8 @@ const cashPresets = [20, 30, 50, 100, 200, 500, 1000];
 const DEFAULT_CATERING_DISHES: MenuItemData[] = [
   { _id: 'def-singara', name: 'Singara (সিঙ্গারা)', nameBn: 'সিঙ্গারা', price: 10, category: 'Refreshments', description: 'Crispy catering singara', descriptionBn: 'মচমচে সিঙ্গারা', imageUrl: '', isAvailable: true, popular: true },
   { _id: 'def-somocha', name: 'Somocha (সমুচা)', nameBn: 'সমুচা', price: 10, category: 'Refreshments', description: 'Fresh hot somocha', descriptionBn: 'গরম সমুচা', imageUrl: '', isAvailable: true, popular: true },
-  { _id: 'def-puri', name: 'Dal Puri (ডাল পুরি)', nameBn: 'ডাল পুরি', price: 10, category: 'Refreshments', description: 'Hot dal puri', descriptionBn: 'ডাল পুরি', imageUrl: '', isAvailable: true, popular: true },
-  { _id: 'def-egg', name: 'Boiled Egg (ডিম সিদ্ধ)', nameBn: 'ডিম সিদ্ধ', price: 15, category: 'Refreshments', description: 'Fresh boiled egg', descriptionBn: 'সিদ্ধ ডিম', imageUrl: '', isAvailable: true, popular: true },
-  { _id: 'def-tea', name: 'Milk Tea (দুধ চা)', nameBn: 'দুধ চা', price: 10, category: 'Beverages', description: 'Hot milk tea', descriptionBn: 'দুধ চা', imageUrl: '', isAvailable: true, popular: true },
-  { _id: 'def-coffee', name: 'Coffee (কফি)', nameBn: 'কফি', price: 20, category: 'Beverages', description: 'Hot instant coffee', descriptionBn: 'গরম কফি', imageUrl: '', isAvailable: true, popular: true },
+  { _id: 'def-dalvagi', name: 'Dal Vagi (ডাল ভাজি)', nameBn: 'ডাল ভাজি', price: 10, category: 'Refreshments', description: 'Fresh spiced dal vagi', descriptionBn: 'ডাল ভাজি', imageUrl: '', isAvailable: true, popular: true },
+  { _id: 'def-porota', name: 'Porota (পরোটা)', nameBn: 'পরোটা', price: 10, category: 'Refreshments', description: 'Warm flaky porota', descriptionBn: 'গরম পরোটা', imageUrl: '', isAvailable: true, popular: true },
 ];
 
 interface CustomItem {

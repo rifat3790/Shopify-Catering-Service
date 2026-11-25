@@ -94,6 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const res = await fetch('/api/users/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
         signal: controller.signal,
         body: JSON.stringify({
           uid: firebaseUser.uid,
@@ -122,7 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             photoURL: avatarVal,
             avatar: avatarVal,
             role: determinedRole,
-            status: isSuper ? 'approved' : (dbUser.status || 'approved'),
+            status: isSuper ? 'approved' : (dbUser.status || 'pending'),
             balance: Number(dbUser.balance) || 0,
             currentDue: Number(dbUser.currentDue) || 0,
             totalSpent: Number(dbUser.totalSpent) || 0,
@@ -177,6 +178,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       photoURL: fallbackAvatar,
       avatar: fallbackAvatar,
       role: effectiveRole,
+      status: isSuper ? 'approved' : (user?.status || 'pending'),
       balance: user?.balance || 0,
       currentDue: user?.currentDue || 0,
       totalSpent: user?.totalSpent || 0,
@@ -196,6 +198,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!prev) return synced;
         if (
           prev.uid === synced.uid &&
+          prev.status === synced.status &&
           prev.balance === synced.balance &&
           prev.totalSpent === synced.totalSpent &&
           prev.currentDue === synced.currentDue &&
@@ -246,13 +249,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           } catch (e) {}
         }
 
-        // Optimistic fast state: NEVER downgrade to 'user'!
+        // Optimistic fast state: NEVER downgrade to 'user' and NEVER assume approved if uncached!
         setUser(prev => {
           const resolvedRole: UserRole = isSuper ? 'super_admin' : (claimRole || cachedData?.role || prev?.role || 'user');
+          const resolvedStatus: 'approved' | 'pending' | 'rejected' = isSuper
+            ? 'approved'
+            : (cachedData?.status || prev?.status || 'pending');
           if (prev) {
             return {
               ...prev,
               role: resolvedRole,
+              status: resolvedStatus,
             };
           }
           const chosenAvatar = cachedData?.avatar || cachedData?.photoURL || firebaseUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(firebaseUser.displayName || 'Member')}&background=047857&color=fff`;
@@ -265,6 +272,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             photoURL: chosenAvatar,
             avatar: chosenAvatar,
             role: resolvedRole,
+            status: resolvedStatus,
             balance: typeof cachedData?.balance === 'number' ? cachedData.balance : 0,
             currentDue: typeof cachedData?.currentDue === 'number' ? cachedData.currentDue : 0,
             totalSpent: typeof cachedData?.totalSpent === 'number' ? cachedData.totalSpent : 0,

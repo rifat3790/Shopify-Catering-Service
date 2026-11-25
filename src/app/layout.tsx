@@ -14,7 +14,13 @@ export const metadata: Metadata = {
   title: 'Shopify Catering Service — Order & Payment Tracker',
   description: 'Shopify catering and refreshment ordering system with real-time bill and collection ledger.',
   icons: {
-    icon: '/favicon.ico',
+    icon: [
+      { url: '/icon', type: 'image/png' },
+      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/favicon.ico', sizes: '32x32' },
+    ],
+    shortcut: '/favicon.ico',
+    apple: '/apple-icon',
   },
 };
 

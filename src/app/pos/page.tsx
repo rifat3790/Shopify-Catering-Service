@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import AuthGuard from '@/components/AuthGuard';
 import InvoiceModal from '@/components/InvoiceModal';
+import { LuxurySpinnerIcon } from '@/components/LuxuryLoader';
 import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
@@ -611,7 +612,7 @@ function PosPageContent() {
               >
                 {loading ? (
                   <>
-                    <div className="w-4 h-4 rounded-full border-2 border-slate-950 border-t-transparent animate-spin" />
+                    <LuxurySpinnerIcon size="xs" />
                     <span>Saving Order & Printing...</span>
                   </>
                 ) : (

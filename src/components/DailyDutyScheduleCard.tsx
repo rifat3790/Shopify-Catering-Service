@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { DailyDutyAssignment } from '@/lib/types';
+import LuxuryLoader from '@/components/LuxuryLoader';
 import { 
   Calendar, 
   UserCheck, 
@@ -44,6 +45,7 @@ export default function DailyDutyScheduleCard({ compact = false }: { compact?: b
     .slice(0, 5);
 
   const isSuperOrAdmin = user?.role === 'super_admin' || user?.role === 'admin';
+  const manageDutyHref = user?.role === 'super_admin' ? '/super-admin?tab=duties' : '/admin?tab=duties';
 
   return (
     <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-amber-500/30 p-5 sm:p-6 shadow-xl relative overflow-hidden">
@@ -74,7 +76,7 @@ export default function DailyDutyScheduleCard({ compact = false }: { compact?: b
 
         {isSuperOrAdmin && (
           <Link
-            href="/super-admin?tab=duties"
+            href={manageDutyHref}
             className="text-xs font-bold px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300 border border-amber-500/30 transition-all flex items-center gap-1 shrink-0"
           >
             <span>{language === 'bn' ? 'ম্যানেজ রোস্টার' : 'Manage'}</span>
@@ -84,7 +86,11 @@ export default function DailyDutyScheduleCard({ compact = false }: { compact?: b
       </div>
 
       {/* Today's In-Charge Spotlight Card */}
-      {todayDuty ? (
+      {loading ? (
+        <div className="py-4">
+          <LuxuryLoader size="sm" message="Loading daily duty roster..." />
+        </div>
+      ) : todayDuty ? (
         <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-emerald-500/10 to-transparent border border-amber-500/30 dark:border-amber-500/40 mb-4">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-3">
@@ -166,8 +172,8 @@ export default function DailyDutyScheduleCard({ compact = false }: { compact?: b
           </p>
           {isSuperOrAdmin && (
             <Link
-              href="/super-admin?tab=duties"
-              className="mt-2 inline-block px-3 py-1.5 rounded-xl bg-amber-500 text-slate-950 font-bold text-xs"
+              href={manageDutyHref}
+              className="mt-2 inline-block px-3 py-1.5 rounded-xl bg-amber-500 text-slate-950 font-bold text-xs hover:bg-amber-400 transition-colors"
             >
               + {language === 'bn' ? 'আজকের দায়িত্ব নির্ধারণ করুন' : 'Assign Duty Now'}
             </Link>

@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   X
 } from 'lucide-react';
+import { LuxurySpinnerIcon } from '@/components/LuxuryLoader';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -199,7 +200,7 @@ export default function LoginPage() {
           className="w-full py-3 px-4 rounded-2xl bg-slate-950 hover:bg-slate-800 text-white border border-slate-700 font-semibold text-xs flex items-center justify-center gap-3 shadow-md hover:border-emerald-500/50 transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50"
         >
           {loading ? (
-            <div className="w-4 h-4 rounded-full border-2 border-emerald-500/40 border-t-amber-400 animate-spin" />
+            <LuxurySpinnerIcon size="xs" />
           ) : (
             <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
               <path
@@ -308,7 +309,7 @@ export default function LoginPage() {
           >
             {loading ? (
               <>
-                <div className="w-4 h-4 rounded-full border-2 border-slate-950 border-t-transparent animate-spin" />
+                <LuxurySpinnerIcon size="xs" />
                 <span>Processing...</span>
               </>
             ) : (

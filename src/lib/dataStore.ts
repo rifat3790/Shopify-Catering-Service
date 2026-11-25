@@ -99,7 +99,6 @@ const MENU_CACHE_TTL = 4000;
 export function invalidateUsersCache() {
   lastUsersFetch = 0;
   cachedUsersResult = null;
-  lastFbFetch = 0;
 }
 
 export function invalidateOrdersCache() {
@@ -869,52 +868,49 @@ export async function deleteUser(idOrEmail: string, fallbackEmail?: string): Pro
       orList.push({ name: search });
 
       const query = { $or: orList };
-      const target = await User.findOne(query);
+      const target = await User.findOne(query).lean();
       if (target) {
-        if (target.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) {
+        if ((target as any).email?.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) {
           throw new Error('Primary Root Super Admin account cannot be deleted');
         }
-        if (!targetEmail) targetEmail = target.email.toLowerCase().trim();
-        if (!targetUid && target.uid) targetUid = target.uid;
+        if (!targetEmail && (target as any).email) targetEmail = (target as any).email.toLowerCase().trim();
+        if (!targetUid && (target as any).uid) targetUid = (target as any).uid;
       }
 
-      const res = await User.deleteMany(query);
-      if (res && res.deletedCount && res.deletedCount > 0) {
-        deleted = true;
-      }
-    }
-
-    // 1. Permanently remove from Firebase Authentication
-    if (adminAuth) {
-      if (targetUid) {
-        try {
-          await adminAuth.deleteUser(targetUid);
-          console.log('✅ User deleted from Firebase Authentication by UID:', targetUid);
-        } catch (fbErr: any) {
-          console.warn('Firebase deleteUser by UID error:', fbErr.message);
-        }
-      }
-      if (targetEmail) {
-        try {
-          const fbUser = await adminAuth.getUserByEmail(targetEmail);
-          if (fbUser && fbUser.uid) {
-            await adminAuth.deleteUser(fbUser.uid);
-            console.log('✅ User deleted from Firebase Authentication by email lookup:', fbUser.uid);
-          }
-        } catch (fbErr: any) {
-          // User already not in Firebase
-        }
-      }
-    }
-
-    // 2. Add to deleted_users tombstone in MongoDB Setting to guarantee they never sync back on refresh
-    if (Setting && (targetEmail || targetUid)) {
       const identifiers = [targetEmail, targetUid, search, cleanFallback].filter(Boolean);
-      await Setting.findOneAndUpdate(
-        { key: 'deleted_users' },
-        { $addToSet: { value: { $each: identifiers } } },
-        { upsert: true, new: true }
-      );
+
+      // Run MongoDB purge, tombstone record, and Firebase Auth purge IN PARALLEL for instant deletion speed
+      const ops: Promise<any>[] = [
+        User.deleteMany(query).then((res: any) => {
+          if (res && res.deletedCount && res.deletedCount > 0) deleted = true;
+        }),
+      ];
+
+      if (Setting && identifiers.length > 0) {
+        ops.push(
+          Setting.findOneAndUpdate(
+            { key: 'deleted_users' },
+            { $addToSet: { value: { $each: identifiers } } },
+            { upsert: true, new: true }
+          )
+        );
+      }
+
+      if (adminAuth) {
+        if (targetUid) {
+          ops.push(adminAuth.deleteUser(targetUid).catch(() => {}));
+        }
+        if (targetEmail) {
+          ops.push(
+            adminAuth
+              .getUserByEmail(targetEmail)
+              .then((fbUser) => (fbUser?.uid ? adminAuth.deleteUser(fbUser.uid) : null))
+              .catch(() => {})
+          );
+        }
+      }
+
+      await Promise.allSettled(ops);
     }
   } catch (err: any) {
     if (err.message?.includes('Super Admin')) {
@@ -922,6 +918,16 @@ export async function deleteUser(idOrEmail: string, fallbackEmail?: string): Pro
     }
     console.warn("MongoDB delete user failed, using cache fallback:", err);
   }
+
+  // Purge from persistentStore & cached Firebase list immediately so deleted user never flickers back
+  cachedFbUsers = cachedFbUsers.filter(
+    (fb) =>
+      fb.uid !== idOrEmail &&
+      (targetUid ? fb.uid !== targetUid : true) &&
+      (fb.email || '').toLowerCase() !== search &&
+      (cleanFallback ? (fb.email || '').toLowerCase() !== cleanFallback : true) &&
+      (targetEmail ? (fb.email || '').toLowerCase() !== targetEmail : true)
+  );
 
   // 3. Purge from persistentStore
   persistentStore.deleteUser(search);

@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     }
     return NextResponse.json(
       { success: true, data: users },
-      { headers: { 'Cache-Control': 'public, s-maxage=1, stale-while-revalidate=15' } }
+      { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0' } }
     );
   } catch (error: any) {
     return NextResponse.json(

@@ -13,7 +13,8 @@ import { useToast } from '@/context/ToastContext';
 import { OrderData } from '@/lib/types';
 import { getClientCache, setClientCache, clearClientCache } from '@/lib/clientCache';
 import { filterOrdersByDate, DateFilterType } from '@/lib/dateFilterUtils';
-import { downloadReceiptPng, downloadOrdersAsZip } from '@/lib/receiptGenerator';
+import { downloadReceiptPng, downloadFullOrdersTableAsImage } from '@/lib/receiptGenerator';
+import { LuxurySpinnerIcon } from '@/components/LuxuryLoader';
 import { 
   ClipboardList, 
   Search, 
@@ -192,31 +193,32 @@ function OrdersPageContent() {
   const totalPaid = ordersInDateRange.reduce((sum, o) => sum + (o.paidAmount || 0), 0);
   const totalDue = ordersInDateRange.filter(o => o.status === 'Due' || o.changeDue < 0).length;
 
-  // Download all receipts currently filtered in this tab as a single ZIP
+  // Download ONE consolidated master orders table image containing all details in the current tab
   const handleDownloadAllInTab = async () => {
     if (filteredOrders.length === 0) {
       toast.warning(
         language === 'bn' ? 'বর্তমান ট্যাবে কোনো অর্ডার নেই!' : 'No orders found in current tab!',
-        'No Invoices'
+        'No Orders'
       );
       return;
     }
 
     setIsDownloadingBulk(true);
-    setDownloadProgress(0);
     try {
       const tabName = `${dateFilter}_${statusFilter}`.replace(/[^a-zA-Z0-9_-]/g, '_');
-      await downloadOrdersAsZip(filteredOrders, tabName, (completed) => {
-        setDownloadProgress(completed);
-      });
+      await downloadFullOrdersTableAsImage(
+        filteredOrders,
+        `${dateFilter.toUpperCase()} (${statusFilter})`,
+        'Shopify Catering — Master Orders & Payment Ledger'
+      );
       toast.success(
         language === 'bn'
-          ? `${filteredOrders.length} টি ইনভয়েস সফলভাবে জিপ ফাইল হিসেবে ডাউনলোড হয়েছে!`
-          : `Downloaded ${filteredOrders.length} invoices as ZIP!`,
-        'Invoices Downloaded 📦'
+          ? `${filteredOrders.length} টি অর্ডারের সম্পূর্ণ টেবিল ইমেজ (PNG) হিসেবে ডাউনলোড হয়েছে!`
+          : `Master ledger table (${filteredOrders.length} orders) downloaded as 1 PNG image!`,
+        'Master Table Downloaded'
       );
     } catch (err: any) {
-      toast.error(err.message || 'Failed to download invoices', 'Download Error');
+      toast.error(err.message || 'Failed to generate master table image', 'Download Error');
     } finally {
       setIsDownloadingBulk(false);
     }
@@ -254,22 +256,22 @@ function OrdersPageContent() {
               <span>রিফ্রেশ</span>
             </button>
 
-            {/* Download All Invoices in Current Tab as ZIP */}
+            {/* Download Full Master Table Image */}
             <button
               onClick={handleDownloadAllInTab}
               disabled={filteredOrders.length === 0 || isDownloadingBulk}
               className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-amber-700 dark:text-amber-300 border border-slate-200/80 dark:border-slate-800 text-xs font-semibold transition-all flex items-center gap-1.5 shadow-xs disabled:opacity-40 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-[0.98]"
-              title={language === 'bn' ? 'বর্তমান ট্যাবের সকল রসিদ একসাথে ZIP আকারে ডাউনলোড' : 'Download all receipts in current tab as ZIP'}
+              title={language === 'bn' ? 'সম্পূর্ণ অর্ডার টেবিল একটি ইমেজ (PNG) হিসেবে ডাউনলোড করুন' : 'Download full orders table with all details as a single PNG image'}
             >
               {isDownloadingBulk ? (
-                <div className="w-3.5 h-3.5 rounded-full border-2 border-amber-400 border-t-transparent animate-spin" />
+                <LuxurySpinnerIcon size="xs" />
               ) : (
                 <Download className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
               )}
               <span>
                 {isDownloadingBulk
-                  ? `${language === 'bn' ? 'প্রস্তুত হচ্ছে...' : 'Generating...'} ${downloadProgress}/${filteredOrders.length}`
-                  : (language === 'bn' ? `সব ইনভয়েস ডাউনলোড (${filteredOrders.length})` : `Download All (${filteredOrders.length})`)}
+                  ? (language === 'bn' ? 'টেবিল ইমেজ তৈরি হচ্ছে...' : 'Generating Table Image...')
+                  : (language === 'bn' ? `সব অর্ডার টেবিল ডাউনলোড (${filteredOrders.length})` : `Download All (${filteredOrders.length})`)}
               </span>
             </button>
 

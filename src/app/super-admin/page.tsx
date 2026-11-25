@@ -3,9 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import AuthGuard from '@/components/AuthGuard';
-import LuxuryLoader from '@/components/LuxuryLoader';
+import LuxuryLoader, { LuxurySpinnerIcon } from '@/components/LuxuryLoader';
 import OrderControlCard from '@/components/OrderControlCard';
 import StorageMetricsCard from '@/components/StorageMetricsCard';
+import TelegramBotPanel from '@/components/TelegramBotPanel';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/context/ToastContext';
@@ -45,7 +46,8 @@ import {
   Eye,
   Smartphone,
   Monitor,
-  ChevronRight
+  ChevronRight,
+  Bot
 } from 'lucide-react';
 
 function SuperAdminDashboardContent() {
@@ -63,8 +65,19 @@ function SuperAdminDashboardContent() {
   });
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
-  const [superTab, setSuperTab] = useState<'users' | 'storage' | 'permissions' | 'audit' | 'duties'>('users');
+  const [statusTab, setStatusTab] = useState<'all' | 'approved' | 'pending'>('all');
+  const [superTab, setSuperTab] = useState<'users' | 'storage' | 'permissions' | 'audit' | 'duties' | 'telegram'>('users');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const t = params.get('tab');
+      if (t && ['users', 'storage', 'permissions', 'audit', 'duties', 'telegram'].includes(t)) {
+        setSuperTab(t as any);
+      }
+    }
+  }, []);
 
   // Dynamic Route Permissions state
   const [routePerms, setRoutePerms] = useState<RoutePermissions>(DEFAULT_ROUTE_PERMISSIONS);
@@ -117,9 +130,9 @@ function SuperAdminDashboardContent() {
     }
     try {
       const [uRes, rRes, pRes] = await Promise.all([
-        fetch('/api/users'),
-        fetch('/api/auth/reset-password'),
-        fetch('/api/admin/permissions'),
+        fetch(`/api/users?t=${Date.now()}`, { cache: 'no-store' }),
+        fetch('/api/auth/reset-password', { cache: 'no-store' }),
+        fetch('/api/admin/permissions', { cache: 'no-store' }),
       ]);
 
       if (uRes.ok) {
@@ -440,30 +453,38 @@ function SuperAdminDashboardContent() {
 
   const handleDeleteMember = async () => {
     if (!deleteModalUser) return;
-    setIsDeleting(true);
+    const target = deleteModalUser;
+    const previousUsers = users;
+
+    // Instant 0ms optimistic removal from UI + client cache
+    const nextList = users.filter(u => u.id !== target.id && u.email !== target.email);
+    setUsers(nextList);
+    setClientCache('members_list', nextList);
+    setDeleteModalUser(null);
     setDeleteError('');
+
+    toast.success(
+      language === 'bn'
+        ? `${target.name} কে তালিকা থেকে তাৎক্ষণিক রিমুভ করা হয়েছে।`
+        : `${target.name} removed permanently!`,
+      'Member Removed'
+    );
+
     try {
-      const res = await fetch(`/api/users/${encodeURIComponent(deleteModalUser.id)}?email=${encodeURIComponent(deleteModalUser.email)}`, {
+      const res = await fetch(`/api/users/${encodeURIComponent(target.id)}?email=${encodeURIComponent(target.email)}`, {
         method: 'DELETE',
+        cache: 'no-store',
       });
       const json = await res.json();
-      if (json.success) {
-        setUsers(prev => prev.filter(u => u.id !== deleteModalUser.id && u.email !== deleteModalUser.email));
-        toast.success(
-          language === 'bn' 
-            ? `${deleteModalUser.name} কে ডাটাবেজ ও ফায়ারবেস থেকে স্থায়ীভাবে রিমুভ করা হয়েছে।` 
-            : `${deleteModalUser.name} permanently removed from database and auth.`,
-          'Member Removed'
-        );
-        setDeleteModalUser(null);
-        fetchUsers();
-      } else {
-        setDeleteError(json.error || 'Failed to remove member from database');
-        toast.error(json.error || 'Failed to remove member', 'Error');
+      if (!json.success) {
+        setUsers(previousUsers);
+        setClientCache('members_list', previousUsers);
+        toast.error(json.error || 'Failed to purge user from server', 'Delete Failed');
       }
     } catch (err: any) {
-      setDeleteError(err.message || 'Error deleting member');
-      toast.error(err.message || 'Error deleting member', 'Error');
+      setUsers(previousUsers);
+      setClientCache('members_list', previousUsers);
+      toast.error(err.message || 'Network error removing member', 'Error');
     } finally {
       setIsDeleting(false);
     }
@@ -518,12 +539,20 @@ function SuperAdminDashboardContent() {
     }
   };
 
+  const pendingCount = users.filter(u => u.status === 'pending').length;
+  const approvedCount = users.filter(u => u.status !== 'pending').length;
+
   const filteredUsers = users.filter(u => {
     const matchQuery = (u.name || '').toLowerCase().includes(search.toLowerCase()) || 
                        (u.email || '').toLowerCase().includes(search.toLowerCase()) || 
                        (u.department || '').toLowerCase().includes(search.toLowerCase());
     const matchRole = roleFilter === 'all' ? true : u.role === roleFilter;
-    return matchQuery && matchRole;
+    const matchStatus = statusTab === 'all'
+      ? true
+      : statusTab === 'pending'
+      ? u.status === 'pending'
+      : u.status !== 'pending';
+    return matchQuery && matchRole && matchStatus;
   });
 
   const totalCompanyBalance = users.reduce((acc, u) => acc + (u.balance || 0), 0);
@@ -788,10 +817,25 @@ function SuperAdminDashboardContent() {
               <Calendar className="w-4 h-4" />
               <span>{language === 'bn' ? 'ক্যাটারিং দায়িত্ব রোস্টার' : 'Daily Duty Roster'}</span>
             </button>
+
+            <button
+              onClick={() => setSuperTab('telegram')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                superTab === 'telegram'
+                  ? 'bg-gradient-to-r from-sky-500 to-emerald-500 text-slate-950 shadow-md font-bold'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Bot className="w-4 h-4" />
+              <span>{language === 'bn' ? 'টেলিগ্রাম বট অটোমেশন' : 'Telegram Bot & Alerts'}</span>
+              <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse ml-0.5" />
+            </button>
           </div>
 
           {superTab === 'storage' ? (
             <StorageMetricsCard />
+          ) : superTab === 'telegram' ? (
+            <TelegramBotPanel />
           ) : superTab === 'permissions' ? (
             <div className="space-y-6">
               <OrderControlCard />
@@ -1400,43 +1444,82 @@ function SuperAdminDashboardContent() {
               <div className="rounded-3xl bg-slate-900/90 border border-emerald-900/60 shadow-2xl overflow-hidden backdrop-blur-xl">
             
             {/* Table Header Bar */}
-            <div className="p-5 bg-slate-50 dark:bg-slate-950 dark:bg-gradient-to-r dark:from-emerald-950/80 dark:via-slate-900 dark:to-emerald-950/60 border-b border-slate-200 dark:border-emerald-800/60 flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div>
-                <h2 className="text-lg font-bold font-serif text-white flex items-center gap-2">
-                  <KeyRound className="w-5 h-5 text-amber-400" />
-                  <span>{language === 'bn' ? 'রোল নির্ধারণ ও ব্যালেন্স কন্ট্রোল (Add, Deduct, Edit)' : 'Role Assignment & Balance Management'}</span>
-                </h2>
-                <p className="text-xs text-slate-400">
-                  {language === 'bn' 
-                    ? 'সুপার অ্যাডমিন যেকাউকে Super Admin, Admin, Staff বা সাধারণ ইউজার রোল দিতে পারেন এবং ব্যালেন্স যোগ, কর্তন ও এডিট করতে পারেন' 
-                    : 'Assign roles to any user and manage balances (Add, Deduct, or directly Edit)'}
-                </p>
-              </div>
-
-              {/* Filter toolbar */}
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="relative min-w-[200px]">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                  <input
-                    type="text"
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                    placeholder={language === 'bn' ? 'ব্যবহারকারী খুঁজুন...' : 'Search employee...'}
-                    className="w-full pl-9 pr-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
-                  />
+            <div className="p-5 bg-slate-50 dark:bg-slate-950 dark:bg-gradient-to-r dark:from-emerald-950/80 dark:via-slate-900 dark:to-emerald-950/60 border-b border-slate-200 dark:border-emerald-800/60 flex flex-col gap-4">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-bold font-serif text-white flex items-center gap-2">
+                    <KeyRound className="w-5 h-5 text-amber-400" />
+                    <span>{language === 'bn' ? 'রোল নির্ধারণ ও ব্যালেন্স কন্ট্রোল (Add, Deduct, Edit)' : 'Role Assignment & Balance Management'}</span>
+                  </h2>
+                  <p className="text-xs text-slate-400">
+                    {language === 'bn' 
+                      ? 'সুপার অ্যাডমিন যেকাউকে Super Admin, Admin, Staff বা সাধারণ ইউজার রোল দিতে পারেন এবং ব্যালেন্স যোগ, কর্তন ও এডিট করতে পারেন' 
+                      : 'Assign roles to any user and manage balances (Add, Deduct, or directly Edit)'}
+                  </p>
                 </div>
 
-                <select
-                  value={roleFilter}
-                  onChange={e => setRoleFilter(e.target.value)}
-                  className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none"
+                {/* Filter toolbar */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="relative min-w-[200px]">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                    <input
+                      type="text"
+                      value={search}
+                      onChange={e => setSearch(e.target.value)}
+                      placeholder={language === 'bn' ? 'ব্যবহারকারী খুঁজুন...' : 'Search employee...'}
+                      className="w-full pl-9 pr-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
+                    />
+                  </div>
+
+                  <select
+                    value={roleFilter}
+                    onChange={e => setRoleFilter(e.target.value)}
+                    className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none"
+                  >
+                    <option value="all">All Roles</option>
+                    <option value="super_admin">Super Admin</option>
+                    <option value="admin">Admin</option>
+                    <option value="staff">Staff</option>
+                    <option value="user">User</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Member Status Tabs (All / Active Approved / Pending Approval) */}
+              <div className="flex flex-wrap items-center gap-2 p-1.5 rounded-2xl bg-slate-900/90 border border-slate-800 w-fit">
+                <button
+                  onClick={() => setStatusTab('all')}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    statusTab === 'all'
+                      ? 'bg-gradient-to-r from-emerald-600 to-amber-600 text-slate-950 shadow-sm'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
                 >
-                  <option value="all">All Roles</option>
-                  <option value="super_admin">Super Admin</option>
-                  <option value="admin">Admin</option>
-                  <option value="staff">Staff</option>
-                  <option value="user">User</option>
-                </select>
+                  All Members ({users.length})
+                </button>
+                <button
+                  onClick={() => setStatusTab('approved')}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    statusTab === 'approved'
+                      ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                      : 'text-slate-400 hover:text-emerald-300'
+                  }`}
+                >
+                  Active / Approved ({approvedCount})
+                </button>
+                <button
+                  onClick={() => setStatusTab('pending')}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                    statusTab === 'pending'
+                      ? 'bg-amber-500 text-slate-950 shadow-sm'
+                      : 'text-slate-400 hover:text-amber-300'
+                  }`}
+                >
+                  <span>Pending Approval ({pendingCount})</span>
+                  {pendingCount > 0 && (
+                    <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+                  )}
+                </button>
               </div>
             </div>
 
@@ -2253,7 +2336,7 @@ function SuperAdminDashboardContent() {
               >
                 {isDeleting ? (
                   <>
-                    <div className="w-3.5 h-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                    <LuxurySpinnerIcon size="xs" />
                     <span>Purging from Database...</span>
                   </>
                 ) : (
