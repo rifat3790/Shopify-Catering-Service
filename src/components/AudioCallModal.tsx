@@ -1,15 +1,14 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  PhoneOff, 
-  Mic, 
-  MicOff, 
-  Volume2, 
-  VolumeX, 
+import {
+  PhoneOff,
+  Mic,
+  MicOff,
+  Volume2,
+  VolumeX,
   ShieldCheck,
   Radio,
-  PhoneCall
 } from 'lucide-react';
 import { playRingbackTone, playCallEndedTone } from '@/lib/callSounds';
 
@@ -24,18 +23,25 @@ interface AudioCallModalProps {
   callId?: string;
   isCaller?: boolean;
   currentUserId?: string;
+  currentUserEmail?: string;
   currentUserName?: string;
   currentUserAvatar?: string;
   targetUserId?: string;
+  targetUserEmail?: string;
+  groupMemberIds?: string[];
   initialOffer?: any;
 }
 
-const ICE_SERVERS = {
+const ICE_SERVERS: RTCConfiguration = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
     { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun3.l.google.com:19302' },
+    { urls: 'stun:stun4.l.google.com:19302' },
+    { urls: 'stun:stun.cloudflare.com:3478' },
   ],
+  iceCandidatePoolSize: 4,
 };
 
 export default function AudioCallModal({
@@ -49,10 +55,13 @@ export default function AudioCallModal({
   callId: propCallId,
   isCaller = true,
   currentUserId,
+  currentUserEmail,
   currentUserName,
   currentUserAvatar,
   targetUserId,
-  initialOffer
+  targetUserEmail,
+  groupMemberIds,
+  initialOffer,
 }: AudioCallModalProps) {
   const [callStatus, setCallStatus] = useState<'calling' | 'connected' | 'ended'>('calling');
   const [seconds, setSeconds] = useState(0);
@@ -61,115 +70,362 @@ export default function AudioCallModal({
   const [activeCallId, setActiveCallId] = useState<string | null>(propCallId || null);
   const [statusMessage, setStatusMessage] = useState<string>('Connecting secure line...');
   const [audioLevel, setAudioLevel] = useState<number>(0);
+  const [audioBlocked, setAudioBlocked] = useState<boolean>(false);
 
   const localStreamRef = useRef<MediaStream | null>(null);
+  const remoteStreamRef = useRef<MediaStream | null>(null);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
   const stopRingbackRef = useRef<(() => void) | null>(null);
   const pollingIntervalRef = useRef<any>(null);
+  const disconnectGraceTimerRef = useRef<any>(null);
+  const iceFlushTimerRef = useRef<any>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animFrameRef = useRef<any>(null);
-  const callInitiatedRef = useRef(false);
+  const activeCallIdRef = useRef<string | null>(propCallId || null);
+  const endedGuardRef = useRef<boolean>(false);
+  const cancelledBeforeInitRef = useRef<boolean>(false);
+  const isSpeakerOnRef = useRef<boolean>(true);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
-  // Sync propCallId to activeCallId
+  // Keep activeCallIdRef synced with prop
   useEffect(() => {
     if (propCallId) {
+      activeCallIdRef.current = propCallId;
       setActiveCallId(propCallId);
     }
   }, [propCallId]);
+
+  const sendEndSignal = (targetId: string) => {
+    fetch('/api/chat/call', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      keepalive: true,
+      body: JSON.stringify({
+        action: 'end',
+        callId: targetId,
+        senderId: currentUserId || currentUserEmail,
+      }),
+    }).catch(() => {});
+  };
+
+  // Clean up WebRTC & audio resources
+  const cleanupCall = () => {
+    if (stopRingbackRef.current) {
+      stopRingbackRef.current();
+      stopRingbackRef.current = null;
+    }
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+    if (disconnectGraceTimerRef.current) {
+      clearTimeout(disconnectGraceTimerRef.current);
+      disconnectGraceTimerRef.current = null;
+    }
+    if (iceFlushTimerRef.current) {
+      clearTimeout(iceFlushTimerRef.current);
+      iceFlushTimerRef.current = null;
+    }
+    if (animFrameRef.current) {
+      cancelAnimationFrame(animFrameRef.current);
+      animFrameRef.current = null;
+    }
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach((track) => track.stop());
+      localStreamRef.current = null;
+    }
+    if (remoteStreamRef.current) {
+      remoteStreamRef.current.getTracks().forEach((track) => track.stop());
+      remoteStreamRef.current = null;
+    }
+    if (remoteAudioRef.current) {
+      try {
+        remoteAudioRef.current.pause();
+        remoteAudioRef.current.srcObject = null;
+      } catch (e) {}
+    }
+    if (peerConnectionRef.current) {
+      try {
+        peerConnectionRef.current.onicecandidate = null;
+        peerConnectionRef.current.ontrack = null;
+        peerConnectionRef.current.onconnectionstatechange = null;
+        peerConnectionRef.current.oniceconnectionstatechange = null;
+        peerConnectionRef.current.close();
+      } catch (e) {}
+      peerConnectionRef.current = null;
+    }
+    if (audioContextRef.current) {
+      try {
+        audioContextRef.current.close();
+      } catch (e) {}
+      audioContextRef.current = null;
+    }
+  };
+
+  const handleEndCall = (notifyServer = true, endLabel = 'Call Ended') => {
+    if (endedGuardRef.current) return;
+    endedGuardRef.current = true;
+    cancelledBeforeInitRef.current = true;
+
+    setCallStatus('ended');
+    setStatusMessage(endLabel);
+    playCallEndedTone();
+
+    const targetCallId = activeCallIdRef.current || propCallId;
+    if (notifyServer && targetCallId) {
+      sendEndSignal(targetCallId);
+    }
+
+    cleanupCall();
+
+    setTimeout(() => {
+      onCloseRef.current();
+    }, 800);
+  };
+
+  // End call automatically if user closes or reloads tab mid-call
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleBeforeUnload = () => {
+      const targetCallId = activeCallIdRef.current || propCallId;
+      if (targetCallId && !endedGuardRef.current && typeof navigator !== 'undefined' && navigator.sendBeacon) {
+        navigator.sendBeacon(
+          '/api/chat/call',
+          JSON.stringify({
+            action: 'end',
+            callId: targetCallId,
+            senderId: currentUserId || currentUserEmail,
+          })
+        );
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('pagehide', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('pagehide', handleBeforeUnload);
+    };
+  }, [isOpen, propCallId, currentUserId, currentUserEmail]);
 
   // Main WebRTC & Call Signaling Lifecycle
   useEffect(() => {
     if (!isOpen) {
       cleanupCall();
+      endedGuardRef.current = false;
+      cancelledBeforeInitRef.current = false;
+      activeCallIdRef.current = null;
+      setActiveCallId(null);
       setCallStatus('calling');
       setSeconds(0);
-      setActiveCallId(null);
+      setIsMuted(false);
+      setIsSpeakerOn(true);
+      isSpeakerOnRef.current = true;
+      setAudioBlocked(false);
+      setStatusMessage('Connecting secure line...');
       return;
     }
 
     let isMounted = true;
+    endedGuardRef.current = false;
+    cancelledBeforeInitRef.current = false;
+
+    const localIceBuffer: RTCIceCandidateInit[] = [];
+    const remoteIceQueue: RTCIceCandidateInit[] = [];
+    let currentCallId: string | undefined = propCallId || undefined;
+    let isRemoteDescSet = false;
+
+    if (currentCallId) {
+      activeCallIdRef.current = currentCallId;
+    }
+
+    const flushLocalIceCandidates = async () => {
+      if (!currentCallId || localIceBuffer.length === 0 || !isMounted) return;
+      const batch = localIceBuffer.splice(0, localIceBuffer.length);
+      try {
+        await fetch('/api/chat/call', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'signal',
+            callId: currentCallId,
+            iceCandidates: batch,
+            senderId: currentUserId,
+            senderEmail: currentUserEmail,
+          }),
+        });
+      } catch (e) {}
+    };
+
+    const scheduleLocalIceFlush = () => {
+      if (iceFlushTimerRef.current) return;
+      iceFlushTimerRef.current = setTimeout(() => {
+        iceFlushTimerRef.current = null;
+        flushLocalIceCandidates();
+      }, 90);
+    };
+
+    const flushRemoteIceQueue = async (pc: RTCPeerConnection) => {
+      if (!isRemoteDescSet || !pc.remoteDescription) return;
+      while (remoteIceQueue.length > 0) {
+        const cand = remoteIceQueue.shift();
+        if (!cand) continue;
+        try {
+          await pc.addIceCandidate(new RTCIceCandidate(cand));
+        } catch (e) {}
+      }
+    };
 
     async function setupCall() {
       try {
-        // 1. Get user microphone stream
-        let stream: MediaStream;
+        // 1. Capture microphone with echo cancellation + noise suppression (or recvonly fallback if mic unavailable)
+        let stream: MediaStream | null = null;
         try {
-          stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-        } catch (micErr: any) {
-          console.warn('Microphone permission or hardware error:', micErr);
-          setStatusMessage('Microphone access denied or unavailable');
+          stream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true,
+            },
+            video: false,
+          });
+        } catch (micErr) {
+          console.warn('Microphone access denied or missing, switching to listen-only mode:', micErr);
+        }
+
+        if (!isMounted || cancelledBeforeInitRef.current) {
+          stream?.getTracks().forEach((t) => t.stop());
           return;
         }
 
-        if (!isMounted) {
-          stream.getTracks().forEach(t => t.stop());
-          return;
-        }
+        if (stream) {
+          localStreamRef.current = stream;
 
-        localStreamRef.current = stream;
+          // Live voice input waveform visualizer
+          try {
+            const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+            if (AudioContextClass) {
+              const ctx = new AudioContextClass();
+              audioContextRef.current = ctx;
+              const source = ctx.createMediaStreamSource(stream);
+              const analyser = ctx.createAnalyser();
+              analyser.fftSize = 64;
+              source.connect(analyser);
+              analyserRef.current = analyser;
 
-        // Setup Audio Analyser for live voice visualizer
-        try {
-          const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-          if (AudioContextClass) {
-            const ctx = new AudioContextClass();
-            audioContextRef.current = ctx;
-            const source = ctx.createMediaStreamSource(stream);
-            const analyser = ctx.createAnalyser();
-            analyser.fftSize = 64;
-            source.connect(analyser);
-            analyserRef.current = analyser;
-
-            const checkAudio = () => {
-              if (!analyserRef.current || !isMounted) return;
-              const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
-              analyserRef.current.getByteFrequencyData(dataArray);
-              let sum = 0;
-              for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
-              const avg = sum / dataArray.length;
-              setAudioLevel(Math.min(100, Math.round((avg / 128) * 100)));
+              const checkAudio = () => {
+                if (!analyserRef.current || !isMounted) return;
+                const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
+                analyserRef.current.getByteFrequencyData(dataArray);
+                let sum = 0;
+                for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+                const avg = sum / dataArray.length;
+                setAudioLevel(Math.min(100, Math.round((avg / 128) * 100)));
+                animFrameRef.current = requestAnimationFrame(checkAudio);
+              };
               animFrameRef.current = requestAnimationFrame(checkAudio);
-            };
-            animFrameRef.current = requestAnimationFrame(checkAudio);
-          }
-        } catch (e) {}
+            }
+          } catch (e) {}
+        }
 
-        // 2. Initialize RTCPeerConnection
+        // 2. Initialize RTCPeerConnection and register ALL handlers BEFORE creating Offer/Answer
         const pc = new RTCPeerConnection(ICE_SERVERS);
         peerConnectionRef.current = pc;
 
-        // Add local audio tracks to peer connection
-        stream.getAudioTracks().forEach(track => {
-          pc.addTrack(track, stream);
-        });
+        if (stream) {
+          stream.getAudioTracks().forEach((track) => {
+            pc.addTrack(track, stream!);
+          });
+        } else {
+          pc.addTransceiver('audio', { direction: 'recvonly' });
+        }
 
-        // Remote track handler -> route to remote audio element
-        pc.ontrack = (event) => {
-          if (remoteAudioRef.current && event.streams[0]) {
-            remoteAudioRef.current.srcObject = event.streams[0];
-            remoteAudioRef.current.play().catch(e => console.warn('Audio autoPlay prevented:', e));
+        // Attach local ICE handler BEFORE setLocalDescription so ZERO ICE candidates are dropped!
+        pc.onicecandidate = (event) => {
+          if (event.candidate && isMounted && !endedGuardRef.current) {
+            localIceBuffer.push(event.candidate.toJSON ? event.candidate.toJSON() : event.candidate);
+            if (currentCallId) {
+              scheduleLocalIceFlush();
+            }
           }
         };
 
-        let currentCallId = propCallId;
+        // Route remote voice audio cleanly into <audio> element
+        pc.ontrack = (event) => {
+          if (!isMounted) return;
+          const remoteStream =
+            (event.streams && event.streams.length > 0 && event.streams[0]) ||
+            new MediaStream([event.track]);
+          remoteStreamRef.current = remoteStream;
+
+          if (remoteAudioRef.current) {
+            remoteAudioRef.current.srcObject = remoteStream;
+            remoteAudioRef.current.volume = 1.0;
+            remoteAudioRef.current.muted = !isSpeakerOnRef.current;
+            const playPromise = remoteAudioRef.current.play();
+            if (playPromise && typeof playPromise.catch === 'function') {
+              playPromise
+                .then(() => {
+                  if (isMounted) setAudioBlocked(false);
+                })
+                .catch(() => {
+                  if (isMounted) setAudioBlocked(true);
+                });
+            }
+          }
+        };
+
+        // Track WebRTC ICE/connection state for instant audio status and disconnect detection
+        const handleStateChange = () => {
+          if (!isMounted || endedGuardRef.current) return;
+          const connState = pc.connectionState;
+          const iceState = pc.iceConnectionState;
+
+          if (iceState === 'connected' || iceState === 'completed' || connState === 'connected') {
+            if (disconnectGraceTimerRef.current) {
+              clearTimeout(disconnectGraceTimerRef.current);
+              disconnectGraceTimerRef.current = null;
+            }
+            if (stopRingbackRef.current) {
+              stopRingbackRef.current();
+              stopRingbackRef.current = null;
+            }
+            setCallStatus('connected');
+            setStatusMessage(stream ? 'Connected • HD Audio' : 'Connected • Listen Only');
+          } else if (connState === 'failed' || iceState === 'failed') {
+            handleEndCall(true, 'Connection Lost');
+          } else if (connState === 'disconnected' || iceState === 'disconnected') {
+            setStatusMessage('Reconnecting audio...');
+            if (!disconnectGraceTimerRef.current) {
+              disconnectGraceTimerRef.current = setTimeout(() => {
+                if (
+                  isMounted &&
+                  !endedGuardRef.current &&
+                  (pc.iceConnectionState === 'disconnected' || pc.connectionState === 'disconnected')
+                ) {
+                  handleEndCall(true, 'Call Ended');
+                }
+              }, 5000);
+            }
+          }
+        };
+
+        pc.onconnectionstatechange = handleStateChange;
+        pc.oniceconnectionstatechange = handleStateChange;
 
         // 3. CALLER FLOW
         if (isCaller) {
           setStatusMessage('Ringing...');
-          // Start telephone ringback sound
           stopRingbackRef.current = playRingbackTone();
 
-          // Create WebRTC Offer
-          const offer = await pc.createOffer({
-            offerToReceiveAudio: true,
-          });
+          const offer = await pc.createOffer({ offerToReceiveAudio: true });
+          if (!isMounted || cancelledBeforeInitRef.current) return;
           await pc.setLocalDescription(offer);
+          if (!isMounted || cancelledBeforeInitRef.current) return;
 
-          // Initiate call session on server
-          if (!currentCallId && targetUserId && currentUserId && !callInitiatedRef.current) {
-            callInitiatedRef.current = true;
+          if (!currentCallId && targetUserId && currentUserId) {
             try {
               const res = await fetch('/api/chat/call', {
                 method: 'POST',
@@ -177,67 +433,66 @@ export default function AudioCallModal({
                 body: JSON.stringify({
                   action: 'initiate',
                   callerId: currentUserId,
+                  callerEmail: currentUserEmail,
                   callerName: currentUserName || 'Colleague',
                   callerAvatar: currentUserAvatar,
                   receiverId: targetUserId,
+                  receiverEmail: targetUserEmail,
                   receiverName: targetName,
                   receiverAvatar: targetAvatar,
                   isGroup,
-                  offer
-                })
+                  groupMemberIds,
+                  offer,
+                }),
               });
               const data = await res.json();
               if (data.success && data.session) {
                 currentCallId = data.session.callId;
-                setActiveCallId(currentCallId);
+                activeCallIdRef.current = currentCallId!;
+                setActiveCallId(currentCallId!);
+
+                // If caller pressed hangup before initiate returned, immediately cancel on server!
+                if (!isMounted || cancelledBeforeInitRef.current) {
+                  sendEndSignal(currentCallId!);
+                  return;
+                }
+
+                // Flush all ICE candidates gathered while waiting for initiate!
+                flushLocalIceCandidates();
               }
             } catch (err) {
               console.error('Call initiation error:', err);
             }
           }
 
-          // Handle local ICE candidates
-          pc.onicecandidate = (event) => {
-            if (event.candidate && currentCallId) {
-              fetch('/api/chat/call', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  action: 'signal',
-                  callId: currentCallId,
-                  iceCandidate: event.candidate,
-                  senderId: currentUserId
-                })
-              }).catch(() => {});
-            }
-          };
-
-          // Polling server for receiver's answer and ICE candidates
           let answerHandled = false;
           let handledCandidatesCount = 0;
 
           pollingIntervalRef.current = setInterval(async () => {
-            if (!currentCallId || !isMounted) return;
+            if (!currentCallId || !isMounted || endedGuardRef.current) return;
             try {
-              const res = await fetch(`/api/chat/call?userId=${encodeURIComponent(currentUserId || '')}`);
+              const res = await fetch(
+                `/api/chat/call?callId=${encodeURIComponent(currentCallId)}&userId=${encodeURIComponent(currentUserId || '')}&userEmail=${encodeURIComponent(currentUserEmail || '')}&t=${Date.now()}`,
+                { cache: 'no-store' }
+              );
               const data = await res.json();
               const session = data?.session;
 
-              if (!session || session.callId !== currentCallId) return;
-
-              // Check if rejected or ended
+              // If session was terminated by receiver (rejected, ended, or cleaned up) -> end for caller too!
+              if (!session) {
+                handleEndCall(false, 'Call Ended');
+                return;
+              }
               if (session.status === 'rejected') {
-                setStatusMessage('Call Declined');
-                handleEndCall(false);
+                handleEndCall(false, 'Call Declined');
                 return;
               }
               if (session.status === 'ended') {
-                setStatusMessage('Call Ended');
-                handleEndCall(false);
+                handleEndCall(false, 'Call Ended');
                 return;
               }
 
-              // Check if answered
+              // Handle receiver's answer
               if (session.status === 'accepted' && session.answer && !answerHandled) {
                 answerHandled = true;
                 if (stopRingbackRef.current) {
@@ -245,42 +500,63 @@ export default function AudioCallModal({
                   stopRingbackRef.current = null;
                 }
                 await pc.setRemoteDescription(new RTCSessionDescription(session.answer));
+                isRemoteDescSet = true;
                 setCallStatus('connected');
-                setStatusMessage('Connected • HD Audio');
+                setStatusMessage(stream ? 'Connected • HD Audio' : 'Connected • Listen Only');
+                await flushRemoteIceQueue(pc);
               }
 
-              // Add any new receiver ICE candidates
+              // Queue & apply receiver ICE candidates
               if (session.receiverCandidates && session.receiverCandidates.length > handledCandidatesCount) {
                 for (let i = handledCandidatesCount; i < session.receiverCandidates.length; i++) {
-                  try {
-                    await pc.addIceCandidate(new RTCIceCandidate(session.receiverCandidates[i]));
-                  } catch (e) {}
+                  remoteIceQueue.push(session.receiverCandidates[i]);
                 }
                 handledCandidatesCount = session.receiverCandidates.length;
+                await flushRemoteIceQueue(pc);
               }
             } catch (e) {}
-          }, 1200);
-
+          }, 700);
         } else {
           // 4. RECEIVER FLOW (Answering incoming call)
-          setStatusMessage('Connecting audio stream...');
-          setCallStatus('connected');
-
+          setStatusMessage('Establishing audio...');
+          let handledCandidatesCount = 0;
           let offerToUse = initialOffer;
-          if (!offerToUse && currentCallId) {
+          let fetchedSession: any = null;
+
+          if (currentCallId) {
             try {
-              const res = await fetch(`/api/chat/call?userId=${encodeURIComponent(currentUserId || '')}`);
+              const res = await fetch(
+                `/api/chat/call?callId=${encodeURIComponent(currentCallId)}&userId=${encodeURIComponent(currentUserId || '')}&userEmail=${encodeURIComponent(currentUserEmail || '')}&t=${Date.now()}`,
+                { cache: 'no-store' }
+              );
               const data = await res.json();
-              offerToUse = data?.session?.offer;
+              fetchedSession = data?.session;
+              if (!fetchedSession || fetchedSession.status === 'ended' || fetchedSession.status === 'rejected') {
+                handleEndCall(false, 'Call Cancelled');
+                return;
+              }
+              if (!offerToUse) offerToUse = fetchedSession.offer;
+              if (Array.isArray(fetchedSession.callerCandidates) && fetchedSession.callerCandidates.length > 0) {
+                for (const c of fetchedSession.callerCandidates) {
+                  remoteIceQueue.push(c);
+                }
+                handledCandidatesCount = fetchedSession.callerCandidates.length;
+              }
             } catch (e) {}
           }
 
+          if (!isMounted || endedGuardRef.current) return;
+
           if (offerToUse) {
             await pc.setRemoteDescription(new RTCSessionDescription(offerToUse));
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
+            isRemoteDescSet = true;
+            await flushRemoteIceQueue(pc);
 
-            // Send answer back to caller
+            const answer = await pc.createAnswer();
+            if (!isMounted || endedGuardRef.current) return;
+            await pc.setLocalDescription(answer);
+            if (!isMounted || endedGuardRef.current) return;
+
             if (currentCallId) {
               await fetch('/api/chat/call', {
                 method: 'POST',
@@ -290,62 +566,44 @@ export default function AudioCallModal({
                   callId: currentCallId,
                   status: 'accepted',
                   answer,
-                  senderId: currentUserId
-                })
+                  senderId: currentUserId,
+                  senderEmail: currentUserEmail,
+                }),
               });
+              // Flush ICE candidates gathered during setLocalDescription(answer)
+              flushLocalIceCandidates();
             }
+            setCallStatus('connected');
+            setStatusMessage(stream ? 'Connected • HD Audio' : 'Connected • Listen Only');
           }
 
-          // Handle local ICE candidates for receiver
-          pc.onicecandidate = (event) => {
-            if (event.candidate && currentCallId) {
-              fetch('/api/chat/call', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  action: 'signal',
-                  callId: currentCallId,
-                  iceCandidate: event.candidate,
-                  senderId: currentUserId
-                })
-              }).catch(() => {});
-            }
-          };
-
-          // Poll for caller ICE candidates & ended status
-          let handledCandidatesCount = 0;
+          // Poll caller ICE candidates & hangup status
           pollingIntervalRef.current = setInterval(async () => {
-            if (!currentCallId || !isMounted) return;
+            if (!currentCallId || !isMounted || endedGuardRef.current) return;
             try {
-              const res = await fetch(`/api/chat/call?userId=${encodeURIComponent(currentUserId || '')}`);
+              const res = await fetch(
+                `/api/chat/call?callId=${encodeURIComponent(currentCallId)}&userId=${encodeURIComponent(currentUserId || '')}&userEmail=${encodeURIComponent(currentUserEmail || '')}&t=${Date.now()}`,
+                { cache: 'no-store' }
+              );
               const data = await res.json();
               const session = data?.session;
 
-              if (!session || session.callId !== currentCallId) {
-                // Session gone -> end call
-                handleEndCall(false);
-                return;
-              }
-
-              if (session.status === 'ended') {
-                setStatusMessage('Call Ended');
-                handleEndCall(false);
+              if (!session || session.status === 'ended' || session.status === 'rejected') {
+                handleEndCall(false, 'Call Ended');
                 return;
               }
 
               if (session.callerCandidates && session.callerCandidates.length > handledCandidatesCount) {
                 for (let i = handledCandidatesCount; i < session.callerCandidates.length; i++) {
-                  try {
-                    await pc.addIceCandidate(new RTCIceCandidate(session.callerCandidates[i]));
-                  } catch (e) {}
+                  remoteIceQueue.push(session.callerCandidates[i]);
                 }
                 handledCandidatesCount = session.callerCandidates.length;
+                await flushRemoteIceQueue(pc);
               }
             } catch (e) {}
-          }, 1200);
+          }, 700);
         }
-
-      } catch (err: any) {
+      } catch (err) {
         console.error('Call setup error:', err);
         setStatusMessage('Call connection failed');
       }
@@ -359,84 +617,55 @@ export default function AudioCallModal({
     };
   }, [isOpen, propCallId, isCaller]);
 
-  // Clean up all resources
-  const cleanupCall = () => {
-    callInitiatedRef.current = false;
-    if (stopRingbackRef.current) {
-      stopRingbackRef.current();
-      stopRingbackRef.current = null;
-    }
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-      pollingIntervalRef.current = null;
-    }
-    if (animFrameRef.current) {
-      cancelAnimationFrame(animFrameRef.current);
-      animFrameRef.current = null;
-    }
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach(track => track.stop());
-      localStreamRef.current = null;
-    }
-    if (peerConnectionRef.current) {
-      peerConnectionRef.current.close();
-      peerConnectionRef.current = null;
-    }
-    if (audioContextRef.current) {
-      try { audioContextRef.current.close(); } catch (e) {}
-      audioContextRef.current = null;
-    }
-  };
-
   // Call duration timer
   useEffect(() => {
     let interval: any;
     if (callStatus === 'connected') {
       interval = setInterval(() => {
-        setSeconds(s => s + 1);
+        setSeconds((s) => s + 1);
       }, 1000);
     }
     return () => clearInterval(interval);
   }, [callStatus]);
 
+  const unlockRemoteAudio = () => {
+    if (remoteAudioRef.current) {
+      remoteAudioRef.current.muted = false;
+      remoteAudioRef.current.volume = 1.0;
+      remoteAudioRef.current
+        .play()
+        .then(() => {
+          setAudioBlocked(false);
+          setIsSpeakerOn(true);
+          isSpeakerOnRef.current = true;
+        })
+        .catch(() => {});
+    }
+  };
+
   // Toggle mic mute
   const toggleMute = () => {
     if (localStreamRef.current) {
-      const audioTracks = localStreamRef.current.getAudioTracks();
-      audioTracks.forEach(track => {
-        track.enabled = isMuted;
+      const nextMuted = !isMuted;
+      localStreamRef.current.getAudioTracks().forEach((track) => {
+        track.enabled = !nextMuted;
       });
-      setIsMuted(!isMuted);
+      setIsMuted(nextMuted);
     }
+    if (audioBlocked) unlockRemoteAudio();
   };
 
-  // Toggle speaker
+  // Toggle speaker output
   const toggleSpeaker = () => {
+    const nextSpeaker = !isSpeakerOn;
+    isSpeakerOnRef.current = nextSpeaker;
+    setIsSpeakerOn(nextSpeaker);
     if (remoteAudioRef.current) {
-      remoteAudioRef.current.muted = isSpeakerOn;
-      setIsSpeakerOn(!isSpeakerOn);
+      remoteAudioRef.current.muted = !nextSpeaker;
+      if (nextSpeaker) {
+        remoteAudioRef.current.play().then(() => setAudioBlocked(false)).catch(() => {});
+      }
     }
-  };
-
-  // End call
-  const handleEndCall = (notifyServer = true) => {
-    setCallStatus('ended');
-    playCallEndedTone();
-
-    const targetCallId = activeCallId || propCallId;
-    if (notifyServer && targetCallId) {
-      fetch('/api/chat/call', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'end', callId: targetCallId })
-      }).catch(() => {});
-    }
-
-    cleanupCall();
-
-    setTimeout(() => {
-      onClose();
-    }, 800);
   };
 
   if (!isOpen) return null;
@@ -449,12 +678,10 @@ export default function AudioCallModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl animate-in fade-in duration-200">
-      
-      {/* Hidden audio element for crystal clear remote voice output */}
+      {/* Hidden audio element for remote voice playback */}
       <audio ref={remoteAudioRef} autoPlay playsInline />
 
-      <div className="relative w-full max-w-sm rounded-3xl bg-gradient-to-b from-slate-900/95 via-slate-950 to-slate-950 border border-emerald-500/40 p-8 shadow-2xl text-center space-y-6 overflow-hidden">
-        
+      <div className="relative w-full max-w-sm rounded-3xl bg-gradient-to-b from-slate-900/95 via-slate-950 to-slate-950 border border-emerald-500/40 p-7 sm:p-8 shadow-2xl text-center space-y-6 overflow-hidden">
         {/* Ambient Ringing Glow */}
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-64 h-64 bg-emerald-500/15 blur-[90px] rounded-full pointer-events-none" />
 
@@ -468,21 +695,27 @@ export default function AudioCallModal({
         <div className="relative w-28 h-28 mx-auto flex items-center justify-center">
           {callStatus === 'connected' && (
             <>
-              <div 
-                className="absolute inset-0 rounded-full border border-emerald-500/40 animate-ping" 
-                style={{ animationDuration: '2.5s' }} 
+              <div
+                className="absolute inset-0 rounded-full border border-emerald-500/40 animate-ping"
+                style={{ animationDuration: '2.5s' }}
               />
-              <div 
+              <div
                 className="absolute -inset-3 rounded-full border border-amber-400/30 transition-all duration-150"
-                style={{ transform: `scale(${1 + (audioLevel / 200)})` }}
+                style={{ transform: `scale(${1 + audioLevel / 200})` }}
               />
             </>
           )}
           {callStatus === 'calling' && (
-            <div className="absolute -inset-2 rounded-full border-2 border-emerald-400/40 border-t-amber-400 animate-spin" style={{ animationDuration: '3s' }} />
+            <div
+              className="absolute -inset-2 rounded-full border-2 border-emerald-400/40 border-t-amber-400 animate-spin"
+              style={{ animationDuration: '3s' }}
+            />
           )}
           <img
-            src={targetAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(targetName)}&background=047857&color=fff`}
+            src={
+              targetAvatar ||
+              `https://ui-avatars.com/api/?name=${encodeURIComponent(targetName)}&background=047857&color=fff`
+            }
             alt={targetName}
             className="w-24 h-24 rounded-full object-cover ring-4 ring-emerald-500/60 shadow-2xl relative z-10"
           />
@@ -496,7 +729,7 @@ export default function AudioCallModal({
           <p className="text-xs text-slate-400 font-medium">
             {isGroup ? 'Group Audio Channel' : `${targetRole} • ${targetDepartment}`}
           </p>
-          
+
           <div className="pt-2">
             {callStatus === 'calling' && (
               <p className="text-xs text-amber-400 flex items-center justify-center gap-1.5 animate-pulse font-medium">
@@ -510,7 +743,7 @@ export default function AudioCallModal({
                   {formatTimer(seconds)}
                 </span>
                 <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">
-                  Audio Connected • WebRTC Live
+                  {statusMessage}
                 </p>
               </div>
             )}
@@ -522,28 +755,40 @@ export default function AudioCallModal({
           </div>
         </div>
 
+        {/* Browser Autoplay Fallback Unmute Prompt */}
+        {audioBlocked && callStatus === 'connected' && (
+          <button
+            type="button"
+            onClick={unlockRemoteAudio}
+            className="mx-auto px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-lg animate-bounce"
+          >
+            <Volume2 className="w-4 h-4" />
+            <span>Tap to Hear Voice Audio</span>
+          </button>
+        )}
+
         {/* Live Sound Waveform Indicator */}
         {callStatus === 'connected' && (
           <div className="flex items-center justify-center gap-1.5 h-7">
-            <span 
-              className="w-1.5 bg-emerald-400 rounded-full transition-all duration-100" 
-              style={{ height: `${Math.max(6, Math.min(28, 6 + (audioLevel * 0.22)))}px` }} 
+            <span
+              className="w-1.5 bg-emerald-400 rounded-full transition-all duration-100"
+              style={{ height: `${Math.max(6, Math.min(28, 6 + audioLevel * 0.22))}px` }}
             />
-            <span 
-              className="w-1.5 bg-amber-400 rounded-full transition-all duration-100" 
-              style={{ height: `${Math.max(8, Math.min(28, 8 + (audioLevel * 0.28)))}px` }} 
+            <span
+              className="w-1.5 bg-amber-400 rounded-full transition-all duration-100"
+              style={{ height: `${Math.max(8, Math.min(28, 8 + audioLevel * 0.28))}px` }}
             />
-            <span 
-              className="w-1.5 bg-emerald-300 rounded-full transition-all duration-100" 
-              style={{ height: `${Math.max(10, Math.min(28, 10 + (audioLevel * 0.32)))}px` }} 
+            <span
+              className="w-1.5 bg-emerald-300 rounded-full transition-all duration-100"
+              style={{ height: `${Math.max(10, Math.min(28, 10 + audioLevel * 0.32))}px` }}
             />
-            <span 
-              className="w-1.5 bg-amber-400 rounded-full transition-all duration-100" 
-              style={{ height: `${Math.max(8, Math.min(28, 8 + (audioLevel * 0.28)))}px` }} 
+            <span
+              className="w-1.5 bg-amber-400 rounded-full transition-all duration-100"
+              style={{ height: `${Math.max(8, Math.min(28, 8 + audioLevel * 0.28))}px` }}
             />
-            <span 
-              className="w-1.5 bg-emerald-400 rounded-full transition-all duration-100" 
-              style={{ height: `${Math.max(6, Math.min(28, 6 + (audioLevel * 0.22)))}px` }} 
+            <span
+              className="w-1.5 bg-emerald-400 rounded-full transition-all duration-100"
+              style={{ height: `${Math.max(6, Math.min(28, 6 + audioLevel * 0.22))}px` }}
             />
           </div>
         )}
@@ -552,10 +797,11 @@ export default function AudioCallModal({
         <div className="flex items-center justify-center gap-4 pt-2">
           {/* Mute Button */}
           <button
+            type="button"
             onClick={toggleMute}
             className={`p-3.5 rounded-full border transition-all cursor-pointer ${
-              isMuted 
-                ? 'bg-amber-950/80 border-amber-500 text-amber-300 ring-2 ring-amber-500/30' 
+              isMuted
+                ? 'bg-amber-950/80 border-amber-500 text-amber-300 ring-2 ring-amber-500/30'
                 : 'bg-slate-900 border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800'
             }`}
             title={isMuted ? 'Unmute Mic' : 'Mute Mic'}
@@ -565,6 +811,7 @@ export default function AudioCallModal({
 
           {/* End Call Button */}
           <button
+            type="button"
             onClick={() => handleEndCall(true)}
             className="p-4 rounded-full bg-rose-600 hover:bg-rose-500 text-white shadow-xl shadow-rose-950/60 transition-all hover:scale-110 active:scale-95 cursor-pointer"
             title="End Audio Call"
@@ -574,10 +821,11 @@ export default function AudioCallModal({
 
           {/* Speaker Button */}
           <button
+            type="button"
             onClick={toggleSpeaker}
             className={`p-3.5 rounded-full border transition-all cursor-pointer ${
-              !isSpeakerOn 
-                ? 'bg-slate-800 border-slate-700 text-slate-500' 
+              !isSpeakerOn
+                ? 'bg-slate-800 border-slate-700 text-slate-500'
                 : 'bg-slate-900 border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800'
             }`}
             title={isSpeakerOn ? 'Mute Remote Audio' : 'Unmute Remote Audio'}
@@ -585,7 +833,6 @@ export default function AudioCallModal({
             {isSpeakerOn ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
           </button>
         </div>
-
       </div>
     </div>
   );

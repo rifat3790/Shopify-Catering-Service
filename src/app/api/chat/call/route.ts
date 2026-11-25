@@ -13,16 +13,20 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
     const userEmail = searchParams.get('userEmail') || undefined;
+    const callId = searchParams.get('callId') || undefined;
 
-    if (!userId && !userEmail) {
+    if (!userId && !userEmail && !callId) {
       return NextResponse.json(
-        { success: false, error: 'userId or userEmail is required' },
+        { success: false, error: 'userId, userEmail or callId is required' },
         { status: 400 }
       );
     }
 
-    const session = await getCallSessionForUser(userId || '', userEmail);
-    return NextResponse.json({ success: true, session });
+    const session = await getCallSessionForUser(userId || '', userEmail, callId);
+    return NextResponse.json(
+      { success: true, session },
+      { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0' } }
+    );
   } catch (error: any) {
     return NextResponse.json(
       { success: false, error: error.message || 'Failed to get call session' },
@@ -33,21 +37,26 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    // Support both application/json and navigator.sendBeacon text/plain JSON payloads
+    const rawText = await request.text();
+    const body = rawText ? JSON.parse(rawText) : {};
     const { action } = body;
 
     if (action === 'initiate') {
-      const { 
-        callerId, 
-        callerName, 
-        callerAvatar, 
-        receiverId, 
-        receiverName, 
-        receiverAvatar, 
-        isGroup, 
-        groupId, 
-        groupName, 
-        offer 
+      const {
+        callerId,
+        callerEmail,
+        callerName,
+        callerAvatar,
+        receiverId,
+        receiverEmail,
+        receiverName,
+        receiverAvatar,
+        isGroup,
+        groupId,
+        groupName,
+        groupMemberIds,
+        offer
       } = body;
 
       if (!callerId || !receiverId) {
@@ -59,14 +68,17 @@ export async function POST(request: Request) {
 
       const session = await initiateCallSession({
         callerId,
+        callerEmail,
         callerName: callerName || 'Caller',
         callerAvatar,
         receiverId,
+        receiverEmail,
         receiverName: receiverName || 'Receiver',
         receiverAvatar,
         isGroup: !!isGroup,
         groupId,
         groupName,
+        groupMemberIds,
         offer
       });
 
@@ -74,7 +86,7 @@ export async function POST(request: Request) {
     }
 
     if (action === 'signal') {
-      const { callId, status, offer, answer, iceCandidate, senderId } = body;
+      const { callId, status, offer, answer, iceCandidate, iceCandidates, senderId, senderEmail } = body;
       if (!callId) {
         return NextResponse.json(
           { success: false, error: 'callId is required for signal update' },
@@ -87,17 +99,18 @@ export async function POST(request: Request) {
         offer,
         answer,
         iceCandidate,
-        senderId
+        iceCandidates,
+        senderId,
+        senderEmail
       });
 
       return NextResponse.json({ success: true, session });
     }
 
     if (action === 'end') {
-      const { callId } = body;
+      const { callId, senderId } = body;
       if (callId) {
-        await updateCallSignal(callId, { status: 'ended' });
-        await endCallSession(callId);
+        await endCallSession(callId, senderId);
       }
       return NextResponse.json({ success: true });
     }

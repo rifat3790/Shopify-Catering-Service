@@ -14,13 +14,15 @@ export default function GlobalCallManager() {
   const [activeCallSession, setActiveCallSession] = useState<any>(null);
   const [isAudioCallOpen, setIsAudioCallOpen] = useState(false);
   const declinedCallIdsRef = useRef<Set<string>>(new Set());
+  const incomingCallRef = useRef<any>(null);
+  incomingCallRef.current = incomingCall;
 
   // If user is currently on /chat, /chat already has its own dedicated handler
   const isChatPage = pathname?.startsWith('/chat');
 
   useEffect(() => {
     if (!user || isChatPage) {
-      if (incomingCall) setIncomingCall(null);
+      if (incomingCallRef.current) setIncomingCall(null);
       return;
     }
 
@@ -30,28 +32,38 @@ export default function GlobalCallManager() {
       try {
         const queryId = user.uid || '';
         const queryEmail = user.email || '';
-        const res = await fetch(`/api/chat/call?userId=${encodeURIComponent(queryId)}&userEmail=${encodeURIComponent(queryEmail)}`);
+        const res = await fetch(
+          `/api/chat/call?userId=${encodeURIComponent(queryId)}&userEmail=${encodeURIComponent(queryEmail)}&t=${Date.now()}`,
+          { cache: 'no-store' }
+        );
         const json = await res.json();
         const session = json?.session;
 
         if (session && session.status === 'ringing') {
-          if (declinedCallIdsRef.current.has(session.callId)) return;
+          if (declinedCallIdsRef.current.has(session.callId)) {
+            if (incomingCallRef.current) setIncomingCall(null);
+            return;
+          }
           const myId = (user.uid || '').toLowerCase();
           const myEmail = (user.email || '').toLowerCase();
-          const isCaller = session.callerId?.toLowerCase() === myId || session.callerId?.toLowerCase() === myEmail;
+          const isCaller =
+            session.callerId?.toLowerCase() === myId ||
+            session.callerId?.toLowerCase() === myEmail ||
+            session.callerEmail?.toLowerCase() === myEmail;
 
           if (!isCaller) {
             setIncomingCall(session);
           }
-        } else if (!session || session.status === 'ended' || session.status === 'rejected') {
-          if (incomingCall) setIncomingCall(null);
+        } else {
+          if (incomingCallRef.current) setIncomingCall(null);
         }
       } catch (e) {}
     };
 
-    const interval = setInterval(checkIncoming, 2000);
+    checkIncoming();
+    const interval = setInterval(checkIncoming, 1500);
     return () => clearInterval(interval);
-  }, [user, isChatPage, isAudioCallOpen, incomingCall]);
+  }, [user, isChatPage, isAudioCallOpen]);
 
   const handleAccept = () => {
     if (!incomingCall) return;
@@ -69,7 +81,13 @@ export default function GlobalCallManager() {
       await fetch('/api/chat/call', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'signal', callId: cId, status: 'rejected' })
+        body: JSON.stringify({
+          action: 'signal',
+          callId: cId,
+          status: 'rejected',
+          senderId: user?.uid,
+          senderEmail: user?.email,
+        })
       });
     } catch (e) {}
   };
@@ -102,6 +120,7 @@ export default function GlobalCallManager() {
           targetRole="Colleague"
           targetDepartment="Shopify Catering"
           currentUserId={user?.uid}
+          currentUserEmail={user?.email || undefined}
           currentUserName={user?.displayName || 'Member'}
           currentUserAvatar={user?.photoURL || undefined}
           initialOffer={activeCallSession.offer}

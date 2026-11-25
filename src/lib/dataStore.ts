@@ -2295,15 +2295,20 @@ export async function deleteChatGroup(
 export interface ActiveCallSession {
   callId: string;
   callerId: string;
+  callerEmail?: string;
   callerName: string;
   callerAvatar?: string;
   receiverId: string;
+  receiverEmail?: string;
   receiverName: string;
   receiverAvatar?: string;
   status: 'ringing' | 'accepted' | 'rejected' | 'ended';
+  endedBy?: string;
+  endedAt?: number;
   isGroup?: boolean;
   groupId?: string;
   groupName?: string;
+  groupMemberIds?: string[];
   offer?: any;
   answer?: any;
   callerCandidates?: any[];
@@ -2313,37 +2318,55 @@ export interface ActiveCallSession {
 }
 
 const activeCallSessions: Map<string, ActiveCallSession> = new Map();
+const ENDED_CALL_GRACE_MS = 18000; // Keep ended/rejected state briefly so peer sees hangup immediately
+const RINGING_TIMEOUT_MS = 45000;
 
 export async function initiateCallSession(data: {
   callerId: string;
+  callerEmail?: string;
   callerName: string;
   callerAvatar?: string;
   receiverId: string;
+  receiverEmail?: string;
   receiverName: string;
   receiverAvatar?: string;
   isGroup?: boolean;
   groupId?: string;
   groupName?: string;
+  groupMemberIds?: string[];
   offer?: any;
 }): Promise<ActiveCallSession> {
-  const callId = `call-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  const now = Date.now();
+  const callId = `call-${now}-${Math.random().toString(36).slice(2, 6)}`;
+  const callerLower = (data.callerId || '').toLowerCase();
+
+  // Clean up any stale prior session initiated by this same caller
+  for (const [oldId, oldSess] of activeCallSessions.entries()) {
+    if ((oldSess.callerId || '').toLowerCase() === callerLower) {
+      activeCallSessions.delete(oldId);
+    }
+  }
+
   const session: ActiveCallSession = {
     callId,
     callerId: data.callerId,
+    callerEmail: data.callerEmail,
     callerName: data.callerName,
     callerAvatar: data.callerAvatar,
     receiverId: data.receiverId,
+    receiverEmail: data.receiverEmail,
     receiverName: data.receiverName,
     receiverAvatar: data.receiverAvatar,
     status: 'ringing',
     isGroup: !!data.isGroup,
     groupId: data.groupId,
     groupName: data.groupName,
+    groupMemberIds: data.groupMemberIds,
     offer: data.offer || null,
     callerCandidates: [],
     receiverCandidates: [],
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
+    createdAt: now,
+    updatedAt: now,
   };
 
   activeCallSessions.set(callId, session);
@@ -2362,15 +2385,78 @@ export async function initiateCallSession(data: {
   return session;
 }
 
-export async function getCallSessionForUser(userId: string, userEmail?: string): Promise<ActiveCallSession | null> {
+function isCallSessionExpired(session: ActiveCallSession, now: number): boolean {
+  if (session.status === 'ended' || session.status === 'rejected') {
+    const endTime = session.endedAt || session.updatedAt || session.createdAt;
+    return now - endTime > ENDED_CALL_GRACE_MS;
+  }
+  if (session.status === 'ringing' && now - session.createdAt > RINGING_TIMEOUT_MS) {
+    return true;
+  }
+  // Accepted calls older than 4 hours are stale
+  if (now - session.updatedAt > 4 * 60 * 60 * 1000) {
+    return true;
+  }
+  return false;
+}
+
+export async function getCallSessionForUser(
+  userId: string,
+  userEmail?: string,
+  callId?: string
+): Promise<ActiveCallSession | null> {
   const now = Date.now();
+
+  // Fast O(1) lookup by specific callId (used during active call polling to catch 'ended'/'rejected' reliably!)
+  if (callId) {
+    const memSess = activeCallSessions.get(callId);
+    if (memSess) {
+      if (isCallSessionExpired(memSess, now)) {
+        activeCallSessions.delete(callId);
+      } else {
+        try {
+          // Also check MongoDB in case another Vercel instance updated/ended this call
+          await connectToDatabase();
+          if (Setting) {
+            const doc = await Setting.findOne({ key: `call_${callId}` }).lean();
+            if (doc && (doc as any).value) {
+              const dbSess: ActiveCallSession = (doc as any).value;
+              activeCallSessions.set(callId, dbSess);
+              return dbSess;
+            }
+          }
+        } catch (e) {}
+        return memSess;
+      }
+    }
+
+    try {
+      await connectToDatabase();
+      if (Setting) {
+        const doc = await Setting.findOne({ key: `call_${callId}` }).lean();
+        if (doc && (doc as any).value) {
+          const val: ActiveCallSession = (doc as any).value;
+          if (isCallSessionExpired(val, now)) {
+            Setting.deleteOne({ key: `call_${callId}` }).catch(() => {});
+            activeCallSessions.delete(callId);
+            return null;
+          }
+          activeCallSessions.set(callId, val);
+          return val;
+        }
+      }
+    } catch (e) {}
+    return null;
+  }
+
+  // Incoming call listener mode: build user identifier set
   const idSet = new Set<string>();
   if (userId) idSet.add(userId.toLowerCase());
   if (userEmail) idSet.add(userEmail.toLowerCase());
 
   try {
     const allUsers = await getAllUsers();
-    const match = allUsers.find(u => 
+    const match = allUsers.find(u =>
       (userId && (u.id === userId || (u as any).uid === userId || u.email?.toLowerCase() === userId.toLowerCase())) ||
       (userEmail && (u.email?.toLowerCase() === userEmail.toLowerCase() || u.id === userEmail || (u as any).uid === userEmail))
     );
@@ -2381,50 +2467,57 @@ export async function getCallSessionForUser(userId: string, userEmail?: string):
     }
   } catch (e) {}
 
-  const matchesUser = (id?: string) => {
-    if (!id) return false;
-    return idSet.has(id.toLowerCase());
+  const matchesId = (id?: string) => (id ? idSet.has(id.toLowerCase()) : false);
+  const matchesIncomingSession = (session: ActiveCallSession): boolean => {
+    if (session.status !== 'ringing') return false;
+    const isCaller = matchesId(session.callerId) || matchesId(session.callerEmail);
+    if (isCaller) return false;
+    if (matchesId(session.receiverId) || matchesId(session.receiverEmail)) return true;
+    if (session.isGroup && Array.isArray(session.groupMemberIds)) {
+      return session.groupMemberIds.some(mid => matchesId(mid));
+    }
+    return false;
   };
 
-  // 1. Check in-memory map
-  for (const [id, session] of activeCallSessions.entries()) {
-    if (session.status === 'ended' || session.status === 'rejected') {
-      activeCallSessions.delete(id);
-      continue;
-    }
-    if (now - session.createdAt > 35000 && session.status === 'ringing') {
-      activeCallSessions.delete(id);
-      continue;
-    }
-
-    if (matchesUser(session.receiverId) || matchesUser(session.callerId)) {
-      return session;
-    }
-  }
-
-  // 2. Fallback to MongoDB
+  // Query MongoDB first so cross-instance state on Vercel is always authoritative
   try {
     await connectToDatabase();
     if (Setting) {
       const docs = await Setting.find({ key: { $regex: '^call_' } }).lean();
+      let latestMatch: ActiveCallSession | null = null;
       for (const d of docs) {
         const val: ActiveCallSession = (d as any).value;
-        if (val) {
-          if (val.status === 'ended' || val.status === 'rejected' || (now - val.createdAt > 35000 && val.status === 'ringing')) {
-            Setting.deleteOne({ _id: (d as any)._id }).catch(() => {});
-            activeCallSessions.delete(val.callId);
-            continue;
-          }
-          if (matchesUser(val.receiverId) || matchesUser(val.callerId)) {
-            activeCallSessions.set(val.callId, val);
-            return val;
+        if (!val) continue;
+        if (isCallSessionExpired(val, now)) {
+          Setting.deleteOne({ _id: (d as any)._id }).catch(() => {});
+          activeCallSessions.delete(val.callId);
+          continue;
+        }
+        activeCallSessions.set(val.callId, val);
+        if (matchesIncomingSession(val)) {
+          if (!latestMatch || val.createdAt > latestMatch.createdAt) {
+            latestMatch = val;
           }
         }
       }
+      if (latestMatch) return latestMatch;
     }
   } catch (e) {}
 
-  return null;
+  // In-memory fallback
+  let memMatch: ActiveCallSession | null = null;
+  for (const [id, session] of activeCallSessions.entries()) {
+    if (isCallSessionExpired(session, now)) {
+      activeCallSessions.delete(id);
+      continue;
+    }
+    if (matchesIncomingSession(session)) {
+      if (!memMatch || session.createdAt > memMatch.createdAt) {
+        memMatch = session;
+      }
+    }
+  }
+  return memMatch;
 }
 
 export async function updateCallSignal(callId: string, updates: {
@@ -2432,48 +2525,90 @@ export async function updateCallSignal(callId: string, updates: {
   offer?: any;
   answer?: any;
   iceCandidate?: any;
+  iceCandidates?: any[];
   senderId?: string;
+  senderEmail?: string;
+  endedBy?: string;
 }): Promise<ActiveCallSession | null> {
   let session = activeCallSessions.get(callId);
-  if (!session) {
-    try {
-      await connectToDatabase();
-      if (Setting) {
-        const doc = await Setting.findOne({ key: `call_${callId}` }).lean();
-        if (doc && (doc as any).value) {
-          session = (doc as any).value;
-        }
+  try {
+    await connectToDatabase();
+    if (Setting) {
+      const doc = await Setting.findOne({ key: `call_${callId}` }).lean();
+      if (doc && (doc as any).value) {
+        session = (doc as any).value;
       }
-    } catch (e) {}
-  }
+    }
+  } catch (e) {}
 
   if (!session) return null;
 
-  if (updates.status) session.status = updates.status;
-  if (updates.offer) session.offer = updates.offer;
-  if (updates.answer) session.answer = updates.answer;
-  if (updates.iceCandidate && updates.senderId) {
-    if (updates.senderId === session.callerId) {
-      session.callerCandidates = [...(session.callerCandidates || []), updates.iceCandidate];
-    } else {
-      session.receiverCandidates = [...(session.receiverCandidates || []), updates.iceCandidate];
+  const now = Date.now();
+  const setFields: Record<string, any> = { 'value.updatedAt': now };
+  const pushFields: Record<string, any> = {};
+
+  if (updates.status) {
+    session.status = updates.status;
+    setFields['value.status'] = updates.status;
+    if (updates.status === 'ended' || updates.status === 'rejected') {
+      session.endedAt = now;
+      session.endedBy = updates.endedBy || updates.senderId;
+      setFields['value.endedAt'] = now;
+      if (session.endedBy) setFields['value.endedBy'] = session.endedBy;
     }
   }
-  session.updatedAt = Date.now();
+  if (updates.offer) {
+    session.offer = updates.offer;
+    setFields['value.offer'] = updates.offer;
+  }
+  if (updates.answer) {
+    session.answer = updates.answer;
+    setFields['value.answer'] = updates.answer;
+  }
 
+  const incomingBatch = [
+    ...(Array.isArray(updates.iceCandidates) ? updates.iceCandidates : []),
+    ...(updates.iceCandidate ? [updates.iceCandidate] : []),
+  ];
+
+  if (incomingBatch.length > 0 && (updates.senderId || updates.senderEmail)) {
+    const sId = (updates.senderId || '').toLowerCase();
+    const sEmail = (updates.senderEmail || '').toLowerCase();
+    const cId = (session.callerId || '').toLowerCase();
+    const cEmail = (session.callerEmail || '').toLowerCase();
+
+    const isFromCaller = Boolean(
+      (sId && (sId === cId || sId === cEmail)) ||
+      (sEmail && (sEmail === cId || sEmail === cEmail))
+    );
+
+    if (isFromCaller) {
+      session.callerCandidates = [...(session.callerCandidates || []), ...incomingBatch];
+      pushFields['value.callerCandidates'] = { $each: incomingBatch };
+    } else {
+      session.receiverCandidates = [...(session.receiverCandidates || []), ...incomingBatch];
+      pushFields['value.receiverCandidates'] = { $each: incomingBatch };
+    }
+  }
+
+  session.updatedAt = now;
   activeCallSessions.set(callId, session);
 
   try {
     await connectToDatabase();
     if (Setting) {
-      if (session.status === 'ended' || session.status === 'rejected') {
-        await Setting.deleteOne({ key: `call_${callId}` });
-      } else {
-        await Setting.findOneAndUpdate(
-          { key: `call_${callId}` },
-          { value: session },
-          { upsert: true }
-        );
+      const updateOp: any = { $set: setFields };
+      if (Object.keys(pushFields).length > 0) {
+        updateOp.$push = pushFields;
+      }
+      const updatedDoc = await Setting.findOneAndUpdate(
+        { key: `call_${callId}` },
+        updateOp,
+        { new: true }
+      ).lean();
+      if (updatedDoc && (updatedDoc as any).value) {
+        session = (updatedDoc as any).value;
+        activeCallSessions.set(callId, session!);
       }
     }
   } catch (e) {}
@@ -2481,14 +2616,9 @@ export async function updateCallSignal(callId: string, updates: {
   return session;
 }
 
-export async function endCallSession(callId: string): Promise<boolean> {
-  activeCallSessions.delete(callId);
-  try {
-    await connectToDatabase();
-    if (Setting) {
-      await Setting.deleteOne({ key: `call_${callId}` });
-    }
-  } catch (e) {}
+export async function endCallSession(callId: string, endedBy?: string): Promise<boolean> {
+  // Mark as ended (retained briefly via ENDED_CALL_GRACE_MS so peer polling sees status === 'ended')
+  await updateCallSignal(callId, { status: 'ended', endedBy });
   return true;
 }
 

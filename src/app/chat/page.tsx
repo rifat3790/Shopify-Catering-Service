@@ -91,12 +91,16 @@ function ChatHubContent() {
     targetRole?: string;
     targetDepartment?: string;
     targetUserId?: string;
+    targetUserEmail?: string;
+    groupMemberIds?: string[];
     initialOffer?: any;
     isGroup?: boolean;
   } | null>(null);
 
   // Incoming Call State
   const [incomingCall, setIncomingCall] = useState<any>(null);
+  const incomingCallRef = useRef<any>(null);
+  incomingCallRef.current = incomingCall;
 
   // Create Group Modal state
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
@@ -289,28 +293,38 @@ function ChatHubContent() {
       try {
         const queryId = user.uid || '';
         const queryEmail = user.email || '';
-        const res = await fetch(`/api/chat/call?userId=${encodeURIComponent(queryId)}&userEmail=${encodeURIComponent(queryEmail)}`);
+        const res = await fetch(
+          `/api/chat/call?userId=${encodeURIComponent(queryId)}&userEmail=${encodeURIComponent(queryEmail)}&t=${Date.now()}`,
+          { cache: 'no-store' }
+        );
         const json = await res.json();
         const session = json?.session;
 
         if (session && session.status === 'ringing') {
-          if (declinedCallIdsRef.current.has(session.callId)) return;
+          if (declinedCallIdsRef.current.has(session.callId)) {
+            if (incomingCallRef.current) setIncomingCall(null);
+            return;
+          }
           const myId = (user.uid || '').toLowerCase();
           const myEmail = (user.email || '').toLowerCase();
-          const isCaller = session.callerId?.toLowerCase() === myId || session.callerId?.toLowerCase() === myEmail;
-          
+          const isCaller =
+            session.callerId?.toLowerCase() === myId ||
+            session.callerId?.toLowerCase() === myEmail ||
+            session.callerEmail?.toLowerCase() === myEmail;
+
           if (!isCaller) {
             setIncomingCall(session);
           }
-        } else if (!session || session.status === 'ended' || session.status === 'rejected') {
-          if (incomingCall) setIncomingCall(null);
+        } else {
+          if (incomingCallRef.current) setIncomingCall(null);
         }
       } catch (e) {}
     };
 
-    const callInterval = setInterval(checkIncomingCalls, 1500);
+    checkIncomingCalls();
+    const callInterval = setInterval(checkIncomingCalls, 1200);
     return () => clearInterval(callInterval);
-  }, [user, isAudioCallOpen, incomingCall]);
+  }, [user, isAudioCallOpen]);
 
   const handleStartCall = (member?: UserRecord | null, group?: ChatGroup | null) => {
     const targetM = member || selectedMember;
@@ -324,7 +338,8 @@ function ChatHubContent() {
         targetRole: 'Group Channel',
         targetDepartment: 'Shopify Audio',
         isGroup: true,
-        targetUserId: targetG.id
+        targetUserId: targetG.id,
+        groupMemberIds: targetG.members || [],
       });
       setIsAudioCallOpen(true);
       return;
@@ -338,6 +353,7 @@ function ChatHubContent() {
         targetRole: targetM.role,
         targetDepartment: targetM.department,
         targetUserId: targetM.id,
+        targetUserEmail: targetM.email,
         isGroup: false
       });
       setIsAudioCallOpen(true);
@@ -369,7 +385,13 @@ function ChatHubContent() {
       await fetch('/api/chat/call', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'signal', callId: cId, status: 'rejected' })
+        body: JSON.stringify({
+          action: 'signal',
+          callId: cId,
+          status: 'rejected',
+          senderId: user?.uid,
+          senderEmail: user?.email,
+        })
       });
     } catch (e) {}
   };
@@ -1382,7 +1404,10 @@ function ChatHubContent() {
         targetRole={callSessionData?.targetRole || selectedMember?.role}
         targetDepartment={callSessionData?.targetDepartment || selectedMember?.department}
         targetUserId={callSessionData?.targetUserId}
+        targetUserEmail={callSessionData?.targetUserEmail || selectedMember?.email}
+        groupMemberIds={callSessionData?.groupMemberIds || selectedGroup?.members}
         currentUserId={user?.uid}
+        currentUserEmail={user?.email || undefined}
         currentUserName={user?.displayName || currentDbUser?.name || 'Member'}
         currentUserAvatar={user?.photoURL || currentDbUser?.avatar}
         initialOffer={callSessionData?.initialOffer}
