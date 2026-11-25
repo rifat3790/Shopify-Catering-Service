@@ -77,10 +77,17 @@ export default function OrderControlCard() {
       if (json.success && json.data) {
         setIsOrderAllowedNow(Boolean(json.data.isOrderAllowedNow));
         setEvaluation(json.data.evaluation);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('orderControlUpdated'));
+        }
         toast.success(
-          language === 'bn'
-            ? 'অর্ডার কন্ট্রোল ও সময়সীমা সফলভাবে ডাটাবেজে সংরক্ষিত হয়েছে!'
-            : 'Order cutoff settings saved to database successfully!',
+          !json.data.isOrderAllowedNow
+            ? (language === 'bn'
+                ? 'অর্ডার সময়সীমা বন্ধ হয়েছে এবং টেলিগ্রাম গ্রুপে আজকের অর্ডার টেবিল ইমেজ পাঠানো হয়েছে!'
+                : 'Orders closed & Telegram group report with Order Table PNG triggered!')
+            : (language === 'bn'
+                ? 'অর্ডার কন্ট্রোল ও সময়সীমা সফলভাবে ডাটাবেজে সংরক্ষিত হয়েছে!'
+                : 'Order cutoff settings saved to database successfully!'),
           'Settings Saved ⏱️'
         );
       } else {

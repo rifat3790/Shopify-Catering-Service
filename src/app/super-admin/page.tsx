@@ -9,6 +9,7 @@ import StorageMetricsCard from '@/components/StorageMetricsCard';
 import TelegramBotPanel from '@/components/TelegramBotPanel';
 import LuxuryDatePicker from '@/components/LuxuryDatePicker';
 import LuxurySelect from '@/components/LuxurySelect';
+import ConfirmModal from '@/components/ConfirmModal';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/context/ToastContext';
@@ -126,6 +127,16 @@ function SuperAdminDashboardContent() {
   // Password Reset Requests State
   const [resetRequests, setResetRequests] = useState<PasswordResetRequest[]>([]);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Executive Confirm Modal State
+  const [confirmState, setConfirmState] = useState<{
+    title: string;
+    description: string;
+    confirmText?: string;
+    highlightText?: string;
+    onConfirm: () => Promise<void>;
+  } | null>(null);
+  const [confirmLoading, setConfirmLoading] = useState(false);
 
   const fetchUsers = async (silent = false) => {
     if (!silent && (!users || users.length === 0)) {
@@ -351,13 +362,19 @@ function SuperAdminDashboardContent() {
     }
   };
 
-  const handleClearAuditLogs = async () => {
-    if (!confirm('Are you sure you want to clear all user visit and audit logs?')) return;
-    try {
-      await fetch('/api/audit/log', { method: 'DELETE' });
-      setAuditLogs([]);
-      toast.success('Audit logs cleared successfully', 'Success');
-    } catch (e) {}
+  const handleClearAuditLogs = () => {
+    setConfirmState({
+      title: language === 'bn' ? 'অডিট লগ মুছে ফেলুন' : 'Clear All Audit & Visit Logs',
+      description: language === 'bn'
+        ? 'আপনি কি নিশ্চিত যে সকল ইউজার ভিজিট এবং অ্যাক্টিভিটি লগ মুছে ফেলতে চান?'
+        : 'Are you sure you want to permanently clear all user visit and audit logs?',
+      confirmText: language === 'bn' ? 'সব লগ মুছুন' : 'Clear Audit Logs',
+      onConfirm: async () => {
+        await fetch('/api/audit/log', { method: 'DELETE' });
+        setAuditLogs([]);
+        toast.success('Audit logs cleared successfully', 'Success');
+      },
+    });
   };
 
   // Daily Duty Rotation Handlers
@@ -438,13 +455,20 @@ function SuperAdminDashboardContent() {
     } catch (e) {}
   };
 
-  const handleDeleteDuty = async (duty: DailyDutyAssignment) => {
-    if (!confirm(`Cancel duty assignment for ${duty.date}?`)) return;
-    try {
-      await fetch(`/api/duty?date=${duty.date}`, { method: 'DELETE' });
-      setDuties(prev => prev.filter(d => d.date !== duty.date));
-      toast.success('Duty assignment removed', 'Success');
-    } catch (e) {}
+  const handleDeleteDuty = (duty: DailyDutyAssignment) => {
+    setConfirmState({
+      title: language === 'bn' ? 'ডিউটি বাতিল নিশ্চিতকরণ' : 'Cancel Duty Assignment',
+      description: language === 'bn'
+        ? 'আপনি কি এই তারিখের নির্ধারিত ডিউটি অ্যাসাইনমেন্ট মুছে ফেলতে চান?'
+        : 'Are you sure you want to cancel the duty assignment for this date?',
+      highlightText: `${duty.assignedUserName} • ${duty.date}`,
+      confirmText: language === 'bn' ? 'ডিউটি বাতিল করুন' : 'Remove Duty',
+      onConfirm: async () => {
+        await fetch(`/api/duty?date=${duty.date}`, { method: 'DELETE' });
+        setDuties(prev => prev.filter(d => d.date !== duty.date));
+        toast.success('Duty assignment removed', 'Success');
+      },
+    });
   };
 
   useEffect(() => {
@@ -2358,6 +2382,29 @@ function SuperAdminDashboardContent() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={!!confirmState}
+        onClose={() => !confirmLoading && setConfirmState(null)}
+        onConfirm={async () => {
+          if (!confirmState) return;
+          setConfirmLoading(true);
+          try {
+            await confirmState.onConfirm();
+            setConfirmState(null);
+          } catch (e: any) {
+            toast.error(e.message || 'Action failed', 'Error');
+          } finally {
+            setConfirmLoading(false);
+          }
+        }}
+        title={confirmState?.title || ''}
+        description={confirmState?.description || ''}
+        highlightText={confirmState?.highlightText}
+        confirmText={confirmState?.confirmText}
+        variant="danger"
+        loading={confirmLoading}
+      />
 
     </div>
   );

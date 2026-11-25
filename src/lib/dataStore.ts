@@ -1405,20 +1405,85 @@ export async function createOrder(data: Partial<OrderData>): Promise<OrderData> 
 }
 
 export async function updateOrder(id: string, updates: Partial<OrderData>): Promise<OrderData | null> {
-  const pUpdated = persistentStore.updateOrder(id, updates);
-  if (pUpdated) {
-    ordersCache = ordersCache.map(o => (o._id === id || o.orderNumber === id) ? pUpdated : o);
-    cloudBackupService.backupOrder(pUpdated);
-  }
-  invalidateOrdersCache();
-  invalidateUsersCache();
+  // Fetch previous order first so wallet charges and changeDue stay 100% accurate
+  let prevOrder: OrderData | null =
+    persistentStore.getOrders().find(o => o._id === id || o.orderNumber === id) ||
+    ordersCache.find(o => o._id === id || o.orderNumber === id) ||
+    null;
 
   try {
     const db = await connectToDatabase();
     if (db && Order) {
       const isObjectId = id.match(/^[0-9a-fA-F]{24}$/);
       const query = isObjectId ? { _id: id } : { orderNumber: id };
-      const doc = await Order.findOneAndUpdate(query, updates, { new: true }).lean();
+      if (!prevOrder) {
+        const prevDoc = await Order.findOne(query).lean();
+        if (prevDoc) prevOrder = prevDoc as unknown as OrderData;
+      }
+
+      // Compute clean financial & status fields when items, totalBill, paidAmount, or paymentMethod change
+      const enrichedUpdates: Partial<OrderData> = { ...updates };
+      const finalMethod = enrichedUpdates.paymentMethod ?? prevOrder?.paymentMethod ?? 'Cash';
+      const finalBill =
+        enrichedUpdates.totalBill !== undefined
+          ? Number(enrichedUpdates.totalBill) || 0
+          : Number(prevOrder?.totalBill) || 0;
+
+      let finalPaid =
+        enrichedUpdates.paidAmount !== undefined
+          ? Number(enrichedUpdates.paidAmount) || 0
+          : Number(prevOrder?.paidAmount) || 0;
+
+      if (finalMethod === 'Wallet' && enrichedUpdates.paidAmount === undefined) {
+        finalPaid = finalBill;
+        enrichedUpdates.paidAmount = finalPaid;
+      }
+
+      if (
+        enrichedUpdates.totalBill !== undefined ||
+        enrichedUpdates.paidAmount !== undefined ||
+        enrichedUpdates.paymentMethod !== undefined
+      ) {
+        enrichedUpdates.changeDue = finalPaid - finalBill;
+        if (!enrichedUpdates.status || ['Paid', 'Due', 'Partial', 'Pending'].includes(enrichedUpdates.status)) {
+          if (finalBill > 0 && (finalPaid >= finalBill || finalMethod === 'Wallet')) {
+            enrichedUpdates.status = 'Paid';
+          } else if (finalBill > 0 && finalPaid > 0 && finalPaid < finalBill) {
+            enrichedUpdates.status = 'Partial';
+          } else if (finalBill > 0 && finalPaid === 0) {
+            enrichedUpdates.status = 'Due';
+          } else {
+            enrichedUpdates.status = 'Pending';
+          }
+        }
+      }
+
+      // Adjust user wallet balance automatically if Wallet payment total changed
+      const oldWalletCharged = prevOrder?.paymentMethod === 'Wallet' ? Number(prevOrder.totalBill) || 0 : 0;
+      const newWalletCharge = finalMethod === 'Wallet' ? finalBill : 0;
+      const walletDelta = newWalletCharge - oldWalletCharged;
+      const walletTarget =
+        prevOrder?.userId ||
+        (prevOrder?.customerEmail || '').toLowerCase().trim() ||
+        (prevOrder?.customerName || '').trim();
+
+      if (walletDelta !== 0 && walletTarget) {
+        await updateUserBalance(
+          walletTarget,
+          Math.abs(walletDelta),
+          walletDelta > 0 ? 'deduct' : 'add'
+        ).catch(() => {});
+      }
+
+      const pUpdated = persistentStore.updateOrder(id, enrichedUpdates);
+      if (pUpdated) {
+        ordersCache = ordersCache.map(o => (o._id === id || o.orderNumber === id) ? pUpdated : o);
+        cloudBackupService.backupOrder(pUpdated);
+      }
+      invalidateOrdersCache();
+      invalidateUsersCache();
+
+      const doc = await Order.findOneAndUpdate(query, enrichedUpdates, { new: true }).lean();
       if (doc) {
         const formatted: OrderData = {
           ...doc,
@@ -1485,7 +1550,10 @@ export async function updateOrder(id: string, updates: Partial<OrderData>): Prom
     console.error('MongoDB Order.findOneAndUpdate error:', err);
   }
 
-  return pUpdated || (ordersCache.find(o => o._id === id || o.orderNumber === id) || null);
+  const pFallback = persistentStore.updateOrder(id, updates);
+  invalidateOrdersCache();
+  invalidateUsersCache();
+  return pFallback || (ordersCache.find(o => o._id === id || o.orderNumber === id) || null);
 }
 
 export async function deleteOrder(id: string): Promise<boolean> {

@@ -28,6 +28,7 @@ interface QuickOrderModalProps {
   onClose: () => void;
   onSubmit: (orderData: Partial<OrderData>) => Promise<void>;
   prefillCustomer?: string;
+  editingOrder?: OrderData | null;
 }
 
 const cashPresets = [20, 30, 50, 100, 200, 500, 1000];
@@ -51,6 +52,7 @@ export default function QuickOrderModal({
   onClose,
   onSubmit,
   prefillCustomer,
+  editingOrder,
 }: QuickOrderModalProps) {
   const { user, refreshUser } = useAuth();
   const { language } = useLanguage();
@@ -75,6 +77,7 @@ export default function QuickOrderModal({
   const [depositChangeToWallet, setDepositChangeToWallet] = useState<boolean>(true);
   const [liveBalance, setLiveBalance] = useState<number>(user?.balance || 0);
   const [notes, setNotes] = useState('');
+  const [orderStatusOverride, setOrderStatusOverride] = useState<'Auto' | OrderData['status']>('Auto');
   const [submitting, setSubmitting] = useState(false);
   const [orderControl, setOrderControl] = useState<{
     ordersEnabled: boolean;
@@ -85,15 +88,94 @@ export default function QuickOrderModal({
   } | null>(null);
 
   const isSuperOrAdmin = user?.role === 'super_admin' || user?.role === 'admin';
-  const isOrderAllowedForMe = isSuperOrAdmin || (orderControl ? orderControl.isOrderAllowedNow : true);
+  const isOrderAllowedForMe = Boolean(editingOrder) || isSuperOrAdmin || (orderControl ? orderControl.isOrderAllowedNow : true);
 
   useEffect(() => {
     if (isOpen) {
-      if (prefillCustomer) {
-        setCustomerName(prefillCustomer);
-      } else if (user?.displayName || user?.name || user?.email) {
-        setCustomerName(user.displayName || user.name || user.email?.split('@')[0] || '');
-        setCustomerAvatar(user.photoURL || user.avatar || '');
+      if (editingOrder) {
+        setCustomerName(editingOrder.customerName || '');
+        setCustomerAvatar(editingOrder.customerAvatar || user?.photoURL || user?.avatar || '');
+        setDepartment(editingOrder.customerDepartment || 'Shopify Team');
+        setPaidAmount(Number(editingOrder.paidAmount) || 0);
+        setPaymentMethod((editingOrder.paymentMethod as any) || 'Cash');
+        setNotes(editingOrder.notes || '');
+        setDepositChangeToWallet(Boolean(editingOrder.depositChangeToWallet));
+        if (
+          editingOrder.status === 'Cooking' ||
+          editingOrder.status === 'Delivered' ||
+          editingOrder.status === 'Cancelled'
+        ) {
+          setOrderStatusOverride(editingOrder.status);
+        } else {
+          setOrderStatusOverride('Auto');
+        }
+
+        const availablePresets = menuItems.length > 0 ? menuItems : DEFAULT_CATERING_DISHES;
+        const parsedQty: Record<string, number> = {};
+        const parsedCustom: CustomItem[] = [];
+
+        const rawItems =
+          editingOrder.items && editingOrder.items.length > 0
+            ? editingOrder.items
+            : (editingOrder.itemsText || '')
+                .split(/[+,]/)
+                .map((seg) => seg.trim())
+                .filter(Boolean)
+                .map((seg) => {
+                  const m = seg.match(/^(\d+)\s*[x×]\s*(.+)$/i);
+                  const qty = m ? Math.max(1, Number(m[1])) : 1;
+                  const itemName = (m ? m[2] : seg).trim();
+                  return {
+                    name: itemName,
+                    quantity: qty,
+                    unitPrice: editingOrder.totalBill && editingOrder.totalBill > 0 ? Math.round(editingOrder.totalBill / qty) : 10,
+                    subtotal: 0,
+                  };
+                });
+
+        rawItems.forEach((it, idx) => {
+          const cleanName = (it.name || '').toLowerCase().trim();
+          const matchedPreset = availablePresets.find((m) => {
+            const mFull = m.name.toLowerCase().trim();
+            const mBase = m.name.split('(')[0].toLowerCase().trim();
+            const itBase = cleanName.split('(')[0].toLowerCase().trim();
+            return (
+              mFull === cleanName ||
+              mBase === itBase ||
+              mFull.includes(itBase) ||
+              itBase.includes(mBase)
+            );
+          });
+
+          if (matchedPreset) {
+            const key = matchedPreset._id || matchedPreset.name;
+            parsedQty[key] = (parsedQty[key] || 0) + (Number(it.quantity) || 1);
+          } else if (it.name) {
+            parsedCustom.push({
+              id: `edit-cust-${idx}-${Date.now()}`,
+              name: it.name,
+              price: Number(it.unitPrice) || 10,
+              qty: Number(it.quantity) || 1,
+            });
+          }
+        });
+
+        setItemQuantities(parsedQty);
+        setCustomItems(parsedCustom);
+        setShowAddCustom(parsedCustom.length > 0);
+      } else {
+        setItemQuantities({});
+        setCustomItems([]);
+        setShowAddCustom(false);
+        setPaidAmount(0);
+        setPaymentMethod('Cash');
+        setNotes('');
+        if (prefillCustomer) {
+          setCustomerName(prefillCustomer);
+        } else if (user?.displayName || user?.name || user?.email) {
+          setCustomerName(user.displayName || user.name || user.email?.split('@')[0] || '');
+          setCustomerAvatar(user.photoURL || user.avatar || '');
+        }
       }
 
       setLiveBalance(user?.balance || 0);
@@ -152,7 +234,7 @@ export default function QuickOrderModal({
         })
         .catch(() => { });
     }
-  }, [isOpen, prefillCustomer, user]);
+  }, [isOpen, prefillCustomer, editingOrder, user]);
 
   if (!isOpen) return null;
 
@@ -294,38 +376,64 @@ export default function QuickOrderModal({
       return;
     }
 
-    const effectivePaid = Number(paidAmount) || (paymentMethod === 'Wallet' ? effectiveBill : 0);
-    const effChange = paymentMethod === 'Wallet' ? 0 : Math.max(0, effectivePaid - effectiveBill);
+    const effectivePaid =
+      editingOrder && !isSuperOrAdmin
+        ? paymentMethod === 'Wallet'
+          ? effectiveBill
+          : Number(editingOrder.paidAmount) || 0
+        : Number(paidAmount) || (paymentMethod === 'Wallet' ? effectiveBill : 0);
+
+    const effChange = paymentMethod === 'Wallet' ? 0 : effectivePaid - effectiveBill;
     const willDepositChange = Boolean(paymentMethod === 'Cash' && depositChangeToWallet && effChange > 0);
 
     setSubmitting(true);
     try {
-      await onSubmit({
+      const payload: Partial<OrderData> = {
         customerName: finalCust,
         customerAvatar: finalAvatar,
-        customerEmail: user?.email || '',
-        userId: user?.uid || '',
+        customerEmail: editingOrder?.customerEmail ?? (user?.email || ''),
+        userId: editingOrder?.userId ?? (user?.uid || ''),
         customerDepartment: department,
         itemsText: effectiveSummary.join(' + ') || (language === 'bn' ? 'ক্যাটারিং খাবার অর্ডার' : 'Catering Order'),
         items: effectiveItemsList,
         totalBill: effectiveBill,
         paidAmount: effectivePaid,
         changeDue: effChange,
-        status: effectiveBill > 0 && (effectivePaid >= effectiveBill || paymentMethod === 'Wallet') ? 'Paid' : (effectiveBill === 0 ? 'Pending' : 'Due'),
+        status:
+          editingOrder && isSuperOrAdmin && orderStatusOverride !== 'Auto'
+            ? orderStatusOverride
+            : effectiveBill > 0 && (effectivePaid >= effectiveBill || paymentMethod === 'Wallet')
+            ? 'Paid'
+            : effectiveBill > 0 && effectivePaid > 0
+            ? 'Partial'
+            : effectiveBill === 0
+            ? 'Pending'
+            : 'Due',
         paymentMethod,
         depositChangeToWallet: willDepositChange,
         notes,
-      });
+      };
+
+      if (editingOrder) {
+        payload._id = editingOrder._id;
+        payload.orderNumber = editingOrder.orderNumber;
+      }
+
+      await onSubmit(payload);
 
       const changeMsg = willDepositChange
         ? (language === 'bn' ? ` (বাকি ৳${effChange.toFixed(2)} ওয়ালেট ব্যালেন্সে জমা হয়েছে)` : ` (৳${effChange.toFixed(2)} change deposited to wallet)`)
         : '';
 
       toast.success(
-        language === 'bn'
-          ? `আপনার খাবার অর্ডার সফলভাবে গ্রহণ করা হয়েছে! মোট বিল: ৳${effectiveBill.toFixed(2)}${changeMsg}`
-          : `Order placed successfully! Total Bill: ৳${effectiveBill.toFixed(2)}${changeMsg}`,
-        'Order Confirmed 🎉'
+        editingOrder
+          ? (language === 'bn'
+              ? `অর্ডার ${editingOrder.orderNumber} সফলভাবে আপডেট হয়েছে! নতুন বিল: ৳${effectiveBill.toFixed(2)}`
+              : `Order ${editingOrder.orderNumber} updated! New Bill: ৳${effectiveBill.toFixed(2)}`)
+          : (language === 'bn'
+              ? `আপনার খাবার অর্ডার সফলভাবে গ্রহণ করা হয়েছে! মোট বিল: ৳${effectiveBill.toFixed(2)}${changeMsg}`
+              : `Order placed successfully! Total Bill: ৳${effectiveBill.toFixed(2)}${changeMsg}`),
+        editingOrder ? 'Order Updated ✨' : 'Order Confirmed 🎉'
       );
 
       // Invalidate caches so orders and user profile refresh instantly
@@ -343,6 +451,7 @@ export default function QuickOrderModal({
       setNewCustomName('');
       setNewCustomPrice(0);
       setPaidAmount(0);
+      setOrderStatusOverride('Auto');
       setCustomerName(user?.displayName || user?.name || '');
       onClose();
     } catch (err: any) {
@@ -364,10 +473,14 @@ export default function QuickOrderModal({
             </div>
             <div>
               <h3 className="font-serif text-lg sm:text-xl font-bold text-slate-900 dark:text-amber-200">
-                {language === 'bn' ? 'নতুন খাবার ও রিফ্রেশমেন্ট অর্ডার' : 'New Catering & Refreshment Order'}
+                {editingOrder
+                  ? `Edit Order: ${editingOrder.orderNumber}`
+                  : (language === 'bn' ? 'নতুন খাবার ও রিফ্রেশমেন্ট অর্ডার' : 'New Catering & Refreshment Order')}
               </h3>
               <p className="text-xs text-emerald-700 dark:text-emerald-300">
-                {language === 'bn' ? 'মেনু আইটেম নির্বাচন বা কাস্টম খাবার যোগ করুন' : 'Select menu items or add custom dishes dynamically'}
+                {editingOrder
+                  ? 'Modify dishes, quantities, custom items, payment method & notes freely'
+                  : (language === 'bn' ? 'মেনু আইটেম নির্বাচন বা কাস্টম খাবার যোগ করুন' : 'Select menu items or add custom dishes dynamically')}
               </p>
             </div>
           </div>
@@ -457,6 +570,7 @@ export default function QuickOrderModal({
               <input
                 type="text"
                 required
+                disabled={Boolean(editingOrder && !isSuperOrAdmin)}
                 list="quickorder-members-datalist"
                 value={customerName}
                 onChange={(e) => {
@@ -470,7 +584,7 @@ export default function QuickOrderModal({
                   }
                 }}
                 placeholder={language === 'bn' ? 'গ্রাহকের নাম লিখুন' : 'Enter customer name'}
-                className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-amber-400"
+                className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-amber-400 disabled:opacity-70"
               />
               <datalist id="quickorder-members-datalist">
                 {allMembers.map((m: any) => (
@@ -727,10 +841,11 @@ export default function QuickOrderModal({
                     type="number"
                     min="0"
                     step="any"
+                    disabled={Boolean(editingOrder && !isSuperOrAdmin)}
                     value={paidAmount || ''}
                     onChange={(e) => setPaidAmount(Number(e.target.value))}
                     placeholder="0.00"
-                    className="w-full pl-8 pr-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-sm font-mono text-teal-700 dark:text-teal-300 font-bold focus:outline-none focus:border-amber-400 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    className="w-full pl-8 pr-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-sm font-mono text-teal-700 dark:text-teal-300 font-bold focus:outline-none focus:border-amber-400 transition-colors disabled:opacity-65 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                 </div>
               </div>
@@ -812,6 +927,29 @@ export default function QuickOrderModal({
               </div>
             </div>
 
+            {editingOrder && isSuperOrAdmin && (
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                  {language === 'bn' ? 'অর্ডার স্ট্যাটাস (Admin Override)' : 'Order Status (Admin Override)'}
+                </label>
+                <LuxurySelect
+                  value={orderStatusOverride}
+                  direction="up"
+                  onChange={(val) => setOrderStatusOverride(val as 'Auto' | OrderData['status'])}
+                  options={[
+                    { value: 'Auto', label: language === 'bn' ? 'অটো (পেমেন্ট অনুযায়ী)' : 'Auto (Calculate from Bill & Payment)' },
+                    { value: 'Paid', label: 'Paid (পরিশোধ)' },
+                    { value: 'Partial', label: 'Partial (আংশিক পরিশোধ)' },
+                    { value: 'Due', label: 'Due (বকেয়া)' },
+                    { value: 'Pending', label: 'Pending (অপেক্ষমাণ)' },
+                    { value: 'Cooking', label: 'Cooking (প্রস্তুত হচ্ছে)' },
+                    { value: 'Delivered', label: 'Delivered (সরবরাহ সম্পন্ন)' },
+                    { value: 'Cancelled', label: 'Cancelled (বাতিল)' },
+                  ]}
+                />
+              </div>
+            )}
+
             {paymentMethod === 'Wallet' && (
               <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-500/40 space-y-2 text-xs">
                 <div className="flex items-center justify-between">
@@ -868,7 +1006,11 @@ export default function QuickOrderModal({
               ) : (
                 <>
                   <Check className="w-4 h-4" />
-                  <span>{language === 'bn' ? 'অর্ডার কনফার্ম করুন' : 'Confirm Order'}</span>
+                  <span>
+                    {editingOrder
+                      ? (language === 'bn' ? 'পরিবর্তন সংরক্ষণ করুন' : 'Save Updated Order')
+                      : (language === 'bn' ? 'অর্ডার কনফার্ম করুন' : 'Confirm Order')}
+                  </span>
                 </>
               )}
             </button>

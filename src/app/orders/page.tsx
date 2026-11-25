@@ -7,7 +7,7 @@ import LuxuryLoader from '@/components/LuxuryLoader';
 import QuickOrderModal from '@/components/QuickOrderModal';
 import InvoiceModal from '@/components/InvoiceModal';
 import DateFilterPills from '@/components/DateFilterPills';
-import LuxurySelect from '@/components/LuxurySelect';
+import ConfirmModal from '@/components/ConfirmModal';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/context/ToastContext';
@@ -57,13 +57,10 @@ function OrdersPageContent() {
   const [isDownloadingBulk, setIsDownloadingBulk] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
 
-  // Edit Order Modal State (Admin / Super Admin)
+  // Edit Order & Delete Confirmation Modal State
   const [editOrder, setEditOrder] = useState<OrderData | null>(null);
-  const [editStatus, setEditStatus] = useState<OrderData['status']>('Paid');
-  const [editPaid, setEditPaid] = useState<number>(0);
-  const [editPaymentMethod, setEditPaymentMethod] = useState<OrderData['paymentMethod']>('Cash');
-  const [editNotes, setEditNotes] = useState('');
-  const [savingEdit, setSavingEdit] = useState(false);
+  const [deleteConfirmOrder, setDeleteConfirmOrder] = useState<OrderData | null>(null);
+  const [isDeletingOrder, setIsDeletingOrder] = useState(false);
 
   const isSuperOrAdmin = user?.role === 'super_admin' || user?.role === 'admin';
 
@@ -93,71 +90,38 @@ function OrdersPageContent() {
 
   const handleOpenEdit = (order: OrderData) => {
     setEditOrder(order);
-    setEditStatus(order.status);
-    setEditPaid(order.paidAmount);
-    setEditPaymentMethod(order.paymentMethod);
-    setEditNotes(order.notes || '');
   };
 
-  const handleSaveEdit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editOrder) return;
-    setSavingEdit(true);
-
-    try {
-      const res = await fetch('/api/orders', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: editOrder._id || editOrder.orderNumber,
-          status: editStatus,
-          paidAmount: Number(editPaid),
-          changeDue: Number(editPaid) - editOrder.totalBill,
-          paymentMethod: editPaymentMethod,
-          notes: editNotes,
-        }),
-      });
-
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success && json.data) {
-          setOrders(prev => {
-            const next = prev.map(o => (o._id === json.data._id || o.orderNumber === json.data.orderNumber) ? json.data : o);
-            setClientCache('orders_list', next);
-            return next;
-          });
-          clearClientCache('members_list');
-          setEditOrder(null);
-          toast.success('Order details updated successfully!', 'Order Updated');
-        }
-      } else {
-        toast.error('Failed to update order', 'Update Failed');
-      }
-    } catch (err: any) {
-      toast.error(err.message || 'Error updating order', 'Update Failed');
-    } finally {
-      setSavingEdit(false);
-    }
+  const handleDeleteOrder = (order: OrderData) => {
+    setDeleteConfirmOrder(order);
   };
 
-  const handleDeleteOrder = async (order: OrderData) => {
-    if (!window.confirm(`Are you sure you want to permanently remove order ${order.orderNumber}?`)) return;
+  const executeDeleteOrder = async () => {
+    if (!deleteConfirmOrder) return;
+    setIsDeletingOrder(true);
     try {
-      const targetId = order._id || order.orderNumber;
+      const targetId = deleteConfirmOrder._id || deleteConfirmOrder.orderNumber;
       const res = await fetch(`/api/orders?id=${encodeURIComponent(targetId)}`, {
         method: 'DELETE',
         cache: 'no-store',
       });
       if (res.ok) {
         clearClientCache();
-        setOrders(prev => prev.filter(o => o._id !== targetId && o.orderNumber !== targetId));
+        setOrders(prev => {
+          const next = prev.filter(o => o._id !== targetId && o.orderNumber !== targetId);
+          setClientCache('orders_list', next);
+          return next;
+        });
         if (refreshUser) refreshUser().catch(() => {});
-        toast.success(`Order ${order.orderNumber} deleted successfully.`, 'Order Deleted');
+        toast.success(`Order ${deleteConfirmOrder.orderNumber} deleted successfully.`, 'Order Deleted');
+        setDeleteConfirmOrder(null);
       } else {
         toast.error('Failed to delete order', 'Delete Failed');
       }
     } catch (err: any) {
       toast.error(err.message || 'Failed to delete order', 'Delete Failed');
+    } finally {
+      setIsDeletingOrder(false);
     }
   };
 
@@ -697,31 +661,39 @@ function OrdersPageContent() {
 
       </main>
 
-      {/* Quick Order Modal for adding new orders */}
+      {/* Quick Order Modal for adding & editing full order items, quantities & details */}
       <QuickOrderModal
-        isOpen={isOrderModalOpen}
-        onClose={() => setIsOrderModalOpen(false)}
+        isOpen={isOrderModalOpen || !!editOrder}
+        editingOrder={editOrder}
+        onClose={() => {
+          setIsOrderModalOpen(false);
+          setEditOrder(null);
+        }}
         onSubmit={async (data) => {
-          try {
-            const res = await fetch('/api/orders', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(data),
-            });
-            if (res.ok) {
-              fetchOrders();
-              toast.success(
-                language === 'bn' 
-                  ? 'অর্ডার সফলভাবে ডাটাবেজে যুক্ত হয়েছে!' 
-                  : 'Order added and saved to database successfully!',
-                'Order Placed 🎉'
-              );
-            } else {
-              toast.error('Failed to save order', 'Error');
-            }
-          } catch (e: any) {
-            toast.error(e.message || 'Error saving order', 'Failed');
+          const isEditing = Boolean(editOrder || data._id || data.orderNumber);
+          const res = await fetch('/api/orders', {
+            method: isEditing ? 'PUT' : 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+          });
+          const json = await res.json().catch(() => ({}));
+          if (!res.ok || !json.success) {
+            throw new Error(json.error || (isEditing ? 'Failed to update order' : 'Failed to save order'));
           }
+          clearClientCache();
+          if (isEditing && json.data) {
+            setOrders(prev => {
+              const next = prev.map(o =>
+                (o._id === json.data._id || o.orderNumber === json.data.orderNumber) ? json.data : o
+              );
+              setClientCache('orders_list', next);
+              return next;
+            });
+          } else {
+            fetchOrders();
+          }
+          if (refreshUser) refreshUser().catch(() => {});
+          setEditOrder(null);
         }}
       />
 
@@ -733,111 +705,27 @@ function OrdersPageContent() {
         />
       )}
 
-      {/* Admin Edit Order Modal */}
-      {/* Admin Edit Order Modal */}
-      {editOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 dark:bg-black/85 backdrop-blur-md animate-in fade-in">
-          <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-amber-500/50 rounded-3xl shadow-2xl animate-in zoom-in-95 duration-200 relative">
-            <div className="h-1 w-full bg-gradient-to-r from-emerald-500 via-amber-400 to-emerald-500 rounded-t-3xl" />
-            <div className="p-6 space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
-                <div>
-                  <h3 className="font-serif font-bold text-slate-900 dark:text-white text-base">
-                    Edit Order: {editOrder.orderNumber}
-                  </h3>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">Customer: {editOrder.customerName}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setEditOrder(null)}
-                  className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              <form onSubmit={handleSaveEdit} className="space-y-4 text-xs">
-                {isSuperOrAdmin && (
-                  <>
-                    <div>
-                      <label className="block text-slate-600 dark:text-slate-400 mb-1 font-semibold uppercase text-[10px]">Order Status</label>
-                      <LuxurySelect
-                        value={editStatus}
-                        onChange={(v) => setEditStatus(v as any)}
-                        options={[
-                          { value: 'Paid', label: 'Paid (পরিশোধ)' },
-                          { value: 'Due', label: 'Due (বকেয়া)' },
-                          { value: 'Pending', label: 'Pending (অপেক্ষমাণ)' },
-                          { value: 'Delivered', label: 'Delivered' },
-                          { value: 'Cooking', label: 'Cooking' },
-                          { value: 'Cancelled', label: 'Cancelled' },
-                        ]}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-slate-600 dark:text-slate-400 mb-1 font-semibold uppercase text-[10px]">
-                        Paid Amount (৳) — Bill: ৳{editOrder.totalBill}
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        step="1"
-                        value={editPaid}
-                        onChange={(e) => setEditPaid(Number(e.target.value))}
-                        className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-amber-700 dark:text-amber-300 font-mono font-bold focus:outline-none focus:border-amber-400"
-                      />
-                    </div>
-                  </>
-                )}
-
-                <div>
-                  <label className="block text-slate-600 dark:text-slate-400 mb-1 font-semibold uppercase text-[10px]">Payment Method</label>
-                  <LuxurySelect
-                    value={editPaymentMethod}
-                    onChange={(v) => setEditPaymentMethod(v as any)}
-                    options={[
-                      { value: 'Cash', label: 'Cash (নগদ)' },
-                      { value: 'Wallet', label: 'Wallet (ব্যালেন্স)' },
-                      { value: 'bKash', label: 'bKash (বিকাশ)' },
-                      { value: 'Nagad', label: 'Nagad' },
-                      { value: 'Card', label: 'Card' },
-                    ]}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-slate-600 dark:text-slate-400 mb-1 font-semibold uppercase text-[10px]">Notes</label>
-                  <input
-                    type="text"
-                    value={editNotes}
-                    onChange={(e) => setEditNotes(e.target.value)}
-                    placeholder="Order notes..."
-                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-amber-400"
-                  />
-                </div>
-
-                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
-                  <button
-                    type="button"
-                    onClick={() => setEditOrder(null)}
-                    className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 font-medium"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={savingEdit}
-                    className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 text-white font-bold shadow-md hover:scale-105 transition-all"
-                  >
-                    {savingEdit ? 'Updating...' : 'Save Changes'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Executive Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!deleteConfirmOrder}
+        onClose={() => !isDeletingOrder && setDeleteConfirmOrder(null)}
+        onConfirm={executeDeleteOrder}
+        title={language === 'bn' ? 'অর্ডার স্থায়ীভাবে মুছে ফেলুন' : 'Delete Order Permanently'}
+        description={
+          language === 'bn'
+            ? 'আপনি কি নিশ্চিত যে এই অর্ডারটি তালিকা ও ডাটাবেজ থেকে স্থায়ীভাবে মুছে ফেলতে চান?'
+            : 'Are you sure you want to permanently remove this order from the ledger?'
+        }
+        highlightText={
+          deleteConfirmOrder
+            ? `${deleteConfirmOrder.orderNumber} • ${deleteConfirmOrder.customerName} (৳${deleteConfirmOrder.totalBill})`
+            : undefined
+        }
+        confirmText={language === 'bn' ? 'হ্যাঁ, মুছে ফেলুন' : 'Yes, Delete Order'}
+        cancelText={language === 'bn' ? 'বাতিল' : 'Cancel'}
+        variant="danger"
+        loading={isDeletingOrder}
+      />
     </div>
   );
 }

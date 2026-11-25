@@ -6,6 +6,7 @@ import AuthGuard from '@/components/AuthGuard';
 import LuxuryLoader from '@/components/LuxuryLoader';
 import AudioCallModal from '@/components/AudioCallModal';
 import IncomingCallDialog from '@/components/IncomingCallDialog';
+import ConfirmModal from '@/components/ConfirmModal';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/context/ToastContext';
@@ -115,6 +116,12 @@ function ChatHubContent() {
   const [addingMembers, setAddingMembers] = useState(false);
   const [isDeleteGroupConfirmOpen, setIsDeleteGroupConfirmOpen] = useState(false);
   const [deletingGroup, setDeletingGroup] = useState(false);
+  const [removeMemberTarget, setRemoveMemberTarget] = useState<{
+    userId: string;
+    isSelf: boolean;
+    name: string;
+  } | null>(null);
+  const [removingMember, setRemovingMember] = useState(false);
 
   // User Actions dropdown state
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -553,15 +560,21 @@ function ChatHubContent() {
   };
 
   // Remove / Kick Member from Group or Leave Group
-  const handleRemoveMember = async (targetUserId: string) => {
+  const handleRemoveMember = (targetUserId: string) => {
     if (!selectedGroup || !user) return;
     const isSelf = targetUserId === user.uid;
-    const confirmMsg = isSelf
-      ? 'Are you sure you want to leave this group?'
-      : 'Are you sure you want to remove this member from the group?';
+    const targetMember = members.find(m => m.id === targetUserId);
+    setRemoveMemberTarget({
+      userId: targetUserId,
+      isSelf,
+      name: targetMember?.name || 'this member',
+    });
+  };
 
-    if (!window.confirm(confirmMsg)) return;
-
+  const executeRemoveMember = async () => {
+    if (!selectedGroup || !user || !removeMemberTarget) return;
+    const { userId: targetUserId, isSelf } = removeMemberTarget;
+    setRemovingMember(true);
     try {
       const res = await fetch(`/api/chat/groups/${selectedGroup.id}`, {
         method: 'PUT',
@@ -576,7 +589,6 @@ function ChatHubContent() {
       const json = await res.json();
       if (res.ok && json.success) {
         if (isSelf) {
-          // If left self, unselect group
           setGroups(prev => prev.filter(g => g.id !== selectedGroup.id));
           setSelectedGroup(null);
           setIsGroupSettingsOpen(false);
@@ -586,11 +598,14 @@ function ChatHubContent() {
           setGroups(prev => prev.map(g => g.id === json.data.id ? json.data : g));
           toast.success('Member removed from group', 'Removed');
         }
+        setRemoveMemberTarget(null);
       } else {
         toast.error(json.error || 'Failed to remove member', 'Error');
       }
     } catch (err: any) {
       toast.error(err.message || 'Error removing member', 'Error');
+    } finally {
+      setRemovingMember(false);
     }
   };
 
@@ -1802,6 +1817,22 @@ function ChatHubContent() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={!!removeMemberTarget}
+        onClose={() => !removingMember && setRemoveMemberTarget(null)}
+        onConfirm={executeRemoveMember}
+        title={removeMemberTarget?.isSelf ? 'Leave Group Channel' : 'Remove Group Member'}
+        description={
+          removeMemberTarget?.isSelf
+            ? 'Are you sure you want to leave this group conversation? You will need to be re-invited to rejoin.'
+            : `Are you sure you want to remove ${removeMemberTarget?.name || 'this member'} from ${selectedGroup?.name || 'this group'}?`
+        }
+        highlightText={selectedGroup ? selectedGroup.name : undefined}
+        confirmText={removeMemberTarget?.isSelf ? 'Leave Group' : 'Remove Member'}
+        variant="danger"
+        loading={removingMember}
+      />
 
     </div>
   );

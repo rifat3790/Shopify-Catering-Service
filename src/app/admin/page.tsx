@@ -12,6 +12,7 @@ import OrderControlCard from '@/components/OrderControlCard';
 import DateFilterPills from '@/components/DateFilterPills';
 import LuxuryDatePicker from '@/components/LuxuryDatePicker';
 import LuxurySelect from '@/components/LuxurySelect';
+import ConfirmModal from '@/components/ConfirmModal';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/context/ToastContext';
@@ -77,6 +78,16 @@ function AdminPageContent() {
   const [selectedInvoice, setSelectedInvoice] = useState<OrderData | null>(null);
   const [activeTab, setActiveTab] = useState<'orders' | 'menu' | 'balance' | 'resets' | 'timing' | 'duties'>('orders');
   const [dateFilter, setDateFilter] = useState<DateFilterType>('today');
+
+  // Executive Confirm Modal State
+  const [confirmState, setConfirmState] = useState<{
+    title: string;
+    description: string;
+    confirmText?: string;
+    highlightText?: string;
+    onConfirm: () => Promise<void>;
+  } | null>(null);
+  const [confirmLoading, setConfirmLoading] = useState(false);
 
   // Daily Duty Roster state for Admin
   const [duties, setDuties] = useState<DailyDutyAssignment[]>([]);
@@ -195,20 +206,27 @@ function AdminPageContent() {
     setTimeout(() => setCopiedId(null), 2500);
   };
 
-  const handleCancelReset = async (requestId: string) => {
-    if (!window.confirm('Cancel this password reset request?')) return;
-    try {
-      const res = await fetch('/api/auth/reset-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'cancel', requestId }),
-      });
-      if (res.ok) {
-        setResetRequests(prev => prev.filter(r => r.id !== requestId));
-      }
-    } catch (e) {
-      console.error(e);
-    }
+  const handleCancelReset = (requestId: string) => {
+    setConfirmState({
+      title: language === 'bn' ? 'পাসওয়ার্ড রিসেট বাতিল' : 'Cancel Password Reset',
+      description: language === 'bn'
+        ? 'আপনি কি এই পাসওয়ার্ড রিসেট রিকোয়েস্টটি বাতিল করতে চান?'
+        : 'Are you sure you want to cancel this password reset request?',
+      confirmText: language === 'bn' ? 'বাতিল করুন' : 'Cancel Request',
+      onConfirm: async () => {
+        const res = await fetch('/api/auth/reset-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'cancel', requestId }),
+        });
+        if (res.ok) {
+          setResetRequests(prev => prev.filter(r => r.id !== requestId));
+          toast.success('Password reset request cancelled', 'Cancelled');
+        } else {
+          toast.error('Failed to cancel request', 'Error');
+        }
+      },
+    });
   };
 
   const fetchDuties = async () => {
@@ -271,13 +289,20 @@ function AdminPageContent() {
     }
   };
 
-  const handleDeleteDuty = async (duty: DailyDutyAssignment) => {
-    if (!confirm(`Cancel duty assignment for ${duty.date}?`)) return;
-    try {
-      await fetch(`/api/duty?date=${duty.date}`, { method: 'DELETE' });
-      setDuties(prev => prev.filter(d => d.date !== duty.date));
-      toast.success('Duty assignment cancelled', 'Removed');
-    } catch (e) {}
+  const handleDeleteDuty = (duty: DailyDutyAssignment) => {
+    setConfirmState({
+      title: language === 'bn' ? 'ডিউটি বাতিল নিশ্চিতকরণ' : 'Cancel Duty Assignment',
+      description: language === 'bn'
+        ? 'আপনি কি এই তারিখের নির্ধারিত ডিউটি অ্যাসাইনমেন্ট মুছে ফেলতে চান?'
+        : 'Are you sure you want to remove the duty assignment for this date?',
+      highlightText: `${duty.assignedUserName} • ${duty.date}`,
+      confirmText: language === 'bn' ? 'ডিউটি মুছুন' : 'Remove Duty',
+      onConfirm: async () => {
+        await fetch(`/api/duty?date=${duty.date}`, { method: 'DELETE' });
+        setDuties(prev => prev.filter(d => d.date !== duty.date));
+        toast.success('Duty assignment cancelled', 'Removed');
+      },
+    });
   };
 
   useEffect(() => {
@@ -299,16 +324,22 @@ function AdminPageContent() {
     }
   };
 
-  const handleDeleteOrder = async (id: string) => {
-    if (!confirm(language === 'bn' ? 'অর্ডারটি ডিলিট করতে চান?' : 'Delete order?')) return;
-    setOrders(prev => prev.filter(o => o._id !== id && o.orderNumber !== id));
-    try {
-      await fetch(`/api/orders/${id}`, { method: 'DELETE' });
-      clearClientCache();
-      fetchAdminData();
-    } catch (e) {
-      console.error(e);
-    }
+  const handleDeleteOrder = (id: string) => {
+    setConfirmState({
+      title: language === 'bn' ? 'অর্ডার ডিলিট করুন' : 'Delete Order',
+      description: language === 'bn'
+        ? 'আপনি কি নিশ্চিত যে এই অর্ডারটি স্থায়ীভাবে ডিলিট করতে চান?'
+        : 'Are you sure you want to permanently remove this order?',
+      highlightText: id,
+      confirmText: language === 'bn' ? 'অর্ডার ডিলিট করুন' : 'Delete Order',
+      onConfirm: async () => {
+        setOrders(prev => prev.filter(o => o._id !== id && o.orderNumber !== id));
+        await fetch(`/api/orders/${id}`, { method: 'DELETE' });
+        clearClientCache();
+        toast.success(language === 'bn' ? 'অর্ডার ডিলিট হয়েছে' : 'Order deleted successfully', 'Deleted');
+        fetchAdminData();
+      },
+    });
   };
 
   const handleCreateDish = async (e: React.FormEvent) => {
@@ -342,14 +373,23 @@ function AdminPageContent() {
     }
   };
 
-  const handleDeleteDish = async (id?: string) => {
-    if (!id || !confirm('Are you sure you want to delete this dish?')) return;
-    try {
-      await fetch(`/api/menu?id=${id}`, { method: 'DELETE' });
-      setMenuItems(prev => prev.filter(m => m._id !== id));
-    } catch (err) {
-      console.error(err);
-    }
+  const handleDeleteDish = (id?: string) => {
+    if (!id) return;
+    const dish = menuItems.find(m => m._id === id);
+    setConfirmState({
+      title: language === 'bn' ? 'মেনু ডিশ মুছুন' : 'Delete Menu Dish',
+      description: language === 'bn'
+        ? 'আপনি কি নিশ্চিত যে এই ডিশটি মেনু থেকে মুছে ফেলতে চান?'
+        : 'Are you sure you want to permanently remove this dish from the menu?',
+      highlightText: dish ? `${dish.name} (৳${dish.price})` : undefined,
+      confirmText: language === 'bn' ? 'ডিশ মুছুন' : 'Delete Dish',
+      onConfirm: async () => {
+        await fetch(`/api/menu?id=${id}`, { method: 'DELETE' });
+        setMenuItems(prev => prev.filter(m => m._id !== id));
+        clearClientCache('menu_items');
+        toast.success('Dish deleted from menu', 'Deleted');
+      },
+    });
   };
 
   // Balance actions
@@ -1218,6 +1258,29 @@ function AdminPageContent() {
       <InvoiceModal
         order={selectedInvoice}
         onClose={() => setSelectedInvoice(null)}
+      />
+
+      <ConfirmModal
+        isOpen={!!confirmState}
+        onClose={() => !confirmLoading && setConfirmState(null)}
+        onConfirm={async () => {
+          if (!confirmState) return;
+          setConfirmLoading(true);
+          try {
+            await confirmState.onConfirm();
+            setConfirmState(null);
+          } catch (e: any) {
+            toast.error(e.message || 'Action failed', 'Error');
+          } finally {
+            setConfirmLoading(false);
+          }
+        }}
+        title={confirmState?.title || ''}
+        description={confirmState?.description || ''}
+        highlightText={confirmState?.highlightText}
+        confirmText={confirmState?.confirmText}
+        variant="danger"
+        loading={confirmLoading}
       />
     </div>
   );

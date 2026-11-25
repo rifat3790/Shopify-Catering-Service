@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import Setting from '@/lib/models/Setting';
 import { SUPER_ADMIN_EMAIL } from '@/lib/dataStore';
-import { sendOrderClosedAndTableReport, getBangladeshTimeInfo } from '@/lib/telegramService';
+import { sendOrderClosedAndTableReport, getBangladeshTimeInfo, checkAndRunTelegramAutomations } from '@/lib/telegramService';
 
 export interface OrderControlData {
   ordersEnabled: boolean;
@@ -43,21 +43,23 @@ function evaluateOrderAllowed(settings: OrderControlData) {
   // To be resilient in serverless environments, calculate BD time directly
   const nowUtc = new Date();
   const bdTime = new Date(nowUtc.getTime() + (6 * 60 + nowUtc.getTimezoneOffset()) * 60 * 1000);
-  
+
   const currentHours = bdTime.getHours();
   const currentMinutes = bdTime.getMinutes();
   const currentTotal = currentHours * 60 + currentMinutes;
 
-  const [cutoffH, cutoffM] = (settings.dailyCutoffTime || '09:20').split(':').map(Number);
-  const cutoffTotal = (cutoffH || 9) * 60 + (cutoffM || 20);
+  const [rawH, rawM] = (settings.dailyCutoffTime || '09:20').split(':').map(Number);
+  const cutoffH = isNaN(rawH) ? 9 : rawH;
+  const cutoffM = isNaN(rawM) ? 20 : rawM;
+  const cutoffTotal = cutoffH * 60 + cutoffM;
 
   const isAllowed = currentTotal <= cutoffTotal;
   const remaining = Math.max(0, cutoffTotal - currentTotal);
 
   // Format 12-hour string (e.g. 09:20 AM)
-  const ampm = (cutoffH || 9) >= 12 ? 'PM' : 'AM';
-  const displayHours = ((cutoffH || 9) % 12) || 12;
-  const displayTime = `${displayHours.toString().padStart(2, '0')}:${(cutoffM || 20).toString().padStart(2, '0')} ${ampm}`;
+  const ampm = cutoffH >= 12 ? 'PM' : 'AM';
+  const displayHours = (cutoffH % 12) || 12;
+  const displayTime = `${displayHours.toString().padStart(2, '0')}:${cutoffM.toString().padStart(2, '0')} ${ampm}`;
 
   if (!isAllowed) {
     return {
@@ -93,11 +95,24 @@ export async function GET() {
     }
 
     const evaluation = evaluateOrderAllowed(currentSettings);
+    const displayTime = evaluation.cutoffTime || currentSettings.dailyCutoffTime || '09:20 AM';
+    const dynamicNoticeEn =
+      !currentSettings.noticeMessageEn ||
+      currentSettings.noticeMessageEn.includes('09:20 AM') ||
+      currentSettings.noticeMessageEn.startsWith('Catering orders must be placed by')
+        ? `Catering orders must be placed by ${displayTime} daily.`
+        : currentSettings.noticeMessageEn;
+
+    // Trigger Telegram cutoff close report immediately if daily cutoff just passed!
+    if (evaluation.reason === 'cutoff_passed') {
+      await checkAndRunTelegramAutomations().catch(() => {});
+    }
 
     return NextResponse.json({
       success: true,
       data: {
         ...currentSettings,
+        noticeMessageEn: dynamicNoticeEn,
         evaluation,
         isOrderAllowedNow: evaluation.allowed,
       }
@@ -133,9 +148,23 @@ export async function POST(request: Request) {
       noticeMessageEn: noticeMessageEn || DEFAULT_SETTINGS.noticeMessageEn,
     };
 
+    const newEval = evaluateOrderAllowed(newSettings);
+    const displayTime = newEval.cutoffTime || newSettings.dailyCutoffTime || '09:20 AM';
+    if (
+      !newSettings.noticeMessageEn ||
+      newSettings.noticeMessageEn.includes('09:20 AM') ||
+      newSettings.noticeMessageEn.startsWith('Catering orders must be placed by')
+    ) {
+      newSettings.noticeMessageEn = `Catering orders must be placed by ${displayTime} daily.`;
+    }
+
     if (Setting) {
       const prevDoc = await Setting.findOne({ key: 'order_control' }).lean();
-      const wasEnabled = (prevDoc as any)?.value?.ordersEnabled !== false;
+      const prevSettings: OrderControlData = (prevDoc as any)?.value
+        ? { ...DEFAULT_SETTINGS, ...(prevDoc as any).value }
+        : DEFAULT_SETTINGS;
+      const wasAllowed = evaluateOrderAllowed(prevSettings).allowed;
+      const isNowAllowed = newEval.allowed;
 
       await Setting.findOneAndUpdate(
         { key: 'order_control' },
@@ -143,16 +172,28 @@ export async function POST(request: Request) {
         { upsert: true, new: true }
       );
 
-      // If admin just switched orders from OPEN to CLOSED, immediately notify Telegram + post today's order table image
-      if (wasEnabled && newSettings.ordersEnabled === false) {
-        const { todayStr } = getBangladeshTimeInfo();
-        sendOrderClosedAndTableReport(false, todayStr).catch((err) =>
+      const { todayStr } = getBangladeshTimeInfo();
+
+      // If orders JUST CLOSED (either manually disabled OR dailyCutoffTime changed so it's now past cutoff!),
+      // IMMEDIATELY await sending Telegram Closed notification + today's full Order Table PNG!
+      if (wasAllowed && !isNowAllowed) {
+        await Setting.findOneAndUpdate(
+          { key: 'telegram_settings' },
+          { $set: { 'value.lastCutoffReportDate': todayStr } }
+        ).catch(() => {});
+        await sendOrderClosedAndTableReport(false, todayStr).catch((err) =>
           console.warn('Telegram close alert warning:', err)
         );
+      } else if (!wasAllowed && isNowAllowed) {
+        // Re-opened orders for today: clear cutoff lock so closing again later triggers fresh Telegram report
+        await Setting.findOneAndUpdate(
+          { key: 'telegram_settings' },
+          { $set: { 'value.lastCutoffReportDate': '' } }
+        ).catch(() => {});
       }
     }
 
-    const evaluation = evaluateOrderAllowed(newSettings);
+    const evaluation = newEval;
 
     return NextResponse.json({
       success: true,
