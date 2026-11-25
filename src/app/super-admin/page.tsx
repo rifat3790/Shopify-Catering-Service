@@ -7,6 +7,8 @@ import LuxuryLoader, { LuxurySpinnerIcon } from '@/components/LuxuryLoader';
 import OrderControlCard from '@/components/OrderControlCard';
 import StorageMetricsCard from '@/components/StorageMetricsCard';
 import TelegramBotPanel from '@/components/TelegramBotPanel';
+import LuxuryDatePicker from '@/components/LuxuryDatePicker';
+import LuxurySelect from '@/components/LuxurySelect';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/context/ToastContext';
@@ -1057,34 +1059,36 @@ function SuperAdminDashboardContent() {
                   />
                 </div>
 
-                <select
+                <LuxurySelect
                   value={auditRouteFilter}
-                  onChange={e => setAuditRouteFilter(e.target.value)}
-                  className="px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-slate-300 focus:outline-none focus:border-sky-400 cursor-pointer"
-                >
-                  <option value="all">All Routes</option>
-                  <option value="/user">/user (My Hub)</option>
-                  <option value="/orders">/orders (Orders)</option>
-                  <option value="/menu">/menu (Menu)</option>
-                  <option value="/chat">/chat (Chat)</option>
-                  <option value="/tracker">/tracker (Ledger)</option>
-                  <option value="/members">/members (Directory)</option>
-                  <option value="/pos">/pos (Counter POS)</option>
-                  <option value="/super-admin">/super-admin (Super Admin)</option>
-                  <option value="/admin">/admin (Kitchen)</option>
-                </select>
+                  onChange={setAuditRouteFilter}
+                  className="min-w-[180px]"
+                  options={[
+                    { value: 'all', label: 'All Routes' },
+                    { value: '/user', label: '/user (My Hub)' },
+                    { value: '/orders', label: '/orders (Orders)' },
+                    { value: '/menu', label: '/menu (Menu)' },
+                    { value: '/chat', label: '/chat (Chat)' },
+                    { value: '/tracker', label: '/tracker (Ledger)' },
+                    { value: '/members', label: '/members (Directory)' },
+                    { value: '/pos', label: '/pos (Counter POS)' },
+                    { value: '/super-admin', label: '/super-admin (Super Admin)' },
+                    { value: '/admin', label: '/admin (Kitchen)' },
+                  ]}
+                />
 
-                <select
+                <LuxurySelect
                   value={auditActionFilter}
-                  onChange={e => setAuditActionFilter(e.target.value)}
-                  className="px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-slate-300 focus:outline-none focus:border-sky-400 cursor-pointer"
-                >
-                  <option value="all">All Actions</option>
-                  <option value="page_view">Page Views</option>
-                  <option value="order_placed">Orders Placed</option>
-                  <option value="balance_update">Balance Updates</option>
-                  <option value="login">Logins</option>
-                </select>
+                  onChange={setAuditActionFilter}
+                  className="min-w-[160px]"
+                  options={[
+                    { value: 'all', label: 'All Actions' },
+                    { value: 'page_view', label: 'Page Views' },
+                    { value: 'order_placed', label: 'Orders Placed' },
+                    { value: 'balance_update', label: 'Balance Updates' },
+                    { value: 'login', label: 'Logins' },
+                  ]}
+                />
               </div>
 
               {/* Logs Table */}
@@ -1251,11 +1255,9 @@ function SuperAdminDashboardContent() {
                     <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">
                       {language === 'bn' ? 'তারিখ নির্বাচন (Date)' : 'Select Date'}
                     </label>
-                    <input
-                      type="date"
+                    <LuxuryDatePicker
                       value={dutyDate}
-                      onChange={e => setDutyDate(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-amber-400 font-mono"
+                      onChange={setDutyDate}
                     />
                   </div>
 
@@ -1263,18 +1265,19 @@ function SuperAdminDashboardContent() {
                     <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">
                       {language === 'bn' ? 'দায়িত্বপ্রাপ্ত মেম্বার (Assign Member)' : 'Assigned Team Member'}
                     </label>
-                    <select
+                    <LuxurySelect
                       value={dutyUserId}
-                      onChange={e => setDutyUserId(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-amber-400 cursor-pointer"
-                    >
-                      <option value="">{language === 'bn' ? '-- মেম্বার বেছে নিন --' : '-- Choose a member --'}</option>
-                      {users.map(u => (
-                        <option key={u.id} value={u.id}>
-                          {u.name} ({u.department || u.email})
-                        </option>
-                      ))}
-                    </select>
+                      onChange={setDutyUserId}
+                      searchable={true}
+                      placeholder={language === 'bn' ? '-- মেম্বার বেছে নিন --' : '-- Choose a member --'}
+                      options={users
+                        .filter(u => u.status !== 'pending')
+                        .map(u => ({
+                          value: u.id,
+                          label: u.name,
+                          subLabel: `${u.department || 'Shopify Team'} • ${u.email}`,
+                        }))}
+                    />
                   </div>
 
                   <div>
@@ -1473,17 +1476,19 @@ function SuperAdminDashboardContent() {
                     />
                   </div>
 
-                  <select
+                  <LuxurySelect
                     value={roleFilter}
-                    onChange={e => setRoleFilter(e.target.value)}
-                    className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none"
-                  >
-                    <option value="all">All Roles</option>
-                    <option value="super_admin">Super Admin</option>
-                    <option value="admin">Admin</option>
-                    <option value="staff">Staff</option>
-                    <option value="user">User</option>
-                  </select>
+                    onChange={setRoleFilter}
+                    align="right"
+                    className="min-w-[140px]"
+                    options={[
+                      { value: 'all', label: 'All Roles' },
+                      { value: 'super_admin', label: 'Super Admin' },
+                      { value: 'admin', label: 'Admin' },
+                      { value: 'staff', label: 'Staff' },
+                      { value: 'user', label: 'User' },
+                    ]}
+                  />
                 </div>
               </div>
 
@@ -2214,16 +2219,16 @@ function SuperAdminDashboardContent() {
                   <label className="block text-[11px] font-semibold text-slate-400 uppercase mb-1">
                     প্রাথমিক রোল (Role)
                   </label>
-                  <select
+                  <LuxurySelect
                     value={newUserRole}
-                    onChange={e => setNewUserRole(e.target.value as UserRole)}
-                    className="w-full px-3.5 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none"
-                  >
-                    <option value="user">👤 User</option>
-                    <option value="staff">👨‍🍳 Staff</option>
-                    <option value="admin">🛡️ Admin</option>
-                    <option value="super_admin">👑 Super Admin</option>
-                  </select>
+                    onChange={(v) => setNewUserRole(v as UserRole)}
+                    options={[
+                      { value: 'user', label: '👤 User' },
+                      { value: 'staff', label: '👨‍🍳 Staff' },
+                      { value: 'admin', label: '🛡️ Admin' },
+                      { value: 'super_admin', label: '👑 Super Admin' },
+                    ]}
+                  />
                 </div>
 
                 <div>

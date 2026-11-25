@@ -21,6 +21,7 @@ import {
   Radio,
 } from 'lucide-react';
 import LuxuryLoader, { LuxurySpinnerIcon } from './LuxuryLoader';
+import LuxuryTimePicker from './LuxuryTimePicker';
 import { useToast } from '@/context/ToastContext';
 
 interface GroupTarget {
@@ -432,13 +433,12 @@ export default function TelegramBotPanel() {
                   className="w-4 h-4 accent-emerald-500"
                 />
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2.5">
                 <span className="text-[11px] text-slate-400 font-mono">Trigger Time (BDT):</span>
-                <input
-                  type="time"
+                <LuxuryTimePicker
                   value={morningAlertTime}
-                  onChange={(e) => setMorningAlertTime(e.target.value)}
-                  className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700 text-xs font-mono text-amber-300"
+                  onChange={setMorningAlertTime}
+                  disabled={!morningAlertEnabled}
                 />
               </div>
             </div>

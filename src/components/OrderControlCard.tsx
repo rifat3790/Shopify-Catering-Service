@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/context/ToastContext';
+import LuxuryTimePicker from '@/components/LuxuryTimePicker';
 import { 
   Clock, 
   Power, 
@@ -186,13 +187,11 @@ export default function OrderControlCard() {
               </label>
             </div>
 
-            <div className="flex items-center gap-3">
-              <input
-                type="time"
+            <div className="flex flex-wrap items-center gap-3">
+              <LuxuryTimePicker
                 value={dailyCutoffTime}
-                onChange={(e) => setDailyCutoffTime(e.target.value)}
+                onChange={setDailyCutoffTime}
                 disabled={!cutoffEnabled}
-                className="px-4 py-2 bg-slate-900 border border-slate-700 rounded-xl text-base font-mono font-bold text-amber-300 focus:outline-none focus:border-amber-400 disabled:opacity-50"
               />
               <span className="text-xs text-slate-400 font-medium">
                 {language === 'bn' 

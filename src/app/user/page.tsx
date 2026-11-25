@@ -9,6 +9,7 @@ import QuickOrderModal from '@/components/QuickOrderModal';
 import ProfileModal from '@/components/ProfileModal';
 import DateFilterPills from '@/components/DateFilterPills';
 import DailyDutyScheduleCard from '@/components/DailyDutyScheduleCard';
+import LuxurySelect from '@/components/LuxurySelect';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/context/ToastContext';
@@ -19,14 +20,14 @@ import { downloadReceiptPng, downloadFullOrdersTableAsImage } from '@/lib/receip
 import { LuxurySpinnerIcon } from '@/components/LuxuryLoader';
 import { useTheme } from '@/context/ThemeContext';
 import Link from 'next/link';
-import { 
-  Wallet, 
-  Download, 
-  ShoppingBag, 
-  CheckCircle2, 
-  Receipt, 
-  UtensilsCrossed, 
-  Plus, 
+import {
+  Wallet,
+  Download,
+  ShoppingBag,
+  CheckCircle2,
+  Receipt,
+  UtensilsCrossed,
+  Plus,
   RefreshCw,
   MessageSquare,
   Edit3,
@@ -115,13 +116,13 @@ function UserDashboardContent() {
       if (uRes && uRes.success && Array.isArray(uRes.data)) {
         setElevatedMemberList(uRes.data);
         setClientCache('members_list', uRes.data);
-        const me = uRes.data.find((u: UserRecord) => 
-          (user?.email && u.email.toLowerCase() === user.email.toLowerCase()) || 
+        const me = uRes.data.find((u: UserRecord) =>
+          (user?.email && u.email.toLowerCase() === user.email.toLowerCase()) ||
           (user?.uid && u.id === user.uid)
         );
         if (me) {
-          updateLocalUserProfile({ 
-            balance: me.balance !== undefined ? me.balance : 0, 
+          updateLocalUserProfile({
+            balance: me.balance !== undefined ? me.balance : 0,
             totalSpent: me.totalSpent !== undefined ? me.totalSpent : 0,
             role: me.role,
             avatar: me.avatar,
@@ -152,8 +153,8 @@ function UserDashboardContent() {
   const activeUserRecord = useMemo(() => {
     if (inspectedMember) return inspectedMember;
     if (!user) return null;
-    return elevatedMemberList.find(m => 
-      (user.email && m.email?.toLowerCase() === user.email.toLowerCase()) || 
+    return elevatedMemberList.find(m =>
+      (user.email && m.email?.toLowerCase() === user.email.toLowerCase()) ||
       (user.uid && m.id === user.uid)
     ) || null;
   }, [inspectedMember, user, elevatedMemberList]);
@@ -265,7 +266,7 @@ function UserDashboardContent() {
       const json = await res.json();
       if (json.success && json.data) {
         toast.success(
-          language === 'bn' 
+          language === 'bn'
             ? `ব্যালেন্স সফলভাবে আপডেট হয়েছে! বর্তমান ব্যালেন্স: ৳${Number(json.data.balance).toFixed(2)}`
             : `Balance updated successfully! Balance: ৳${Number(json.data.balance).toFixed(2)}`,
           'Balance Updated'
@@ -291,7 +292,7 @@ function UserDashboardContent() {
 
       <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
         <main className="p-4 sm:p-6 lg:p-10 space-y-8 max-w-[1920px] w-full mx-auto">
-          
+
           {/* Top Header */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-emerald-900/40">
             <div className="flex items-center gap-3">
@@ -316,7 +317,7 @@ function UserDashboardContent() {
                   {user?.username || `@${user?.email?.split('@')[0] || 'user'}`}
                 </p>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  {language === 'bn' 
+                  {language === 'bn'
                     ? 'আপনার ব্যক্তিগত খাবার হিসাব, ওয়ালেট ব্যালেন্স ও রসিদ ডাউনলোড পোর্টাল'
                     : 'Personal catering account, dynamic wallet balance & instant invoice image download'}
                 </p>
@@ -346,20 +347,23 @@ function UserDashboardContent() {
 
               {/* Elevated Inspector for Super Admin */}
               {isElevated && elevatedMemberList.length > 0 && (
-                <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 rounded-xl p-1 text-xs">
-                  <span className="text-[10px] text-slate-400 pl-2">Inspect Member:</span>
-                  <select
+                <div className="flex items-center gap-2 text-xs min-w-[240px]">
+                  <span className="text-[10px] text-slate-400 font-semibold uppercase whitespace-nowrap">Inspect:</span>
+                  <LuxurySelect
                     value={inspectedUserName}
-                    onChange={(e) => setInspectedUserName(e.target.value)}
-                    className="bg-slate-950 text-emerald-300 font-semibold text-xs rounded-lg px-2 py-1 outline-none border border-slate-800 cursor-pointer"
-                  >
-                    <option value="">My Own Account ({user?.displayName || user?.name || 'Self'})</option>
-                    {elevatedMemberList.map(m => (
-                      <option key={m.id} value={m.name}>
-                        {m.name} ({m.department}) - ৳{m.balance}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setInspectedUserName}
+                    searchable={true}
+                    className="flex-1 min-w-[210px]"
+                    triggerClassName="py-2"
+                    options={[
+                      { value: '', label: `My Own Account (${user?.displayName || user?.name || 'Self'})` },
+                      ...elevatedMemberList.map(m => ({
+                        value: m.name,
+                        label: m.name,
+                        subLabel: `${m.department || 'Shopify Team'} • ৳${m.balance}`,
+                      })),
+                    ]}
+                  />
                 </div>
               )}
 
@@ -397,7 +401,7 @@ function UserDashboardContent() {
 
           {/* User Balance Master Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            
+
             {/* Main Dynamic Balance */}
             <div className="relative overflow-hidden p-6 rounded-3xl bg-white dark:bg-slate-900 dark:bg-gradient-to-br dark:from-emerald-950/80 dark:via-slate-900 dark:to-emerald-950/60 border border-slate-200 dark:border-emerald-500/40 shadow-xl">
               <div className="flex items-center justify-between mb-3">
@@ -408,7 +412,7 @@ function UserDashboardContent() {
                   <Wallet className="w-5 h-5" />
                 </div>
               </div>
-              
+
               <div className="flex items-baseline justify-between gap-2 flex-wrap">
                 <h2 className="text-3xl sm:text-4xl font-extrabold font-mono text-emerald-600 dark:text-emerald-400">
                   ৳{displayBalance.toFixed(2)}
@@ -484,7 +488,7 @@ function UserDashboardContent() {
 
           {/* My Orders & Download Receipt Image Section */}
           <div className="rounded-3xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-emerald-900/60 shadow-xl overflow-hidden backdrop-blur-xl">
-            
+
             <div className="p-5 bg-slate-50 dark:bg-slate-950 dark:bg-gradient-to-r dark:from-emerald-950/80 dark:via-slate-900 dark:to-emerald-950/60 border-b border-slate-200 dark:border-emerald-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h2 className="text-base sm:text-lg font-bold font-serif text-slate-800 dark:text-white flex items-center gap-2">
@@ -492,8 +496,8 @@ function UserDashboardContent() {
                   <span>{language === 'bn' ? 'আমার খাবারের অর্ডার ও রসিদ ডাউনলোড' : 'My Orders & Invoice Image Downloads'}</span>
                 </h2>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  {language === 'bn' 
-                    ? 'প্রতিটি অর্ডারের রসিদ হাই-রেজোলিউশন ইমেজ (PNG) হিসেবে সরাসরি ডাউনলোড করুন' 
+                  {language === 'bn'
+                    ? 'প্রতিটি অর্ডারের রসিদ হাই-রেজোলিউশন ইমেজ (PNG) হিসেবে সরাসরি ডাউনলোড করুন'
                     : 'Download any order receipt as a high-resolution PNG image'}
                 </p>
               </div>
@@ -562,11 +566,10 @@ function UserDashboardContent() {
                         <span className="font-mono font-bold text-xs text-amber-600 dark:text-amber-300">
                           {order.orderNumber}
                         </span>
-                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold font-mono tracking-wide ${
-                          order.status === 'Paid'
-                            ? 'bg-emerald-950/70 text-emerald-400 border border-emerald-500/40 shadow-xs'
-                            : 'bg-amber-950/70 text-amber-400 border border-amber-500/40 shadow-xs'
-                        }`}>
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold font-mono tracking-wide ${order.status === 'Paid'
+                          ? 'bg-emerald-950/70 text-emerald-400 border border-emerald-500/40 shadow-xs'
+                          : 'bg-amber-950/70 text-amber-400 border border-amber-500/40 shadow-xs'
+                          }`}>
                           {order.status}
                         </span>
                       </div>
@@ -677,11 +680,10 @@ function UserDashboardContent() {
                     key={act}
                     type="button"
                     onClick={() => setBalanceAction(act)}
-                    className={`flex-1 py-1.5 rounded-lg font-bold transition-all ${
-                      balanceAction === act 
-                        ? 'bg-amber-400 text-slate-950 shadow-md' 
-                        : 'text-slate-400 hover:text-white'
-                    }`}
+                    className={`flex-1 py-1.5 rounded-lg font-bold transition-all ${balanceAction === act
+                      ? 'bg-amber-400 text-slate-950 shadow-md'
+                      : 'text-slate-400 hover:text-white'
+                      }`}
                   >
                     {act === 'add' ? '+ যোগ (Add)' : (act === 'set' ? '= সেট (Set)' : '- মাইনাস (Deduct)')}
                   </button>
@@ -698,11 +700,10 @@ function UserDashboardContent() {
                       key={amt}
                       type="button"
                       onClick={() => setBalanceAmount(amt)}
-                      className={`py-1.5 rounded-xl text-xs font-mono font-bold border transition-all ${
-                        balanceAmount === amt 
-                          ? 'bg-emerald-500 text-slate-950 border-emerald-400' 
-                          : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-slate-700'
-                      }`}
+                      className={`py-1.5 rounded-xl text-xs font-mono font-bold border transition-all ${balanceAmount === amt
+                        ? 'bg-emerald-500 text-slate-950 border-emerald-400'
+                        : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-slate-700'
+                        }`}
                     >
                       ৳{amt}
                     </button>
@@ -723,11 +724,11 @@ function UserDashboardContent() {
               <div className="p-3 rounded-xl bg-slate-950 border border-slate-800/80 flex items-center justify-between text-xs">
                 <span className="text-slate-400">আপডেটের পর ব্যালেন্স হবে:</span>
                 <span className="font-mono font-bold text-amber-300 text-base">
-                  ৳{balanceAction === 'add' 
+                  ৳{balanceAction === 'add'
                     ? (displayBalance + Number(balanceAmount)).toFixed(2)
-                    : (balanceAction === 'deduct' 
-                        ? Math.max(0, displayBalance - Number(balanceAmount)).toFixed(2)
-                        : Number(balanceAmount).toFixed(2))}
+                    : (balanceAction === 'deduct'
+                      ? Math.max(0, displayBalance - Number(balanceAmount)).toFixed(2)
+                      : Number(balanceAmount).toFixed(2))}
                 </span>
               </div>
 

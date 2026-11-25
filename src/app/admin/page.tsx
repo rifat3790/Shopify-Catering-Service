@@ -10,6 +10,8 @@ import QuickOrderModal from '@/components/QuickOrderModal';
 import InvoiceModal from '@/components/InvoiceModal';
 import OrderControlCard from '@/components/OrderControlCard';
 import DateFilterPills from '@/components/DateFilterPills';
+import LuxuryDatePicker from '@/components/LuxuryDatePicker';
+import LuxurySelect from '@/components/LuxurySelect';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/context/ToastContext';
@@ -743,11 +745,9 @@ function AdminPageContent() {
                     <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">
                       Select Date
                     </label>
-                    <input
-                      type="date"
+                    <LuxuryDatePicker
                       value={dutyDate}
-                      onChange={e => setDutyDate(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-amber-400 font-mono"
+                      onChange={setDutyDate}
                     />
                   </div>
 
@@ -755,21 +755,19 @@ function AdminPageContent() {
                     <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">
                       Select Responsible Member
                     </label>
-                    <select
-                      required
+                    <LuxurySelect
                       value={dutyUserId}
-                      onChange={e => setDutyUserId(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-amber-400 cursor-pointer"
-                    >
-                      <option value="">-- Choose a Team Member --</option>
-                      {members
+                      onChange={setDutyUserId}
+                      searchable={true}
+                      placeholder="-- Choose a Team Member --"
+                      options={members
                         .filter(m => m.status !== 'pending')
-                        .map(m => (
-                          <option key={m.id} value={m.id}>
-                            {m.name} ({m.role.toUpperCase()}) — {m.email}
-                          </option>
-                        ))}
-                    </select>
+                        .map(m => ({
+                          value: m.id,
+                          label: `${m.name} (${m.role.toUpperCase()})`,
+                          subLabel: m.email,
+                        }))}
+                    />
                   </div>
 
                   <div>

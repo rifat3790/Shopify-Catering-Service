@@ -6,6 +6,8 @@ import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/context/ToastContext';
 import { OrderData, MenuItemData } from '@/lib/types';
 import { getClientCache, setClientCache, clearClientCache } from '@/lib/clientCache';
+import LuxurySelect from '@/components/LuxurySelect';
+import { LuxurySpinnerIcon } from '@/components/LuxuryLoader';
 import {
   X,
   Plus,
@@ -33,7 +35,7 @@ const cashPresets = [20, 30, 50, 100, 200, 500, 1000];
 const DEFAULT_CATERING_DISHES: MenuItemData[] = [
   { _id: 'def-singara', name: 'Singara (সিঙ্গারা)', nameBn: 'সিঙ্গারা', price: 10, category: 'Refreshments', description: 'Crispy catering singara', descriptionBn: 'মচমচে সিঙ্গারা', imageUrl: '', isAvailable: true, popular: true },
   { _id: 'def-somocha', name: 'Somocha (সমুচা)', nameBn: 'সমুচা', price: 10, category: 'Refreshments', description: 'Fresh hot somocha', descriptionBn: 'গরম সমুচা', imageUrl: '', isAvailable: true, popular: true },
-  { _id: 'def-dalvagi', name: 'Dal Vagi (ডাল ভাজি)', nameBn: 'ডাল ভাজি', price: 10, category: 'Refreshments', description: 'Fresh spiced dal vagi', descriptionBn: 'ডাল ভাজি', imageUrl: '', isAvailable: true, popular: true },
+  { _id: 'def-dalsobji', name: 'Dal Sobji (ডাল সবজি)', nameBn: 'ডাল সবজি', price: 10, category: 'Refreshments', description: 'Fresh hot dal sobji', descriptionBn: 'ডাল সবজি', imageUrl: '', isAvailable: true, popular: true },
   { _id: 'def-porota', name: 'Porota (পরোটা)', nameBn: 'পরোটা', price: 10, category: 'Refreshments', description: 'Warm flaky porota', descriptionBn: 'গরম পরোটা', imageUrl: '', isAvailable: true, popular: true },
 ];
 
@@ -512,7 +514,7 @@ export default function QuickOrderModal({
                     placeholder={language === 'bn' ? 'খাবারের নাম' : 'Item name'}
                     className="flex-1 min-w-[130px] px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-400"
                   />
-                  
+
                   {/* Clean Price Box with Currency Prefix */}
                   <div className="relative flex items-center">
                     <span className="absolute left-2.5 text-xs text-amber-600 dark:text-amber-400 font-bold font-mono select-none">৳</span>
@@ -776,23 +778,24 @@ export default function QuickOrderModal({
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                   {language === 'bn' ? 'পেমেন্ট মেথড' : 'Payment Method'}
                 </label>
-                <select
+                <LuxurySelect
                   value={paymentMethod}
-                  onChange={(e) => {
-                    const m = e.target.value as any;
+                  direction="up"
+                  onChange={(val) => {
+                    const m = val as any;
                     setPaymentMethod(m);
                     if (m === 'Wallet') {
                       setPaidAmount(calculatedBill);
                     }
                   }}
-                  className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none"
-                >
-                  <option value="Cash">Cash (নগদ)</option>
-                  <option value="Wallet">Catering Wallet (ব্যালেন্স থেকে কর্তন)</option>
-                  <option value="bKash">bKash (বিকাশ)</option>
-                  <option value="Nagad">Nagad (নগদ মোবাইল)</option>
-                  <option value="Card">Card (কার্ড)</option>
-                </select>
+                  options={[
+                    { value: 'Cash', label: 'Cash (নগদ)' },
+                    { value: 'Wallet', label: 'Catering Wallet (ব্যালেন্স থেকে কর্তন)' },
+                    { value: 'bKash', label: 'bKash (বিকাশ)' },
+                    { value: 'Nagad', label: 'Nagad (নগদ মোবাইল)' },
+                    { value: 'Card', label: 'Card (কার্ড)' },
+                  ]}
+                />
               </div>
 
               <div>
@@ -854,7 +857,7 @@ export default function QuickOrderModal({
             >
               {submitting ? (
                 <>
-                  <div className="w-3.5 h-3.5 rounded-full border-2 border-slate-950 border-t-transparent animate-spin" />
+                  <LuxurySpinnerIcon size="xs" />
                   <span>Saving...</span>
                 </>
               ) : !isOrderAllowedForMe ? (

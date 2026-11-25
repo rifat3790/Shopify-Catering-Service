@@ -16,6 +16,7 @@ import {
   Camera, 
   AlertCircle 
 } from 'lucide-react';
+import LuxurySelect from '@/components/LuxurySelect';
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -316,26 +317,24 @@ export default function ProfileModal({ isOpen, onClose, onSaved }: ProfileModalP
               <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
                 {language === 'bn' ? 'ডিপার্টমেন্ট / বিভাগ' : 'Department'}
               </label>
-              <div className="relative">
-                <Building className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                <select
-                  value={department}
-                  onChange={e => setDepartment(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500 appearance-none"
-                >
-                  {department && !['Executive Management', 'Development', 'Marketing', 'Design & UX', 'Engineering', 'Operations', 'Support', 'Logistics'].includes(department) && (
-                    <option value={department}>{department}</option>
-                  )}
-                  <option value="Executive Management">Executive Management</option>
-                  <option value="Development">Development</option>
-                  <option value="Marketing">Marketing</option>
-                  <option value="Design & UX">Design & UX</option>
-                  <option value="Engineering">Engineering</option>
-                  <option value="Operations">Operations</option>
-                  <option value="Support">Support</option>
-                  <option value="Logistics">Logistics</option>
-                </select>
-              </div>
+              <LuxurySelect
+                value={department}
+                direction="up"
+                onChange={setDepartment}
+                options={[
+                  ...(department && !['Executive Management', 'Development', 'Marketing', 'Design & UX', 'Engineering', 'Operations', 'Support', 'Logistics'].includes(department)
+                    ? [{ value: department, label: department }]
+                    : []),
+                  { value: 'Executive Management', label: 'Executive Management' },
+                  { value: 'Development', label: 'Development' },
+                  { value: 'Marketing', label: 'Marketing' },
+                  { value: 'Design & UX', label: 'Design & UX' },
+                  { value: 'Engineering', label: 'Engineering' },
+                  { value: 'Operations', label: 'Operations' },
+                  { value: 'Support', label: 'Support' },
+                  { value: 'Logistics', label: 'Logistics' },
+                ]}
+              />
             </div>
 
             <div>

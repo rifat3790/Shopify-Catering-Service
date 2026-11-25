@@ -71,6 +71,30 @@ input[type="number"] {
   appearance: textfield !important;
 }
 
+/* Native date/time/select color-scheme and visible icon styling in Dark & Light themes */
+html.dark {
+  color-scheme: dark;
+}
+html:not(.dark) {
+  color-scheme: light;
+}
+html.dark select,
+html.dark option {
+  background-color: #090d16;
+  color: #f8fafc;
+}
+html.dark input[type="date"]::-webkit-calendar-picker-indicator,
+html.dark input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.88) sepia(0.8) saturate(4) hue-rotate(8deg);
+  cursor: pointer;
+  opacity: 0.95;
+}
+html:not(.dark) input[type="date"]::-webkit-calendar-picker-indicator,
+html:not(.dark) input[type="time"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.85;
+}
+
 ::-webkit-scrollbar-track {
   background: #090d16;
 }

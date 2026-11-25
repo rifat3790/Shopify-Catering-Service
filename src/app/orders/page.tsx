@@ -7,6 +7,7 @@ import LuxuryLoader from '@/components/LuxuryLoader';
 import QuickOrderModal from '@/components/QuickOrderModal';
 import InvoiceModal from '@/components/InvoiceModal';
 import DateFilterPills from '@/components/DateFilterPills';
+import LuxurySelect from '@/components/LuxurySelect';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/context/ToastContext';
@@ -735,98 +736,105 @@ function OrdersPageContent() {
       {/* Admin Edit Order Modal */}
       {/* Admin Edit Order Modal */}
       {editOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 dark:bg-black/85 backdrop-blur-md animate-in fade-in">
-          <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-amber-500/50 rounded-3xl p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
-              <div>
-                <h3 className="font-serif font-bold text-slate-900 dark:text-white text-base">
-                  Edit Order: {editOrder.orderNumber}
-                </h3>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">Customer: {editOrder.customerName}</p>
-              </div>
-              <button onClick={() => setEditOrder(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-white">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveEdit} className="space-y-4 text-xs">
-              {isSuperOrAdmin && (
-                <>
-                  <div>
-                    <label className="block text-slate-600 dark:text-slate-400 mb-1 font-semibold uppercase text-[10px]">Order Status</label>
-                    <select
-                      value={editStatus}
-                      onChange={(e) => setEditStatus(e.target.value as any)}
-                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white"
-                    >
-                      <option value="Paid">Paid</option>
-                      <option value="Due">Due</option>
-                      <option value="Pending">Pending</option>
-                      <option value="Delivered">Delivered</option>
-                      <option value="Cooking">Cooking</option>
-                      <option value="Cancelled">Cancelled</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-600 dark:text-slate-400 mb-1 font-semibold uppercase text-[10px]">
-                      Paid Amount (৳) — Bill: ৳{editOrder.totalBill}
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="1"
-                      value={editPaid}
-                      onChange={(e) => setEditPaid(Number(e.target.value))}
-                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-amber-700 dark:text-amber-300 font-mono font-bold"
-                    />
-                  </div>
-                </>
-              )}
-
-              <div>
-                <label className="block text-slate-600 dark:text-slate-400 mb-1 font-semibold uppercase text-[10px]">Payment Method</label>
-                <select
-                  value={editPaymentMethod}
-                  onChange={(e) => setEditPaymentMethod(e.target.value as any)}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white"
-                >
-                  <option value="Cash">Cash</option>
-                  <option value="Wallet">Wallet</option>
-                  <option value="bKash">bKash</option>
-                  <option value="Nagad">Nagad</option>
-                  <option value="Card">Card</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-slate-600 dark:text-slate-400 mb-1 font-semibold uppercase text-[10px]">Notes</label>
-                <input
-                  type="text"
-                  value={editNotes}
-                  onChange={(e) => setEditNotes(e.target.value)}
-                  placeholder="Order notes..."
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 dark:bg-black/85 backdrop-blur-md animate-in fade-in">
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-amber-500/50 rounded-3xl shadow-2xl animate-in zoom-in-95 duration-200 relative">
+            <div className="h-1 w-full bg-gradient-to-r from-emerald-500 via-amber-400 to-emerald-500 rounded-t-3xl" />
+            <div className="p-6 space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+                <div>
+                  <h3 className="font-serif font-bold text-slate-900 dark:text-white text-base">
+                    Edit Order: {editOrder.orderNumber}
+                  </h3>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">Customer: {editOrder.customerName}</p>
+                </div>
                 <button
                   type="button"
                   onClick={() => setEditOrder(null)}
-                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 font-medium"
+                  className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={savingEdit}
-                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 text-white font-bold shadow-md hover:scale-105 transition-all"
-                >
-                  {savingEdit ? 'Updating...' : 'Save Changes'}
+                  <X className="w-4 h-4" />
                 </button>
               </div>
-            </form>
+
+              <form onSubmit={handleSaveEdit} className="space-y-4 text-xs">
+                {isSuperOrAdmin && (
+                  <>
+                    <div>
+                      <label className="block text-slate-600 dark:text-slate-400 mb-1 font-semibold uppercase text-[10px]">Order Status</label>
+                      <LuxurySelect
+                        value={editStatus}
+                        onChange={(v) => setEditStatus(v as any)}
+                        options={[
+                          { value: 'Paid', label: 'Paid (পরিশোধ)' },
+                          { value: 'Due', label: 'Due (বকেয়া)' },
+                          { value: 'Pending', label: 'Pending (অপেক্ষমাণ)' },
+                          { value: 'Delivered', label: 'Delivered' },
+                          { value: 'Cooking', label: 'Cooking' },
+                          { value: 'Cancelled', label: 'Cancelled' },
+                        ]}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-600 dark:text-slate-400 mb-1 font-semibold uppercase text-[10px]">
+                        Paid Amount (৳) — Bill: ৳{editOrder.totalBill}
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={editPaid}
+                        onChange={(e) => setEditPaid(Number(e.target.value))}
+                        className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-amber-700 dark:text-amber-300 font-mono font-bold focus:outline-none focus:border-amber-400"
+                      />
+                    </div>
+                  </>
+                )}
+
+                <div>
+                  <label className="block text-slate-600 dark:text-slate-400 mb-1 font-semibold uppercase text-[10px]">Payment Method</label>
+                  <LuxurySelect
+                    value={editPaymentMethod}
+                    onChange={(v) => setEditPaymentMethod(v as any)}
+                    options={[
+                      { value: 'Cash', label: 'Cash (নগদ)' },
+                      { value: 'Wallet', label: 'Wallet (ব্যালেন্স)' },
+                      { value: 'bKash', label: 'bKash (বিকাশ)' },
+                      { value: 'Nagad', label: 'Nagad' },
+                      { value: 'Card', label: 'Card' },
+                    ]}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-600 dark:text-slate-400 mb-1 font-semibold uppercase text-[10px]">Notes</label>
+                  <input
+                    type="text"
+                    value={editNotes}
+                    onChange={(e) => setEditNotes(e.target.value)}
+                    placeholder="Order notes..."
+                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setEditOrder(null)}
+                    className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingEdit}
+                    className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 text-white font-bold shadow-md hover:scale-105 transition-all"
+                  >
+                    {savingEdit ? 'Updating...' : 'Save Changes'}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}
