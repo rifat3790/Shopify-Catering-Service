@@ -8,6 +8,7 @@ import LiveTrackerTable from '@/components/LiveTrackerTable';
 import QuickOrderModal from '@/components/QuickOrderModal';
 import InvoiceModal from '@/components/InvoiceModal';
 import DateFilterPills from '@/components/DateFilterPills';
+import DailyDutyScheduleCard from '@/components/DailyDutyScheduleCard';
 import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/context/ToastContext';
 import { OrderData } from '@/lib/types';
@@ -195,6 +196,9 @@ function TrackerContent() {
               counts={dateCounts}
             />
           </div>
+
+          {/* Daily Duty Schedule Card */}
+          <DailyDutyScheduleCard compact />
 
           {/* Top 5 Metrics Filtered Dynamically */}
           <MetricsOverview stats={dynamicStats} isLoading={loading} />

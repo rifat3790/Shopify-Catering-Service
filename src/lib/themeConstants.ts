@@ -232,14 +232,19 @@ main,
 }
 
 /* 3. Cards, Widgets, Tables & Dialogs -> PURE CRISP WHITE */
-[class*="bg-slate-900"] {
+[class*="bg-slate-900"],
+[class*="dark:bg-slate-900"],
+div[class*="bg-slate-900"],
+div[class*="dark:bg-slate-900"] {
   background-color: #ffffff !important;
+  color: #0f172a !important;
   border-color: #e2e8f0 !important;
   box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05), 0 1px 3px 0 rgba(15, 23, 42, 0.04) !important;
 }
 
 /* 4. Recessed sub-cards & inner areas inside white cards */
 [class*="bg-slate-900"] [class*="bg-slate-950"],
+[class*="dark:bg-slate-900"] [class*="bg-slate-950"],
 [class*="bg-slate-900"] [class*="bg-slate-900"] {
   background-color: #f8fafc !important;
   border-color: #e2e8f0 !important;
@@ -778,19 +783,19 @@ a[class*="from-"].bg-gradient-to-r svg {
   color: #020617 !important;
 }
 
-/* 7. Solid Buttons & Pills */
-[class*="bg-emerald-600"],
-[class*="bg-emerald-500"],
-[class*="bg-teal-600"],
-[class*="bg-teal-500"] {
+/* 7. Solid Buttons & Pills (excluding fractional opacity tints) */
+[class*="bg-emerald-600"]:not([class*="/"]),
+[class*="bg-emerald-500"]:not([class*="/"]),
+[class*="bg-teal-600"]:not([class*="/"]),
+[class*="bg-teal-500"]:not([class*="/"]) {
   background-color: var(--theme-primary) !important;
   color: #030712 !important;
 }
 
-[class*="bg-amber-400"],
-[class*="bg-amber-500"],
-[class*="bg-gold-500"],
-[class*="bg-gold-400"] {
+[class*="bg-amber-400"]:not([class*="/"]),
+[class*="bg-amber-500"]:not([class*="/"]),
+[class*="bg-gold-500"]:not([class*="/"]),
+[class*="bg-gold-400"]:not([class*="/"]) {
   background-color: var(--theme-accent) !important;
   color: #030712 !important;
 }
@@ -865,14 +870,19 @@ a[class*="from-"].bg-gradient-to-r svg {
 }
 
 /* 10. Soft Tints & Badges */
-[class*="bg-emerald-500/10"],
-[class*="bg-emerald-500/20"] {
+[class*="bg-emerald-500/"],
+[class*="bg-emerald-400/"],
+[class*="bg-teal-500/"] {
   background-color: rgba(var(--theme-primary-rgb), 0.16) !important;
+  color: var(--theme-primary-light) !important;
 }
 
-[class*="bg-amber-500/10"],
-[class*="bg-amber-500/20"] {
+[class*="bg-amber-500/"],
+[class*="bg-amber-400/"],
+[class*="bg-gold-500/"] {
   background-color: rgba(var(--theme-accent-rgb), 0.16) !important;
+  color: var(--theme-accent-light) !important;
+}
 }
 
 /* 11. Inputs, Focus States & Rings */

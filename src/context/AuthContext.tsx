@@ -291,6 +291,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => unsubscribe();
   }, []);
 
+  // Global presence heartbeat across ALL pages & routes (eliminates static "Active 2d ago")
+  useEffect(() => {
+    if (!user || (!user.uid && !user.email)) return;
+
+    const sendHeartbeat = () => {
+      const idToUse = user.uid || user.email;
+      fetch('/api/users/presence', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: idToUse, email: user.email, isOnline: true }),
+      }).catch(() => {});
+    };
+
+    sendHeartbeat();
+    const interval = setInterval(sendHeartbeat, 25000);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        sendHeartbeat();
+      }
+    };
+    window.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', sendHeartbeat);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', sendHeartbeat);
+    };
+  }, [user?.uid, user?.email]);
+
   const signInWithGoogle = async () => {
     try {
       setLoading(true);

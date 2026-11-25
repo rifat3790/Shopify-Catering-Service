@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getUserById, updateUserRole, updateUserBalance, deleteUser } from '@/lib/dataStore';
+import { getUserById, updateUserRole, updateUserBalance, updateUserDue, deleteUser } from '@/lib/dataStore';
 
 export async function GET(
   request: Request,
@@ -30,6 +30,12 @@ export async function PUT(
 
     if (body.role) {
       const updated = await updateUserRole(id, body.role, body.email);
+      return NextResponse.json({ success: true, data: updated });
+    }
+
+    if (body.dueAmount !== undefined || body.dueAction === 'clear') {
+      const dAct = body.dueAction === 'clear' ? 'clear' : (body.dueAction === 'deduct' ? 'deduct' : (body.dueAction === 'add' ? 'add' : 'set'));
+      const updated = await updateUserDue(id, Number(body.dueAmount) || 0, dAct);
       return NextResponse.json({ success: true, data: updated });
     }
 

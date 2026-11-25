@@ -55,10 +55,13 @@ function MembersPageContent() {
   const isSuper = user?.role === 'super_admin';
   const isAdminOrSuper = isSuper || user?.role === 'admin';
 
-  // Balance modal
+  // Balance & Due modal
   const [balanceModalUser, setBalanceModalUser] = useState<UserRecord | null>(null);
+  const [manageMode, setManageMode] = useState<'balance' | 'due'>('balance');
   const [balanceAction, setBalanceAction] = useState<'add' | 'deduct' | 'set'>('add');
   const [balanceAmount, setBalanceAmount] = useState<number>(500);
+  const [dueAction, setDueAction] = useState<'set' | 'add' | 'deduct' | 'clear'>('set');
+  const [dueAmount, setDueAmount] = useState<number>(0);
 
   // Form states for new member
   const [newName, setNewName] = useState('');
@@ -145,25 +148,33 @@ function MembersPageContent() {
     }
   };
 
-  const openBalanceModal = (u: UserRecord, action: 'add' | 'deduct' | 'set' = 'add') => {
+  const openBalanceModal = (u: UserRecord, action: 'add' | 'deduct' | 'set' = 'add', mode: 'balance' | 'due' = 'balance') => {
     setBalanceModalUser(u);
+    setManageMode(mode);
     setBalanceAction(action);
     setBalanceAmount(action === 'set' ? u.balance : (action === 'deduct' ? Math.min(100, u.balance) : 500));
+    setDueAmount(Number(u.currentDue) || 0);
+    setDueAction('set');
   };
 
   const handleBalanceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!balanceModalUser || balanceAmount < 0) return;
+    if (!balanceModalUser) return;
 
     try {
+      const payload: any = { userId: balanceModalUser.id };
+      if (manageMode === 'due') {
+        payload.dueAmount = dueAmount;
+        payload.dueAction = dueAction;
+      } else {
+        payload.balanceAmount = balanceAmount;
+        payload.action = balanceAction;
+      }
+
       const res = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: balanceModalUser.id,
-          balanceAmount: balanceAmount,
-          action: balanceAction
-        })
+        body: JSON.stringify(payload)
       });
       if (res.ok) {
         const json = await res.json();
@@ -440,8 +451,15 @@ function MembersPageContent() {
                         <span className="font-mono font-medium text-amber-700 dark:text-amber-200">৳{(member.totalSpent || 0).toFixed(2)}</span>
                       </div>
                       {(Number(member.currentDue) || 0) > 0 && (
-                        <div className="flex justify-between items-center pt-1 border-t border-slate-200/80 dark:border-slate-800/80">
-                          <span className="text-rose-700 dark:text-rose-400 font-medium">{language === 'bn' ? 'বকেয়া পাওনা:' : 'Current Due:'}</span>
+                        <div 
+                          onClick={() => openBalanceModal(member, 'set', 'due')}
+                          title="Click to manage or clear due"
+                          className="flex justify-between items-center pt-1 border-t border-slate-200/80 dark:border-slate-800/80 cursor-pointer hover:bg-rose-500/10 rounded-lg p-1 transition-colors"
+                        >
+                          <span className="text-rose-700 dark:text-rose-400 font-medium flex items-center gap-1">
+                            <span>{language === 'bn' ? 'বকেয়া পাওনা:' : 'Current Due:'}</span>
+                            <span className="text-[10px] underline">(Edit)</span>
+                          </span>
                           <span className="font-mono font-bold text-rose-700 dark:text-rose-400">৳{(Number(member.currentDue) || 0).toFixed(2)}</span>
                         </div>
                       )}
@@ -500,7 +518,7 @@ function MembersPageContent() {
 
       </main>
 
-      {/* Balance Modal (Add, Deduct, Set) */}
+      {/* Balance & Due Modal (Add, Deduct, Set, Clear Due) */}
       {balanceModalUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
           <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-amber-500/50 rounded-3xl p-6 shadow-2xl space-y-4">
@@ -508,7 +526,9 @@ function MembersPageContent() {
               <div className="flex items-center gap-2">
                 <Coins className="w-5 h-5 text-amber-500 dark:text-amber-400" />
                 <h3 className="font-bold text-slate-900 dark:text-white text-base">
-                  ব্যালেন্স নিয়ন্ত্রণ (Manage Balance)
+                  {manageMode === 'balance' 
+                    ? (language === 'bn' ? 'ব্যালেন্স নিয়ন্ত্রণ (Manage Balance)' : 'Manage Balance')
+                    : (language === 'bn' ? 'বকেয়া নিয়ন্ত্রণ (Manage Due)' : 'Manage Outstanding Due')}
                 </h3>
               </div>
               <button
@@ -519,117 +539,285 @@ function MembersPageContent() {
               </button>
             </div>
 
+            {/* Mode Switch Tabs: Balance vs Due */}
+            <div className="flex rounded-2xl bg-slate-100 dark:bg-slate-950 p-1 border border-slate-200/80 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setManageMode('balance')}
+                className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${
+                  manageMode === 'balance' 
+                    ? 'bg-amber-500 text-slate-950 shadow-md font-bold' 
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                💰 {language === 'bn' ? 'ক্যাটারিং ব্যালেন্স' : 'Wallet Balance'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setManageMode('due')}
+                className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${
+                  manageMode === 'due' 
+                    ? 'bg-rose-600 text-white shadow-md font-bold' 
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                🧾 {language === 'bn' ? 'বকেয়া পাওনা (Due)' : 'Current Due'}
+              </button>
+            </div>
+
             <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 space-y-1">
               <p className="text-xs text-slate-700 dark:text-slate-300">
                 গ্রাহক: <strong className="text-amber-700 dark:text-amber-300">{balanceModalUser.name}</strong> ({balanceModalUser.email})
               </p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                বর্তমান ব্যালেন্স: <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400 text-sm">৳{balanceModalUser.balance.toFixed(2)}</span>
-              </p>
-            </div>
-
-            <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 dark:bg-slate-950 rounded-2xl border border-slate-200/80 dark:border-slate-800">
-              <button
-                type="button"
-                onClick={() => setBalanceAction('add')}
-                className={`py-2 text-xs font-bold rounded-xl transition-all ${balanceAction === 'add'
-                  ? 'bg-emerald-600 text-white shadow-md'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-              >
-                + যোগ (Add)
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setBalanceAction('deduct')}
-                className={`py-2 text-xs font-bold rounded-xl transition-all ${balanceAction === 'deduct'
-                  ? 'bg-rose-600 text-white shadow-md'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-              >
-                - কর্তন (Deduct)
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setBalanceAction('set');
-                  setBalanceAmount(balanceModalUser.balance);
-                }}
-                className={`py-2 text-xs font-bold rounded-xl transition-all ${balanceAction === 'set'
-                  ? 'bg-amber-500 text-white shadow-md'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-              >
-                ✏️ এডিট (Set)
-              </button>
-            </div>
-
-            <form onSubmit={handleBalanceSubmit} className="space-y-4">
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-400 uppercase mb-1">
-                  {balanceAction === 'add'
-                    ? 'কত টাকা যোগ করতে চান? (BDT ৳)'
-                    : (balanceAction === 'deduct' ? 'কত টাকা কর্তন করতে চান? (BDT ৳)' : 'নতুন মোট ব্যালেন্স কত নির্ধারণ করতে চান? (BDT ৳)')}
-                </label>
-
-                {balanceAction !== 'set' && (
-                  <div className="grid grid-cols-4 gap-1.5 mb-2">
-                    {[100, 200, 500, 1000].map(amt => (
-                      <button
-                        type="button"
-                        key={amt}
-                        onClick={() => setBalanceAmount(amt)}
-                        className={`py-1 text-xs font-bold rounded-lg ${balanceAmount === amt ? 'bg-amber-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700'
-                          }`}
-                      >
-                        ৳{amt}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={balanceAmount}
-                  onChange={e => setBalanceAmount(Number(e.target.value))}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl font-mono text-emerald-700 dark:text-emerald-400 font-bold text-base focus:outline-none focus:border-amber-400"
-                />
-              </div>
-
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950/80 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between text-xs">
-                <span className="text-slate-600 dark:text-slate-400">নতুন ব্যালেন্স দাঁড়াবে:</span>
-                <span className="font-mono font-bold text-amber-700 dark:text-amber-300 text-sm">
-                  ৳{balanceAction === 'add'
-                    ? (balanceModalUser.balance + Number(balanceAmount)).toFixed(2)
-                    : (balanceAction === 'deduct'
-                      ? Math.max(0, balanceModalUser.balance - Number(balanceAmount)).toFixed(2)
-                      : Number(balanceAmount).toFixed(2))}
+              <div className="flex items-center justify-between text-xs pt-1">
+                <span className="text-slate-500 dark:text-slate-400">
+                  বর্তমান ব্যালেন্স: <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400">৳{(balanceModalUser.balance || 0).toFixed(2)}</span>
+                </span>
+                <span className="text-slate-500 dark:text-slate-400">
+                  বকেয়া: <span className="font-mono font-bold text-rose-700 dark:text-rose-400">৳{(Number(balanceModalUser.currentDue) || 0).toFixed(2)}</span>
                 </span>
               </div>
+            </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setBalanceModalUser(null)}
-                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs text-slate-700 dark:text-slate-300 transition-colors"
-                >
-                  বাতিল
-                </button>
-                <button
-                  type="submit"
-                  className={`px-5 py-2 rounded-xl font-bold text-xs shadow-lg ${balanceAction === 'deduct'
-                    ? 'bg-rose-600 text-white hover:bg-rose-500'
-                    : 'bg-gradient-to-r from-emerald-600 to-amber-600 text-white'
-                    }`}
-                >
-                  {balanceAction === 'add' ? 'ব্যালেন্স যোগ করুন' : (balanceAction === 'deduct' ? 'ব্যালেন্স কর্তন করুন' : 'ব্যালেন্স পরিবর্তন করুন')}
-                </button>
-              </div>
-            </form>
+            {manageMode === 'balance' ? (
+              /* BALANCE MODE */
+              <>
+                <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 dark:bg-slate-950 rounded-2xl border border-slate-200/80 dark:border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setBalanceAction('add')}
+                    className={`py-2 text-xs font-bold rounded-xl transition-all ${balanceAction === 'add'
+                      ? 'bg-emerald-600 text-white shadow-md'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                  >
+                    + যোগ (Add)
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setBalanceAction('deduct')}
+                    className={`py-2 text-xs font-bold rounded-xl transition-all ${balanceAction === 'deduct'
+                      ? 'bg-rose-600 text-white shadow-md'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                  >
+                    - কর্তন (Deduct)
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBalanceAction('set');
+                      setBalanceAmount(balanceModalUser.balance);
+                    }}
+                    className={`py-2 text-xs font-bold rounded-xl transition-all ${balanceAction === 'set'
+                      ? 'bg-amber-500 text-white shadow-md'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                  >
+                    ✏️ এডিট (Set)
+                  </button>
+                </div>
+
+                <form onSubmit={handleBalanceSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-400 uppercase mb-1">
+                      {balanceAction === 'add'
+                        ? 'কত টাকা যোগ করতে চান? (BDT ৳)'
+                        : (balanceAction === 'deduct' ? 'কত টাকা কর্তন করতে চান? (BDT ৳)' : 'নতুন মোট ব্যালেন্স কত নির্ধারণ করতে চান? (BDT ৳)')}
+                    </label>
+
+                    {balanceAction !== 'set' && (
+                      <div className="grid grid-cols-4 gap-1.5 mb-2">
+                        {[100, 200, 500, 1000].map(amt => (
+                          <button
+                            type="button"
+                            key={amt}
+                            onClick={() => setBalanceAmount(amt)}
+                            className={`py-1 text-xs font-bold rounded-lg ${balanceAmount === amt ? 'bg-amber-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700'
+                              }`}
+                          >
+                            ৳{amt}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={balanceAmount}
+                      onChange={e => setBalanceAmount(Number(e.target.value))}
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl font-mono text-emerald-700 dark:text-emerald-400 font-bold text-base focus:outline-none focus:border-amber-400"
+                    />
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950/80 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between text-xs">
+                    <span className="text-slate-600 dark:text-slate-400">নতুন ব্যালেন্স দাঁড়াবে:</span>
+                    <span className="font-mono font-bold text-amber-700 dark:text-amber-300 text-sm">
+                      ৳{balanceAction === 'add'
+                        ? (balanceModalUser.balance + Number(balanceAmount)).toFixed(2)
+                        : (balanceAction === 'deduct'
+                          ? Math.max(0, balanceModalUser.balance - Number(balanceAmount)).toFixed(2)
+                          : Number(balanceAmount).toFixed(2))}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setBalanceModalUser(null)}
+                      className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs text-slate-700 dark:text-slate-300 transition-colors"
+                    >
+                      বাতিল
+                    </button>
+                    <button
+                      type="submit"
+                      className={`px-5 py-2 rounded-xl font-bold text-xs shadow-lg ${balanceAction === 'deduct'
+                        ? 'bg-rose-600 text-white hover:bg-rose-500'
+                        : 'bg-gradient-to-r from-emerald-600 to-amber-600 text-white'
+                        }`}
+                    >
+                      {balanceAction === 'add' ? 'ব্যালেন্স যোগ করুন' : (balanceAction === 'deduct' ? 'ব্যালেন্স কর্তন করুন' : 'ব্যালেন্স পরিবর্তন করুন')}
+                    </button>
+                  </div>
+                </form>
+              </>
+            ) : (
+              /* DUE MODE */
+              <>
+                <div className="grid grid-cols-4 gap-1 p-1 bg-slate-100 dark:bg-slate-950 rounded-2xl border border-slate-200/80 dark:border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDueAction('set');
+                      setDueAmount(Number(balanceModalUser.currentDue) || 0);
+                    }}
+                    className={`py-2 text-[11px] font-bold rounded-xl transition-all ${dueAction === 'set'
+                      ? 'bg-amber-500 text-white shadow-md'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                  >
+                    ✏️ সেট (Set)
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setDueAction('add')}
+                    className={`py-2 text-[11px] font-bold rounded-xl transition-all ${dueAction === 'add'
+                      ? 'bg-rose-600 text-white shadow-md'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                  >
+                    + যোগ (Add)
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setDueAction('deduct')}
+                    className={`py-2 text-[11px] font-bold rounded-xl transition-all ${dueAction === 'deduct'
+                      ? 'bg-emerald-600 text-white shadow-md'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                  >
+                    - পরিশোধ
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDueAction('clear');
+                      setDueAmount(0);
+                    }}
+                    className={`py-2 text-[11px] font-bold rounded-xl transition-all ${dueAction === 'clear'
+                      ? 'bg-teal-600 text-white shadow-md'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                  >
+                    ✅ ক্লিয়ার
+                  </button>
+                </div>
+
+                <form onSubmit={handleBalanceSubmit} className="space-y-4">
+                  {dueAction !== 'clear' ? (
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-400 uppercase mb-1">
+                        {dueAction === 'set'
+                          ? 'নতুন বকেয়া কত নির্ধারণ করতে চান? (BDT ৳)'
+                          : (dueAction === 'add' ? 'কত টাকা বকেয়া যোগ করতে চান? (BDT ৳)' : 'কত টাকা বকেয়া পরিশোধ/কমাতে চান? (BDT ৳)')}
+                      </label>
+
+                      {dueAction !== 'set' && (
+                        <div className="grid grid-cols-4 gap-1.5 mb-2">
+                          {[50, 100, 200, 500].map(amt => (
+                            <button
+                              type="button"
+                              key={amt}
+                              onClick={() => setDueAmount(amt)}
+                              className={`py-1 text-xs font-bold rounded-lg ${dueAmount === amt ? 'bg-rose-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700'
+                                }`}
+                            >
+                              ৳{amt}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={dueAmount}
+                        onChange={e => setDueAmount(Number(e.target.value))}
+                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl font-mono text-rose-600 dark:text-rose-400 font-bold text-base focus:outline-none focus:border-rose-400"
+                      />
+                    </div>
+                  ) : (
+                    <div className="p-4 rounded-2xl bg-teal-500/10 border border-teal-500/30 text-teal-700 dark:text-teal-300 text-xs">
+                      <p className="font-bold flex items-center gap-1.5">
+                        <CheckCircle2 className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                        <span>বকেয়া সম্পূর্ণ পরিশোধ / ক্লিয়ার (৳0.00)</span>
+                      </p>
+                      <p className="mt-1 text-[11px] text-teal-600/90 dark:text-teal-400/90">
+                        এই মেম্বারের বকেয়া পাওনা সম্পূর্ণ মুছে দিয়ে ৳০.০০ করা হবে।
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950/80 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between text-xs">
+                    <span className="text-slate-600 dark:text-slate-400">নতুন বকেয়া দাঁড়াবে:</span>
+                    <span className="font-mono font-bold text-rose-600 dark:text-rose-400 text-sm">
+                      ৳{dueAction === 'clear' 
+                        ? '0.00' 
+                        : (dueAction === 'set' 
+                          ? Number(dueAmount).toFixed(2) 
+                          : (dueAction === 'add' 
+                            ? ((Number(balanceModalUser.currentDue) || 0) + Number(dueAmount)).toFixed(2)
+                            : Math.max(0, (Number(balanceModalUser.currentDue) || 0) - Number(dueAmount)).toFixed(2)))}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setBalanceModalUser(null)}
+                      className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs text-slate-700 dark:text-slate-300 transition-colors"
+                    >
+                      বাতিল
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-5 py-2 rounded-xl font-bold text-xs shadow-lg bg-rose-600 hover:bg-rose-500 text-white transition-all hover:scale-105"
+                    >
+                      {dueAction === 'clear' ? 'বকেয়া সম্পূর্ণ ক্লিয়ার করুন' : 'বকেয়া আপডেট করুন'}
+                    </button>
+                  </div>
+                </form>
+              </>
+            )}
+
           </div>
         </div>
       )}

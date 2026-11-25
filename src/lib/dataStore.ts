@@ -10,6 +10,8 @@ import Message from './models/Message';
 import Group from './models/Group';
 import PasswordReset from './models/PasswordReset';
 import Setting from './models/Setting';
+import AuditLog from './models/AuditLog';
+import DutyAssignment from './models/DutyAssignment';
 import { 
   OrderData, 
   MenuItemData, 
@@ -18,6 +20,8 @@ import {
   ChatMessage,
   ChatGroup,
   PasswordResetRequest,
+  DailyDutyAssignment,
+  UserAuditLog,
   SUPER_ADMIN_EMAIL,
   initialOrders, 
   initialMenuItems,
@@ -239,7 +243,9 @@ export async function getAllUsers(): Promise<UserRecord[]> {
 
       const stats = orderStatsMap.get(userMail) || (userUid ? orderStatsMap.get(userUid) : undefined) || (userName ? orderStatsMap.get(userName) : undefined);
       const realSpent = stats ? stats.totalSpent : 0;
-      const realDue = stats ? stats.currentDue : 0;
+      const realDue = typeof d.currentDue === 'number' && d.currentDue > 0
+        ? d.currentDue
+        : (stats ? stats.currentDue : 0);
 
       // Auto-heal User record in MongoDB Atlas if stale
       if (User && (Number(d.totalSpent) !== realSpent || Number(d.currentDue) !== realDue)) {
@@ -365,7 +371,9 @@ export async function updateUserPresence(idOrEmail: string, isOnline: boolean = 
     await connectToDatabase();
     if (User) {
       const isObjectId = idOrEmail.match(/^[0-9a-fA-F]{24}$/);
-      const query = isObjectId ? { _id: idOrEmail } : { $or: [{ email: search }, { name: search }] };
+      const query = isObjectId 
+        ? { _id: idOrEmail } 
+        : { $or: [{ uid: idOrEmail }, { email: search }, { name: search }] };
       await User.updateOne(query, { $set: { lastSeen: now, isOnline } });
     }
   } catch (e) {
@@ -1083,6 +1091,91 @@ export async function updateUserBalance(
     }
     persistentStore.updateUserProfile(usersCache[idx].email, {
       balance: usersCache[idx].balance,
+    });
+    cloudBackupService.backupUser(usersCache[idx]);
+    return applyUserOverridesAndUsername(usersCache[idx]);
+  }
+  return null;
+}
+
+// Due Amount Add, Deduct, Set, and Clear
+export async function updateUserDue(
+  idOrEmail: string,
+  amount: number,
+  action: 'add' | 'deduct' | 'set' | 'clear' = 'set'
+): Promise<UserRecord | null> {
+  invalidateUsersCache();
+  const search = idOrEmail.toLowerCase().trim();
+  const amt = Number(amount) || 0;
+
+  try {
+    await connectToDatabase();
+    if (User) {
+      const isObjectId = idOrEmail.match(/^[0-9a-fA-F]{24}$/);
+      const escapeRegex = (s: string) => s.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+      const query = isObjectId
+        ? { _id: idOrEmail }
+        : {
+            $or: [
+              { uid: idOrEmail },
+              { email: { $regex: new RegExp(`^${escapeRegex(search)}$`, 'i') } },
+              { name: { $regex: new RegExp(`^${escapeRegex(search)}$`, 'i') } }
+            ]
+          };
+      const userDoc = await User.findOne(query);
+      if (userDoc) {
+        if (action === 'clear') {
+          userDoc.currentDue = 0;
+        } else if (action === 'add') {
+          userDoc.currentDue = (userDoc.currentDue || 0) + amt;
+        } else if (action === 'deduct') {
+          userDoc.currentDue = Math.max(0, (userDoc.currentDue || 0) - amt);
+        } else if (action === 'set') {
+          userDoc.currentDue = Math.max(0, amt);
+        }
+        await userDoc.save();
+
+        persistentStore.updateUserProfile(userDoc.email, {
+          currentDue: userDoc.currentDue,
+        });
+
+        const updated: UserRecord = {
+          id: userDoc._id.toString(),
+          name: userDoc.name,
+          email: userDoc.email,
+          role: userDoc.role,
+          balance: userDoc.balance,
+          currentDue: userDoc.currentDue,
+          totalSpent: userDoc.totalSpent,
+          department: userDoc.department,
+          avatar: userDoc.avatar,
+          phone: userDoc.phone,
+          createdAt: userDoc.createdAt?.toISOString?.() || new Date().toISOString()
+        };
+        usersCache = usersCache.map(u => (u.id === updated.id || u.email.toLowerCase() === updated.email.toLowerCase()) ? updated : u);
+        cloudBackupService.setMongoHealthy(true);
+        cloudBackupService.backupUser(updated);
+        return applyUserOverridesAndUsername(updated);
+      }
+    }
+  } catch (err: any) {
+    cloudBackupService.setMongoHealthy(false, err?.message);
+    console.warn("MongoDB update due failed, using resilient backup cache:", err);
+  }
+
+  const idx = usersCache.findIndex(u => u.id === idOrEmail || u.email.toLowerCase() === search || u.name.toLowerCase() === search);
+  if (idx !== -1) {
+    if (action === 'clear') {
+      usersCache[idx].currentDue = 0;
+    } else if (action === 'add') {
+      usersCache[idx].currentDue = (usersCache[idx].currentDue || 0) + amt;
+    } else if (action === 'deduct') {
+      usersCache[idx].currentDue = Math.max(0, (usersCache[idx].currentDue || 0) - amt);
+    } else if (action === 'set') {
+      usersCache[idx].currentDue = Math.max(0, amt);
+    }
+    persistentStore.updateUserProfile(usersCache[idx].email, {
+      currentDue: usersCache[idx].currentDue,
     });
     cloudBackupService.backupUser(usersCache[idx]);
     return applyUserOverridesAndUsername(usersCache[idx]);
@@ -2498,5 +2591,333 @@ export async function cancelPasswordResetRequest(requestId: string): Promise<boo
   if (idx !== -1) {
     resetRequestsCache[idx].status = 'cancelled';
   }
+  return true;
+}
+
+// ==========================================
+// DAILY DUTY ROTATION MANAGEMENT
+// ==========================================
+let dailyDutiesCache: DailyDutyAssignment[] = [];
+
+export async function getAllDailyDuties(): Promise<DailyDutyAssignment[]> {
+  try {
+    await connectToDatabase();
+    if (DutyAssignment) {
+      const docs = await DutyAssignment.find({}).sort({ date: -1 }).lean();
+      const mapped: DailyDutyAssignment[] = (docs as any[]).map(d => ({
+        id: d._id?.toString() || `duty_${d.date}`,
+        date: d.date,
+        assignedUserId: d.assignedUserId,
+        assignedUserName: d.assignedUserName,
+        assignedUserEmail: d.assignedUserEmail,
+        assignedUserAvatar: d.assignedUserAvatar,
+        assignedUserPhone: d.assignedUserPhone,
+        assignedByUserId: d.assignedByUserId,
+        assignedByName: d.assignedByName,
+        instructions: d.instructions,
+        status: d.status || 'assigned',
+        tasks: d.tasks || [],
+        acknowledged: Boolean(d.acknowledged),
+        createdAt: d.createdAt?.toISOString?.() || new Date().toISOString(),
+        updatedAt: d.updatedAt?.toISOString?.() || new Date().toISOString(),
+      }));
+      dailyDutiesCache = mapped;
+      return mapped;
+    }
+  } catch (err) {
+    console.warn("MongoDB getAllDailyDuties error, using cache:", err);
+  }
+  return dailyDutiesCache;
+}
+
+export async function getDailyDutyForDate(dateStr: string): Promise<DailyDutyAssignment | null> {
+  const cleanDate = dateStr.trim();
+  try {
+    await connectToDatabase();
+    if (DutyAssignment) {
+      const doc = await DutyAssignment.findOne({ date: cleanDate }).lean();
+      if (doc) {
+        const d: any = doc;
+        return {
+          id: d._id?.toString() || `duty_${d.date}`,
+          date: d.date,
+          assignedUserId: d.assignedUserId,
+          assignedUserName: d.assignedUserName,
+          assignedUserEmail: d.assignedUserEmail,
+          assignedUserAvatar: d.assignedUserAvatar,
+          assignedUserPhone: d.assignedUserPhone,
+          assignedByUserId: d.assignedByUserId,
+          assignedByName: d.assignedByName,
+          instructions: d.instructions,
+          status: d.status || 'assigned',
+          tasks: d.tasks || [],
+          acknowledged: Boolean(d.acknowledged),
+          createdAt: d.createdAt?.toISOString?.() || new Date().toISOString(),
+          updatedAt: d.updatedAt?.toISOString?.() || new Date().toISOString(),
+        };
+      }
+    }
+  } catch (err) {
+    console.warn("MongoDB getDailyDutyForDate error:", err);
+  }
+  return dailyDutiesCache.find(d => d.date === cleanDate) || null;
+}
+
+export async function assignDailyDuty(dutyData: {
+  date: string;
+  assignedUserId: string;
+  assignedUserName: string;
+  assignedUserEmail: string;
+  assignedUserAvatar?: string;
+  assignedUserPhone?: string;
+  assignedByUserId?: string;
+  assignedByName?: string;
+  instructions?: string;
+  tasks?: string[];
+}): Promise<DailyDutyAssignment> {
+  const cleanDate = dutyData.date.trim();
+  const now = new Date();
+  let saved: any = null;
+
+  try {
+    await connectToDatabase();
+    if (DutyAssignment) {
+      saved = await DutyAssignment.findOneAndUpdate(
+        { date: cleanDate },
+        {
+          $set: {
+            ...dutyData,
+            date: cleanDate,
+            status: 'assigned',
+            acknowledged: false,
+            updatedAt: now,
+          },
+          $setOnInsert: { createdAt: now }
+        },
+        { upsert: true, new: true }
+      );
+    }
+  } catch (err) {
+    console.warn("MongoDB assignDailyDuty error, falling back to cache:", err);
+  }
+
+  const assignment: DailyDutyAssignment = {
+    id: saved?._id?.toString() || `duty_${cleanDate}`,
+    date: cleanDate,
+    assignedUserId: dutyData.assignedUserId,
+    assignedUserName: dutyData.assignedUserName,
+    assignedUserEmail: dutyData.assignedUserEmail,
+    assignedUserAvatar: dutyData.assignedUserAvatar,
+    assignedUserPhone: dutyData.assignedUserPhone,
+    assignedByUserId: dutyData.assignedByUserId,
+    assignedByName: dutyData.assignedByName || 'Admin',
+    instructions: dutyData.instructions || 'Collect money, purchase snacks/refreshments, and deliver on time.',
+    status: 'assigned',
+    tasks: dutyData.tasks || [
+      'Collect Catering Cash / Payments',
+      'Purchase Fresh Snacks / Refreshments',
+      'Deliver & Distribute to Members'
+    ],
+    acknowledged: false,
+    createdAt: saved?.createdAt?.toISOString?.() || now.toISOString(),
+    updatedAt: now.toISOString(),
+  };
+
+  const idx = dailyDutiesCache.findIndex(d => d.date === cleanDate);
+  if (idx !== -1) {
+    dailyDutiesCache[idx] = assignment;
+  } else {
+    dailyDutiesCache.unshift(assignment);
+  }
+
+  return assignment;
+}
+
+export async function updateDailyDutyStatus(
+  dutyIdOrDate: string,
+  status?: 'assigned' | 'in_progress' | 'completed',
+  acknowledged?: boolean
+): Promise<DailyDutyAssignment | null> {
+  const now = new Date();
+  const updateFields: any = { updatedAt: now };
+  if (status) updateFields.status = status;
+  if (acknowledged !== undefined) updateFields.acknowledged = acknowledged;
+
+  try {
+    await connectToDatabase();
+    if (DutyAssignment) {
+      const isObjectId = dutyIdOrDate.match(/^[0-9a-fA-F]{24}$/);
+      const query = isObjectId ? { _id: dutyIdOrDate } : { date: dutyIdOrDate };
+      const updated = await DutyAssignment.findOneAndUpdate(query, { $set: updateFields }, { new: true });
+      if (updated) {
+        const d: any = updated;
+        const res: DailyDutyAssignment = {
+          id: d._id?.toString() || `duty_${d.date}`,
+          date: d.date,
+          assignedUserId: d.assignedUserId,
+          assignedUserName: d.assignedUserName,
+          assignedUserEmail: d.assignedUserEmail,
+          assignedUserAvatar: d.assignedUserAvatar,
+          assignedUserPhone: d.assignedUserPhone,
+          assignedByUserId: d.assignedByUserId,
+          assignedByName: d.assignedByName,
+          instructions: d.instructions,
+          status: d.status,
+          tasks: d.tasks || [],
+          acknowledged: Boolean(d.acknowledged),
+          createdAt: d.createdAt?.toISOString?.() || now.toISOString(),
+          updatedAt: d.updatedAt?.toISOString?.() || now.toISOString(),
+        };
+        const idx = dailyDutiesCache.findIndex(x => x.id === res.id || x.date === res.date);
+        if (idx !== -1) dailyDutiesCache[idx] = res;
+        return res;
+      }
+    }
+  } catch (err) {
+    console.warn("MongoDB updateDailyDutyStatus error:", err);
+  }
+
+  const idx = dailyDutiesCache.findIndex(d => d.id === dutyIdOrDate || d.date === dutyIdOrDate);
+  if (idx !== -1) {
+    if (status) dailyDutiesCache[idx].status = status;
+    if (acknowledged !== undefined) (dailyDutiesCache[idx] as any).acknowledged = acknowledged;
+    dailyDutiesCache[idx].updatedAt = now.toISOString();
+    return dailyDutiesCache[idx];
+  }
+  return null;
+}
+
+export async function deleteDailyDuty(dutyIdOrDate: string): Promise<boolean> {
+  try {
+    await connectToDatabase();
+    if (DutyAssignment) {
+      const isObjectId = dutyIdOrDate.match(/^[0-9a-fA-F]{24}$/);
+      const query = isObjectId ? { _id: dutyIdOrDate } : { date: dutyIdOrDate };
+      await DutyAssignment.deleteOne(query);
+    }
+  } catch (err) {
+    console.warn("MongoDB deleteDailyDuty error:", err);
+  }
+  dailyDutiesCache = dailyDutiesCache.filter(d => d.id !== dutyIdOrDate && d.date !== dutyIdOrDate);
+  return true;
+}
+
+// ==========================================
+// USER ACTIVITY & AUDIT LOGS
+// ==========================================
+const auditLogsCache: UserAuditLog[] = [];
+
+export async function recordAuditLog(log: Omit<UserAuditLog, 'id'>): Promise<UserAuditLog> {
+  const now = new Date();
+  const entry: UserAuditLog = {
+    id: `log_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+    ...log,
+    timestamp: log.timestamp || now.toISOString(),
+  };
+
+  try {
+    await connectToDatabase();
+    if (AuditLog) {
+      const doc = await AuditLog.create({
+        userId: entry.userId,
+        userName: entry.userName,
+        userEmail: entry.userEmail,
+        userAvatar: entry.userAvatar,
+        userRole: entry.userRole,
+        path: entry.path,
+        pageTitle: entry.pageTitle,
+        action: entry.action,
+        details: entry.details,
+        device: entry.device,
+        timestamp: new Date(entry.timestamp),
+      });
+      if (doc) {
+        entry.id = doc._id.toString();
+      }
+    }
+  } catch (err) {
+    // resilient in-memory fallback
+  }
+
+  auditLogsCache.unshift(entry);
+  if (auditLogsCache.length > 500) {
+    auditLogsCache.pop();
+  }
+
+  return entry;
+}
+
+export async function getAuditLogs(filters?: {
+  limit?: number;
+  userId?: string;
+  userEmail?: string;
+  path?: string;
+  action?: string;
+  startDate?: string;
+  endDate?: string;
+}): Promise<UserAuditLog[]> {
+  const limit = Math.min(filters?.limit || 100, 500);
+
+  try {
+    await connectToDatabase();
+    if (AuditLog) {
+      const q: any = {};
+      if (filters?.userEmail) {
+        q.userEmail = { $regex: new RegExp(filters.userEmail.trim(), 'i') };
+      }
+      if (filters?.path && filters.path !== 'all') {
+        q.path = filters.path;
+      }
+      if (filters?.action && filters.action !== 'all') {
+        q.action = filters.action;
+      }
+      if (filters?.startDate || filters?.endDate) {
+        q.timestamp = {};
+        if (filters.startDate) q.timestamp.$gte = new Date(filters.startDate);
+        if (filters.endDate) q.timestamp.$lte = new Date(filters.endDate);
+      }
+
+      const docs = await AuditLog.find(q).sort({ timestamp: -1 }).limit(limit).lean();
+      return (docs as any[]).map(d => ({
+        id: d._id.toString(),
+        userId: d.userId,
+        userName: d.userName,
+        userEmail: d.userEmail,
+        userAvatar: d.userAvatar,
+        userRole: d.userRole,
+        path: d.path,
+        pageTitle: d.pageTitle,
+        action: d.action,
+        details: d.details,
+        device: d.device,
+        timestamp: d.timestamp?.toISOString?.() || d.createdAt?.toISOString?.() || new Date().toISOString(),
+      }));
+    }
+  } catch (err) {
+    console.warn("MongoDB getAuditLogs error, using cache:", err);
+  }
+
+  let result = [...auditLogsCache];
+  if (filters?.userEmail) {
+    const s = filters.userEmail.toLowerCase();
+    result = result.filter(l => l.userEmail.toLowerCase().includes(s));
+  }
+  if (filters?.path && filters.path !== 'all') {
+    result = result.filter(l => l.path === filters.path);
+  }
+  if (filters?.action && filters.action !== 'all') {
+    result = result.filter(l => l.action === filters.action);
+  }
+  return result.slice(0, limit);
+}
+
+export async function clearAuditLogs(): Promise<boolean> {
+  try {
+    await connectToDatabase();
+    if (AuditLog) {
+      await AuditLog.deleteMany({});
+    }
+  } catch (err) {}
+  auditLogsCache.length = 0;
   return true;
 }

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getAllUsers, updateUserRole, updateUserStatus, updateUserBalance, deleteUser } from '@/lib/dataStore';
+import { getAllUsers, updateUserRole, updateUserStatus, updateUserBalance, updateUserDue, deleteUser } from '@/lib/dataStore';
 
 export async function GET(request: Request) {
   try {
@@ -24,11 +24,21 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { userId, email, role, status, balanceDelta, balanceAmount, action } = body;
+    const { userId, email, role, status, balanceDelta, balanceAmount, action, dueAmount, dueAction } = body;
 
     const idOrEmail = userId || email;
     if (!idOrEmail) {
       return NextResponse.json({ success: false, error: 'User ID or Email is required' }, { status: 400 });
+    }
+
+    if (dueAmount !== undefined || dueAction === 'clear') {
+      const dAct = dueAction === 'clear' ? 'clear' : (dueAction === 'deduct' ? 'deduct' : (dueAction === 'add' ? 'add' : 'set'));
+      const updated = await updateUserDue(idOrEmail, Number(dueAmount) || 0, dAct);
+      return NextResponse.json({ 
+        success: true, 
+        data: updated, 
+        message: `Current due successfully ${dAct === 'clear' ? 'cleared' : (dAct === 'set' ? 'set' : (dAct === 'deduct' ? 'reduced' : 'added'))}` 
+      });
     }
 
     if (status) {

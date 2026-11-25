@@ -132,6 +132,39 @@ export interface PasswordResetRequest {
   status: 'pending' | 'used' | 'cancelled';
 }
 
+export interface DailyDutyAssignment {
+  id: string; // e.g. duty-2026-11-25
+  date: string; // YYYY-MM-DD
+  assignedUserId: string;
+  assignedUserName: string;
+  assignedUserEmail: string;
+  assignedUserAvatar?: string;
+  assignedUserPhone?: string;
+  assignedByUserId?: string;
+  assignedByName?: string;
+  instructions?: string;
+  tasks?: string[];
+  status: 'assigned' | 'in_progress' | 'completed';
+  acknowledged?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UserAuditLog {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  userAvatar?: string;
+  userRole?: string;
+  path: string;
+  pageTitle?: string;
+  action: 'page_view' | 'order_placed' | 'balance_update' | 'chat_message' | 'login' | 'duty_completed';
+  details?: string;
+  device?: string;
+  timestamp: string;
+}
+
 // System Super Admin configuration
 export const SUPER_ADMIN_EMAIL = 'mdrifayethossen@gmail.com';
 

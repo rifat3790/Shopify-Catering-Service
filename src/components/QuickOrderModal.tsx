@@ -30,6 +30,15 @@ interface QuickOrderModalProps {
 
 const cashPresets = [20, 30, 50, 100, 200, 500, 1000];
 
+const DEFAULT_CATERING_DISHES: MenuItemData[] = [
+  { _id: 'def-singara', name: 'Singara (সিঙ্গারা)', nameBn: 'সিঙ্গারা', price: 10, category: 'Refreshments', description: 'Crispy catering singara', descriptionBn: 'মচমচে সিঙ্গারা', imageUrl: '', isAvailable: true, popular: true },
+  { _id: 'def-somocha', name: 'Somocha (সমুচা)', nameBn: 'সমুচা', price: 10, category: 'Refreshments', description: 'Fresh hot somocha', descriptionBn: 'গরম সমুচা', imageUrl: '', isAvailable: true, popular: true },
+  { _id: 'def-puri', name: 'Dal Puri (ডাল পুরি)', nameBn: 'ডাল পুরি', price: 10, category: 'Refreshments', description: 'Hot dal puri', descriptionBn: 'ডাল পুরি', imageUrl: '', isAvailable: true, popular: true },
+  { _id: 'def-egg', name: 'Boiled Egg (ডিম সিদ্ধ)', nameBn: 'ডিম সিদ্ধ', price: 15, category: 'Refreshments', description: 'Fresh boiled egg', descriptionBn: 'সিদ্ধ ডিম', imageUrl: '', isAvailable: true, popular: true },
+  { _id: 'def-tea', name: 'Milk Tea (দুধ চা)', nameBn: 'দুধ চা', price: 10, category: 'Beverages', description: 'Hot milk tea', descriptionBn: 'দুধ চা', imageUrl: '', isAvailable: true, popular: true },
+  { _id: 'def-coffee', name: 'Coffee (কফি)', nameBn: 'কফি', price: 20, category: 'Beverages', description: 'Hot instant coffee', descriptionBn: 'গরম কফি', imageUrl: '', isAvailable: true, popular: true },
+];
+
 interface CustomItem {
   id: string;
   name: string;
@@ -152,8 +161,10 @@ export default function QuickOrderModal({
   const selectedItemsSummary: string[] = [];
   const itemsList: Array<{ name: string; quantity: number; unitPrice: number; subtotal: number }> = [];
 
+  const effectiveMenuItems = menuItems.length > 0 ? menuItems : DEFAULT_CATERING_DISHES;
+
   // 1. Presets from dynamic menuItems
-  menuItems.forEach((item) => {
+  effectiveMenuItems.forEach((item) => {
     const qty = itemQuantities[item._id || item.name] || 0;
     if (qty > 0) {
       const sub = qty * item.price;
@@ -385,12 +396,12 @@ export default function QuickOrderModal({
           )}
 
           {isSuperOrAdmin && orderControl && !orderControl.isOrderAllowedNow && (
-            <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-500/15 border border-amber-300 dark:border-amber-500/40 text-amber-800 dark:text-amber-300 text-xs flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
-              <span>
+            <div className="p-3 rounded-2xl bg-amber-950/70 border border-amber-500/50 text-amber-200 text-xs flex items-center gap-2.5 shadow-sm">
+              <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+              <span className="font-semibold text-amber-200">
                 {language === 'bn'
-                  ? '⚡ অ্যাডমিন ওভাররাইড: সাধারণ ইউজারদের অর্ডার বন্ধ থাকলেও আপনি অ্যাডমিন হিসেবে অর্ডার করতে পারবেন।'
-                  : '⚡ Admin Override: You can place orders as an administrator.'}
+                  ? '⚡ অ্যাডমিন ওভাররাইড: সাধারণ মেম্বারদের অর্ডার বন্ধ থাকলেও আপনি অ্যাডমিন হিসেবে যেকোনো সময় খাবার অর্ডার করতে পারবেন।'
+                  : '⚡ Admin Override: You can place orders as an administrator even when orders are closed.'}
               </span>
             </div>
           )}
@@ -608,85 +619,59 @@ export default function QuickOrderModal({
               </div>
             )}
 
-            {/* Dynamic Catalog Grid */}
-            {menuItems.length === 0 ? (
-              <div className="p-6 rounded-2xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 text-center space-y-3">
-                <div className="p-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-300 w-fit mx-auto">
-                  <Utensils className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    {language === 'bn' ? 'মেনুতে কোনো খাবার সংরক্ষিত নেই' : 'No menu dishes added yet'}
-                  </p>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                    {language === 'bn' 
-                      ? 'যেকোনো খাবার ও মূল্য অর্ডারে যোগ করতে "+ কাস্টম আইটেম" বাটনে ক্লিক করুন।' 
-                      : 'Click "+ Custom Item" above to order any custom refreshment or dish.'}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowAddCustom(true)}
-                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-500 text-white font-bold text-xs shadow-md hover:scale-105 transition-all inline-flex items-center gap-1.5"
-                >
-                  <PlusSquare className="w-3.5 h-3.5" />
-                  <span>{language === 'bn' ? '+ কাস্টম খাবার যোগ করুন' : '+ Add Custom Dish'}</span>
-                </button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-56 overflow-y-auto pr-1">
-                {menuItems.map((item) => {
-                  const count = itemQuantities[item._id || item.name] || 0;
-                  return (
-                    <div
-                      key={item._id || item.name}
-                      className={`flex items-center justify-between p-2.5 rounded-xl border transition-all ${count > 0
-                        ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-500/60 shadow-sm'
-                        : 'bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 hover:border-slate-300'
-                        }`}
-                    >
-                      <div className="min-w-0 flex-1 pr-2">
-                        <p className="text-xs font-semibold text-slate-900 dark:text-white truncate">{item.name}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[11px] text-amber-700 dark:text-amber-300 font-mono font-bold">৳{item.price}</span>
-                          {count > 0 && (
-                            <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-mono font-bold">
-                              = ৳{(count * item.price).toFixed(2)}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => handleItemCount(item._id || item.name, -1)}
-                          className="w-7 h-7 rounded-lg bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 flex items-center justify-center transition-colors"
-                        >
-                          <Minus className="w-3.5 h-3.5" />
-                        </button>
-                        <input
-                          type="number"
-                          min="0"
-                          max="999"
-                          value={count === 0 ? '' : count}
-                          onChange={(e) => handleSetItemCount(item._id || item.name, Math.max(0, parseInt(e.target.value) || 0))}
-                          placeholder="0"
-                          className="w-12 h-7 text-center bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:border-amber-400 rounded-lg text-xs font-mono font-bold text-slate-900 dark:text-white outline-none"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleItemCount(item._id || item.name, 1)}
-                          className="w-7 h-7 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold flex items-center justify-center transition-colors shadow-xs"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                        </button>
+            {/* Catalog Grid (Always Active & Interactive for Multi-Item Selection) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-56 overflow-y-auto pr-1">
+              {effectiveMenuItems.map((item) => {
+                const count = itemQuantities[item._id || item.name] || 0;
+                return (
+                  <div
+                    key={item._id || item.name}
+                    className={`flex items-center justify-between p-2.5 rounded-xl border transition-all ${count > 0
+                      ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-500/60 shadow-sm'
+                      : 'bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                      }`}
+                  >
+                    <div className="min-w-0 flex-1 pr-2">
+                      <p className="text-xs font-semibold text-slate-900 dark:text-white truncate">{item.name}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[11px] text-amber-700 dark:text-amber-300 font-mono font-bold">৳{item.price}</span>
+                        {count > 0 && (
+                          <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-mono font-bold">
+                            = ৳{(count * item.price).toFixed(2)}
+                          </span>
+                        )}
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            )}
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleItemCount(item._id || item.name, -1)}
+                        className="w-7 h-7 rounded-lg bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 flex items-center justify-center transition-colors font-bold"
+                      >
+                        <Minus className="w-3.5 h-3.5" />
+                      </button>
+                      <input
+                        type="number"
+                        min="0"
+                        max="999"
+                        value={count === 0 ? '' : count}
+                        onChange={(e) => handleSetItemCount(item._id || item.name, Math.max(0, parseInt(e.target.value) || 0))}
+                        placeholder="0"
+                        className="w-12 h-7 text-center bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:border-amber-400 rounded-lg text-xs font-mono font-bold text-slate-900 dark:text-white outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleItemCount(item._id || item.name, 1)}
+                        className="w-7 h-7 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold flex items-center justify-center transition-colors shadow-xs"
+                      >
+                        <Plus className="w-3.5 h-3.5 text-slate-950" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           {/* Real-time Calculation Summary Box */}

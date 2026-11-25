@@ -6,6 +6,9 @@ import { LanguageProvider } from '@/context/LanguageContext';
 import { ToastProvider } from '@/context/ToastContext';
 import GlobalCallManager from '@/components/GlobalCallManager';
 import ThemeSelectorModal from '@/components/ThemeSelectorModal';
+import OrderCutoffTicker from '@/components/OrderCutoffTicker';
+import UserActivityTracker from '@/components/UserActivityTracker';
+import DailyDutyNotificationDialog from '@/components/DailyDutyNotificationDialog';
 
 export const metadata: Metadata = {
   title: 'Shopify Catering Service — Order & Payment Tracker',
@@ -37,6 +40,9 @@ export default function RootLayout({
               <ToastProvider>
                 <GlobalCallManager />
                 <ThemeSelectorModal />
+                <OrderCutoffTicker />
+                <UserActivityTracker />
+                <DailyDutyNotificationDialog />
                 <div className="flex-1 flex flex-col">
                   {children}
                 </div>

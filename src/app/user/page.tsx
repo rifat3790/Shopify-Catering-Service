@@ -8,6 +8,7 @@ import InvoiceModal from '@/components/InvoiceModal';
 import QuickOrderModal from '@/components/QuickOrderModal';
 import ProfileModal from '@/components/ProfileModal';
 import DateFilterPills from '@/components/DateFilterPills';
+import DailyDutyScheduleCard from '@/components/DailyDutyScheduleCard';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/context/ToastContext';
@@ -284,7 +285,7 @@ function UserDashboardContent() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col lg:flex-row text-slate-100">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col lg:flex-row text-slate-900 dark:text-slate-100">
       <Sidebar onOpenNewOrder={() => setIsOrderModalOpen(true)} />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
@@ -389,6 +390,9 @@ function UserDashboardContent() {
               </button>
             </div>
           </div>
+
+          {/* Today's Daily Catering Duty & Rotation Spotlight */}
+          <DailyDutyScheduleCard />
 
           {/* User Balance Master Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -557,10 +561,10 @@ function UserDashboardContent() {
                         <span className="font-mono font-bold text-xs text-amber-600 dark:text-amber-300">
                           {order.orderNumber}
                         </span>
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold font-mono tracking-wide ${
                           order.status === 'Paid'
-                            ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30'
-                            : 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30'
+                            ? 'bg-emerald-950/70 text-emerald-400 border border-emerald-500/40 shadow-xs'
+                            : 'bg-amber-950/70 text-amber-400 border border-amber-500/40 shadow-xs'
                         }`}>
                           {order.status}
                         </span>
