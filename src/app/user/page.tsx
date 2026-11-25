@@ -103,8 +103,8 @@ function UserDashboardContent() {
     }
     try {
       const [ordRes, uRes] = await Promise.all([
-        fetch('/api/orders').then(r => r.ok ? r.json() : null).catch(() => null),
-        fetch('/api/users').then(r => r.ok ? r.json() : null).catch(() => null)
+        fetch(`/api/orders?t=${Date.now()}`, { cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(() => null),
+        fetch(`/api/users?t=${Date.now()}`, { cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(() => null)
       ]);
 
       if (ordRes && ordRes.success && Array.isArray(ordRes.data)) {

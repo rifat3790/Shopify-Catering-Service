@@ -15,7 +15,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/context/ToastContext';
 import { OrderData, MenuItemData, UserRecord, PasswordResetRequest, DailyDutyAssignment } from '@/lib/types';
 import { getClientCache, setClientCache, clearClientCache } from '@/lib/clientCache';
-import { filterOrdersByDate, calculateStatsFromOrders, DateFilterType } from '@/lib/dateFilterUtils';
+import { filterOrdersByDate, calculateStatsFromOrders, getBangladeshTodayDateString, DateFilterType } from '@/lib/dateFilterUtils';
 import Link from 'next/link';
 import {
   ShieldCheck,
@@ -79,7 +79,7 @@ function AdminPageContent() {
   // Daily Duty Roster state for Admin
   const [duties, setDuties] = useState<DailyDutyAssignment[]>([]);
   const [loadingDuties, setLoadingDuties] = useState(false);
-  const [dutyDate, setDutyDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [dutyDate, setDutyDate] = useState(() => getBangladeshTodayDateString());
   const [dutyUserId, setDutyUserId] = useState('');
   const [dutyInstructions, setDutyInstructions] = useState('Collect money, purchase snacks & refreshments, and deliver on time.');
   const [isAssigningDuty, setIsAssigningDuty] = useState(false);

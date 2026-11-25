@@ -130,10 +130,10 @@ export default function QuickOrderModal({
         })
         .catch(() => { });
 
-      fetch('/api/menu')
+      fetch(`/api/menu?t=${Date.now()}`, { cache: 'no-store' })
         .then(r => r.json())
         .then(data => {
-          if (data.success && data.data && data.data.length > 0) {
+          if (data.success && Array.isArray(data.data)) {
             setMenuItems(data.data);
             setClientCache('menu_items', data.data);
           }
@@ -141,7 +141,7 @@ export default function QuickOrderModal({
         .catch(() => { });
 
       // Fetch order control status & cutoff timing
-      fetch('/api/settings/orders')
+      fetch(`/api/settings/orders?t=${Date.now()}`, { cache: 'no-store' })
         .then(r => r.json())
         .then(res => {
           if (res.success && res.data) {

@@ -71,7 +71,7 @@ function OrdersPageContent() {
       setLoading(true);
     }
     try {
-      const res = await fetch('/api/orders');
+      const res = await fetch(`/api/orders?t=${Date.now()}`, { cache: 'no-store' });
       if (res.ok) {
         const json = await res.json();
         if (json.success && json.data) {
@@ -140,10 +140,12 @@ function OrdersPageContent() {
   };
 
   const handleDeleteOrder = async (order: OrderData) => {
+    if (!window.confirm(`Are you sure you want to permanently remove order ${order.orderNumber}?`)) return;
     try {
       const targetId = order._id || order.orderNumber;
       const res = await fetch(`/api/orders?id=${encodeURIComponent(targetId)}`, {
         method: 'DELETE',
+        cache: 'no-store',
       });
       if (res.ok) {
         clearClientCache();
@@ -748,35 +750,39 @@ function OrdersPageContent() {
             </div>
 
             <form onSubmit={handleSaveEdit} className="space-y-4 text-xs">
-              <div>
-                <label className="block text-slate-600 dark:text-slate-400 mb-1 font-semibold uppercase text-[10px]">Order Status</label>
-                <select
-                  value={editStatus}
-                  onChange={(e) => setEditStatus(e.target.value as any)}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white"
-                >
-                  <option value="Paid">Paid</option>
-                  <option value="Due">Due</option>
-                  <option value="Pending">Pending</option>
-                  <option value="Delivered">Delivered</option>
-                  <option value="Cooking">Cooking</option>
-                  <option value="Cancelled">Cancelled</option>
-                </select>
-              </div>
+              {isSuperOrAdmin && (
+                <>
+                  <div>
+                    <label className="block text-slate-600 dark:text-slate-400 mb-1 font-semibold uppercase text-[10px]">Order Status</label>
+                    <select
+                      value={editStatus}
+                      onChange={(e) => setEditStatus(e.target.value as any)}
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white"
+                    >
+                      <option value="Paid">Paid</option>
+                      <option value="Due">Due</option>
+                      <option value="Pending">Pending</option>
+                      <option value="Delivered">Delivered</option>
+                      <option value="Cooking">Cooking</option>
+                      <option value="Cancelled">Cancelled</option>
+                    </select>
+                  </div>
 
-              <div>
-                <label className="block text-slate-600 dark:text-slate-400 mb-1 font-semibold uppercase text-[10px]">
-                  Paid Amount (৳) — Bill: ৳{editOrder.totalBill}
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={editPaid}
-                  onChange={(e) => setEditPaid(Number(e.target.value))}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-amber-700 dark:text-amber-300 font-mono font-bold"
-                />
-              </div>
+                  <div>
+                    <label className="block text-slate-600 dark:text-slate-400 mb-1 font-semibold uppercase text-[10px]">
+                      Paid Amount (৳) — Bill: ৳{editOrder.totalBill}
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={editPaid}
+                      onChange={(e) => setEditPaid(Number(e.target.value))}
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-amber-700 dark:text-amber-300 font-mono font-bold"
+                    />
+                  </div>
+                </>
+              )}
 
               <div>
                 <label className="block text-slate-600 dark:text-slate-400 mb-1 font-semibold uppercase text-[10px]">Payment Method</label>

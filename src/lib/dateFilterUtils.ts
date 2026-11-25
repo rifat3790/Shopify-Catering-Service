@@ -1,5 +1,27 @@
 export type DateFilterType = 'today' | 'yesterday' | '7days' | '30days' | '1year' | 'lifetime';
 
+/**
+ * Returns today's exact calendar date (YYYY-MM-DD) in Bangladesh Time (Asia/Dhaka, GMT+6).
+ * Prevents UTC midnight-to-6AM off-by-one-day drift.
+ */
+export function getBangladeshTodayDateString(): string {
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Dhaka',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date());
+  } catch {
+    const nowUtc = new Date();
+    const bdTime = new Date(nowUtc.getTime() + (6 * 60 + nowUtc.getTimezoneOffset()) * 60 * 1000);
+    const y = bdTime.getFullYear();
+    const m = String(bdTime.getMonth() + 1).padStart(2, '0');
+    const d = String(bdTime.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+}
+
 export function filterOrdersByDate<T extends { orderDate?: string | Date; createdAt?: string | Date }>(
   items: T[],
   filter: DateFilterType

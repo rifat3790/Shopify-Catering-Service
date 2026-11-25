@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { OrderData } from '@/lib/types';
 import LuxuryLoader from '@/components/LuxuryLoader';
@@ -37,7 +38,9 @@ export default function LiveTrackerTable({
   onDeleteOrder,
   isLoading,
 }: LiveTrackerTableProps) {
+  const { user } = useAuth();
   const { language } = useLanguage();
+  const isStaffOrAdmin = user?.role === 'super_admin' || user?.role === 'admin' || user?.role === 'staff';
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'All' | 'Paid' | 'Pending' | 'Due'>('All');
 
@@ -305,26 +308,37 @@ export default function LiveTrackerTable({
 
                     {/* Status Column */}
                     <td className="py-3.5 px-4 sm:px-6 text-center">
-                      <select
-                        value={order.status}
-                        onChange={(e) =>
-                          onUpdateStatus(
-                            order._id || order.orderNumber,
-                            e.target.value as OrderData['status']
-                          )
-                        }
-                        className={`text-xs font-bold py-1 px-3 rounded-full border outline-none cursor-pointer transition-colors ${isPaid
-                          ? 'bg-emerald-50 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-600/60 hover:bg-emerald-100'
+                      {isStaffOrAdmin ? (
+                        <select
+                          value={order.status}
+                          onChange={(e) =>
+                            onUpdateStatus(
+                              order._id || order.orderNumber,
+                              e.target.value as OrderData['status']
+                            )
+                          }
+                          className={`text-xs font-bold py-1 px-3 rounded-full border outline-none cursor-pointer transition-colors ${isPaid
+                            ? 'bg-emerald-50 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-600/60 hover:bg-emerald-100'
+                            : isPending
+                              ? 'bg-amber-50 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-600/60 hover:bg-amber-100'
+                              : 'bg-rose-50 dark:bg-rose-950/80 text-rose-800 dark:text-rose-300 border-rose-300 dark:border-rose-600/60 hover:bg-rose-100'
+                            }`}
+                        >
+                          <option value="Paid" className="bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400">Paid (পরিশোধ)</option>
+                          <option value="Pending" className="bg-white dark:bg-slate-900 text-amber-700 dark:text-amber-400">Pending (অপেক্ষমাণ)</option>
+                          <option value="Due" className="bg-white dark:bg-slate-900 text-rose-700 dark:text-rose-400">Due (বকেয়া)</option>
+                          <option value="Partial" className="bg-white dark:bg-slate-900 text-blue-700 dark:text-blue-400">Partial</option>
+                        </select>
+                      ) : (
+                        <span className={`inline-block text-xs font-bold py-1 px-3 rounded-full border ${isPaid
+                          ? 'bg-emerald-50 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-600/60'
                           : isPending
-                            ? 'bg-amber-50 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-600/60 hover:bg-amber-100'
-                            : 'bg-rose-50 dark:bg-rose-950/80 text-rose-800 dark:text-rose-300 border-rose-300 dark:border-rose-600/60 hover:bg-rose-100'
-                          }`}
-                      >
-                        <option value="Paid" className="bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400">Paid (পরিশোধ)</option>
-                        <option value="Pending" className="bg-white dark:bg-slate-900 text-amber-700 dark:text-amber-400">Pending (অপেক্ষমাণ)</option>
-                        <option value="Due" className="bg-white dark:bg-slate-900 text-rose-700 dark:text-rose-400">Due (বকেয়া)</option>
-                        <option value="Partial" className="bg-white dark:bg-slate-900 text-blue-700 dark:text-blue-400">Partial</option>
-                      </select>
+                            ? 'bg-amber-50 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-600/60'
+                            : 'bg-rose-50 dark:bg-rose-950/80 text-rose-800 dark:text-rose-300 border-rose-300 dark:border-rose-600/60'
+                          }`}>
+                          {order.status}
+                        </span>
+                      )}
                     </td>
 
                     {/* Actions Column */}
@@ -337,13 +351,15 @@ export default function LiveTrackerTable({
                         >
                           <Printer className="w-4 h-4" />
                         </button>
-                        <button
-                          onClick={() => onDeleteOrder(order._id || order.orderNumber)}
-                          title="Delete Order"
-                          className="p-2 rounded-xl bg-slate-100/80 hover:bg-rose-100/80 dark:bg-slate-800 dark:hover:bg-rose-950/50 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 border border-slate-200/60 dark:border-slate-700 transition-all hover:scale-105 shadow-xs"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {isStaffOrAdmin && (
+                          <button
+                            onClick={() => onDeleteOrder(order._id || order.orderNumber)}
+                            title="Delete Order"
+                            className="p-2 rounded-xl bg-slate-100/80 hover:bg-rose-100/80 dark:bg-slate-800 dark:hover:bg-rose-950/50 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 border border-slate-200/60 dark:border-slate-700 transition-all hover:scale-105 shadow-xs"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

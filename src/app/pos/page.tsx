@@ -662,7 +662,7 @@ function PosPageContent() {
 
 export default function PosPage() {
   return (
-    <AuthGuard allowedRoles={['super_admin', 'admin', 'staff']}>
+    <AuthGuard>
       <PosPageContent />
     </AuthGuard>
   );

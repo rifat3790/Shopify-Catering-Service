@@ -231,7 +231,7 @@ function TrackerContent() {
 
 export default function TrackerPage() {
   return (
-    <AuthGuard allowedRoles={['super_admin', 'admin', 'staff']}>
+    <AuthGuard>
       <TrackerContent />
     </AuthGuard>
   );

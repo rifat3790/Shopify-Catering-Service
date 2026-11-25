@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { DailyDutyAssignment } from '@/lib/types';
 import LuxuryLoader from '@/components/LuxuryLoader';
+import { getBangladeshTodayDateString } from '@/lib/dateFilterUtils';
 import { 
   Calendar, 
   UserCheck, 
@@ -24,7 +25,7 @@ export default function DailyDutyScheduleCard({ compact = false }: { compact?: b
   const [duties, setDuties] = useState<DailyDutyAssignment[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getBangladeshTodayDateString();
 
   useEffect(() => {
     fetch('/api/duty')

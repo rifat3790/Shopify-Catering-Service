@@ -7,6 +7,7 @@ import { UserRole, RoutePermissions, DEFAULT_ROUTE_PERMISSIONS } from '@/lib/typ
 import Link from 'next/link';
 import { ShieldAlert, Lock, ArrowRight, ShieldX, Clock, RefreshCw, LogOut, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import LuxuryLoader from '@/components/LuxuryLoader';
+import { getClientCache, setClientCache } from '@/lib/clientCache';
 
 function PendingApprovalScreen({ user, onRefresh, onLogout }: { user: any; onRefresh: () => Promise<void>; onLogout: () => Promise<void> }) {
   const [checking, setChecking] = useState(false);
@@ -134,7 +135,9 @@ export default function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
   const { user, loading, logout, refreshUser } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const [routePerms, setRoutePerms] = useState<RoutePermissions | null>(null);
+  const [routePerms, setRoutePerms] = useState<RoutePermissions | null>(() => {
+    return getClientCache<RoutePermissions>('route_perms') || null;
+  });
 
   useEffect(() => {
     if (!loading && !user) {
@@ -144,11 +147,12 @@ export default function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
 
   useEffect(() => {
     if (user && user.role !== 'super_admin') {
-      fetch('/api/admin/permissions')
+      fetch(`/api/admin/permissions?t=${Date.now()}`, { cache: 'no-store' })
         .then(r => r.json())
         .then(data => {
           if (data.success && data.data) {
             setRoutePerms(data.data);
+            setClientCache('route_perms', data.data);
           }
         })
         .catch(() => {});
@@ -195,8 +199,32 @@ export default function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
   // Super Admin bypasses all checks
   const isSuper = user.role === 'super_admin';
 
-  // 1. Pending / Unverified User Approval Check - Zero millisecond dashboard flash allowed
-  if (!isSuper && (!user.status || user.status === 'pending')) {
+  // 1. Pending / Unverified / Rejected User Approval Check - Zero millisecond dashboard flash allowed
+  if (!isSuper && (!user.status || user.status === 'pending' || user.status === 'rejected')) {
+    if (user.status === 'rejected') {
+      return (
+        <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 text-slate-100">
+          <div className="text-center space-y-5 max-w-md w-full p-8 rounded-3xl bg-slate-900/90 border border-rose-500/40 shadow-2xl backdrop-blur-xl">
+            <div className="w-14 h-14 rounded-2xl bg-rose-950/70 border border-rose-500/60 flex items-center justify-center mx-auto text-rose-400">
+              <ShieldX className="w-7 h-7" />
+            </div>
+            <div className="space-y-2">
+              <h2 className="font-serif font-bold text-xl text-white">Account Access Declined</h2>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Your registration request for <strong className="text-rose-300">{user.email}</strong> has been declined or suspended by an administrator.
+              </p>
+            </div>
+            <button
+              onClick={() => logout()}
+              className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold border border-slate-700 transition-colors"
+            >
+              <LogOut className="w-3.5 h-3.5 text-rose-400" />
+              <span>Sign Out</span>
+            </button>
+          </div>
+        </div>
+      );
+    }
     if (user.status === 'pending') {
       return (
         <PendingApprovalScreen

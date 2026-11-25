@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { DailyDutyAssignment } from '@/lib/types';
+import { getBangladeshTodayDateString } from '@/lib/dateFilterUtils';
 import { 
   Sparkles, 
   CheckCircle2, 
@@ -25,8 +26,8 @@ export default function DailyDutyNotificationDialog() {
   useEffect(() => {
     if (!user || !user.email) return;
 
-    // Get today's local date YYYY-MM-DD
-    const today = new Date().toISOString().split('T')[0];
+    // Get today's Bangladesh calendar date YYYY-MM-DD
+    const today = getBangladeshTodayDateString();
 
     // Check if dismissed in this browser session today
     const sessionDismissKey = `duty_dismissed_${today}_${user.email.toLowerCase()}`;
@@ -72,7 +73,7 @@ export default function DailyDutyNotificationDialog() {
         }),
       });
 
-      const today = new Date().toISOString().split('T')[0];
+      const today = getBangladeshTodayDateString();
       if (user?.email) {
         sessionStorage.setItem(`duty_dismissed_${today}_${user.email.toLowerCase()}`, 'true');
       }
@@ -85,7 +86,7 @@ export default function DailyDutyNotificationDialog() {
   };
 
   const handleDismiss = () => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getBangladeshTodayDateString();
     if (user?.email) {
       sessionStorage.setItem(`duty_dismissed_${today}_${user.email.toLowerCase()}`, 'true');
     }

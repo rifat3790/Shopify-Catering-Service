@@ -17,14 +17,14 @@ export async function GET(request: Request) {
       const stats = calculateStatsFromOrders(filtered, totalMemberBalance);
       return NextResponse.json(
         { success: true, data: stats },
-        { headers: { 'Cache-Control': 'public, s-maxage=1, stale-while-revalidate=15' } }
+        { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0' } }
       );
     }
 
     const stats = await getStatsSummary();
     return NextResponse.json(
       { success: true, data: stats },
-      { headers: { 'Cache-Control': 'public, s-maxage=1, stale-while-revalidate=15' } }
+      { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0' } }
     );
   } catch (error: any) {
     console.error('API /stats error:', error);

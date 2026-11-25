@@ -6,7 +6,7 @@ export async function GET() {
     const items = await getAllMenuItems();
     return NextResponse.json(
       { success: true, data: items },
-      { headers: { 'Cache-Control': 'public, s-maxage=1, stale-while-revalidate=30' } }
+      { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0' } }
     );
   } catch (error: any) {
     return NextResponse.json(

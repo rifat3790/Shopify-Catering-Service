@@ -16,7 +16,10 @@ export async function GET(request: Request) {
 
     if (date) {
       const duty = await getDailyDutyForDate(date);
-      return NextResponse.json({ success: true, data: duty });
+      return NextResponse.json(
+        { success: true, data: duty },
+        { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0' } }
+      );
     }
 
     const allDuties = await getAllDailyDuties();
@@ -24,6 +27,8 @@ export async function GET(request: Request) {
       success: true, 
       data: allDuties,
       timestamp: new Date().toISOString()
+    }, {
+      headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0' }
     });
   } catch (error: any) {
     return NextResponse.json(

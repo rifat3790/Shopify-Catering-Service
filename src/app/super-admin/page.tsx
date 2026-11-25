@@ -12,6 +12,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/context/ToastContext';
 import { UserRecord, UserRole, SUPER_ADMIN_EMAIL, PasswordResetRequest, RoutePermissions, DEFAULT_ROUTE_PERMISSIONS, UserAuditLog, DailyDutyAssignment } from '@/lib/types';
 import { getClientCache, setClientCache } from '@/lib/clientCache';
+import { getBangladeshTodayDateString } from '@/lib/dateFilterUtils';
 import Link from 'next/link';
 import { 
   Crown, 
@@ -102,7 +103,7 @@ function SuperAdminDashboardContent() {
   // Daily Duty Rotation State
   const [duties, setDuties] = useState<DailyDutyAssignment[]>([]);
   const [loadingDuties, setLoadingDuties] = useState(false);
-  const [dutyDate, setDutyDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [dutyDate, setDutyDate] = useState(() => getBangladeshTodayDateString());
   const [dutyUserId, setDutyUserId] = useState('');
   const [dutyInstructions, setDutyInstructions] = useState('টাকা কালেকশন, নাস্তা ক্রয় এবং সকল মেম্বারদের মাঝে যথাসময়ে পরিবেশন করুন।');
   const [isAssigningDuty, setIsAssigningDuty] = useState(false);
@@ -187,6 +188,7 @@ function SuperAdminDashboardContent() {
         }),
       });
       if (res.ok) {
+        setClientCache('route_perms', routePerms);
         toast.success(language === 'bn' ? 'রুট পারমিশন সফলভাবে সেভ করা হয়েছে!' : 'Route permissions saved successfully!', 'Permissions Saved');
         setPermsMessage(language === 'bn' ? '✓ রুট পারমিশন সফলভাবে সেভ করা হয়েছে!' : '✓ Route permissions saved successfully!');
         setTimeout(() => setPermsMessage(''), 4000);
@@ -1343,7 +1345,7 @@ function SuperAdminDashboardContent() {
                         </tr>
                       ) : (
                         duties.map((duty) => {
-                          const today = new Date().toISOString().split('T')[0];
+                          const today = getBangladeshTodayDateString();
                           const isToday = duty.date === today;
 
                           return (

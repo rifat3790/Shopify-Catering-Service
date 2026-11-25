@@ -102,7 +102,7 @@ export async function GET() {
         isOrderAllowedNow: evaluation.allowed,
       }
     }, {
-      headers: { 'Cache-Control': 'public, s-maxage=1, stale-while-revalidate=15' }
+      headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0' }
     });
   } catch (error: any) {
     console.error('API /settings/orders GET error:', error);

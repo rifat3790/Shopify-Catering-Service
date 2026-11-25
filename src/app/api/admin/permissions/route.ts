@@ -11,7 +11,10 @@ export async function GET() {
       const doc = await Setting.findOne({ key: 'route_permissions' }).lean();
       if (doc && doc.value) {
         persistentStore.setRoutePermissions(doc.value);
-        return NextResponse.json({ success: true, data: doc.value });
+        return NextResponse.json(
+          { success: true, data: doc.value },
+          { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0' } }
+        );
       }
     }
   } catch (e) {
