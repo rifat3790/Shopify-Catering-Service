@@ -53,6 +53,7 @@ function MembersPageContent() {
   const [deleteError, setDeleteError] = useState('');
 
   const isSuper = user?.role === 'super_admin';
+  const isAdminOrSuper = isSuper || user?.role === 'admin';
 
   // Balance modal
   const [balanceModalUser, setBalanceModalUser] = useState<UserRecord | null>(null);
@@ -125,6 +126,22 @@ function MembersPageContent() {
       }
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const handleApproveMember = async (targetUser: UserRecord) => {
+    try {
+      setMembers(prev => prev.map(m => m.id === targetUser.id ? { ...m, status: 'approved' } : m));
+      const res = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: targetUser.id, email: targetUser.email, status: 'approved' })
+      });
+      if (!res.ok) {
+        fetchMembers();
+      }
+    } catch (e) {
+      fetchMembers();
     }
   };
 
@@ -365,33 +382,52 @@ function MembersPageContent() {
                           <p className="text-[11px] text-amber-700 dark:text-amber-300 font-mono font-semibold truncate">
                             {member.username || `@${member.email.split('@')[0]}`}
                           </p>
-                          <span className="inline-block mt-0.5 px-2 py-0.2 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border border-emerald-500/20">
-                            {member.department}
-                          </span>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="inline-block mt-0.5 px-2 py-0.2 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border border-emerald-500/20">
+                              {member.department}
+                            </span>
+                            {member.status === 'pending' && (
+                              <span className="inline-block mt-0.5 px-2 py-0.2 rounded-full text-[9px] font-bold bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/40 animate-pulse">
+                                Pending
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
 
-                      {/* Super Admin Delete Button */}
-                      {isSuper && (
-                        <div>
-                          {isMemberRootSuper ? (
-                            <span title="Root Super Admin is protected" className="p-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-400 inline-flex items-center">
-                              <ShieldCheck className="w-3.5 h-3.5" />
-                            </span>
-                          ) : (
-                            <button
-                              onClick={() => {
-                                setDeleteError('');
-                                setDeleteModalUser(member);
-                              }}
-                              title="Delete Member (Permanent DB removal)"
-                              className="p-2 rounded-xl bg-slate-100 hover:bg-rose-100 dark:bg-slate-950 dark:hover:bg-rose-950 text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 border border-slate-200/80 dark:border-slate-800 hover:border-rose-300 dark:hover:border-rose-800/80 transition-all hover:scale-105"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                        </div>
-                      )}
+                      {/* Admin Actions */}
+                      <div className="flex items-center gap-1.5">
+                        {isAdminOrSuper && member.status === 'pending' && (
+                          <button
+                            onClick={() => handleApproveMember(member)}
+                            title="Approve Member"
+                            className="p-1.5 px-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold text-xs shadow-sm flex items-center gap-1 transition-all hover:scale-105"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>{language === 'bn' ? 'অনুমোদন' : 'Approve'}</span>
+                          </button>
+                        )}
+                        {isSuper && (
+                          <div>
+                            {isMemberRootSuper ? (
+                              <span title="Root Super Admin is protected" className="p-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-400 inline-flex items-center">
+                                <ShieldCheck className="w-3.5 h-3.5" />
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  setDeleteError('');
+                                  setDeleteModalUser(member);
+                                }}
+                                title="Delete Member (Permanent DB removal)"
+                                className="p-2 rounded-xl bg-slate-100 hover:bg-rose-100 dark:bg-slate-950 dark:hover:bg-rose-950 text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 border border-slate-200/80 dark:border-slate-800 hover:border-rose-300 dark:hover:border-rose-800/80 transition-all hover:scale-105"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800/80 space-y-1.5 text-xs">

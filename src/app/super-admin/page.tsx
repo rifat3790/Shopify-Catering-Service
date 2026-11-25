@@ -17,6 +17,7 @@ import {
   Users, 
   Wallet, 
   Check, 
+  CheckCircle,
   PlusCircle, 
   MinusCircle,
   Edit3,
@@ -212,6 +213,31 @@ function SuperAdminDashboardContent() {
       fetchUsers();
     } finally {
       setUpdatingId(null);
+    }
+  };
+
+  const handleApproveUser = async (targetUser: UserRecord) => {
+    try {
+      setUsers(prev => prev.map(u => u.id === targetUser.id ? { ...u, status: 'approved' } : u));
+      const res = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: targetUser.id, email: targetUser.email, status: 'approved' })
+      });
+      if (res.ok) {
+        toast.success(
+          language === 'bn'
+            ? `${targetUser.name}-এর অ্যাকাউন্ট সফলভাবে অনুমোদন করা হয়েছে!`
+            : `User ${targetUser.name} has been approved!`,
+          'User Approved'
+        );
+      } else {
+        toast.error('Failed to approve user', 'Error');
+        fetchUsers();
+      }
+    } catch (e: any) {
+      toast.error(e.message || 'Error approving user', 'Error');
+      fetchUsers();
     }
   };
 
@@ -797,22 +823,34 @@ function SuperAdminDashboardContent() {
                           </div>
                         </div>
 
-                        {/* Delete or Protected */}
-                        {isSuperAccount ? (
-                          <span className="p-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400">
-                            <ShieldCheck className="w-3.5 h-3.5" />
-                          </span>
-                        ) : (
-                          <button
-                            onClick={() => {
-                              setDeleteError('');
-                              setDeleteModalUser(u);
-                            }}
-                            className="p-1.5 rounded-lg bg-rose-950/60 text-rose-400 border border-rose-800/60"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
+                        {/* Delete, Approve or Protected */}
+                        <div className="flex items-center gap-1.5">
+                          {u.status === 'pending' && (
+                            <button
+                              onClick={() => handleApproveUser(u)}
+                              title="Approve User Registration"
+                              className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold text-xs shadow-sm flex items-center gap-1"
+                            >
+                              <CheckCircle className="w-3.5 h-3.5" />
+                              <span>{language === 'bn' ? 'অনুমোদন' : 'Approve'}</span>
+                            </button>
+                          )}
+                          {isSuperAccount ? (
+                            <span className="p-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400">
+                              <ShieldCheck className="w-3.5 h-3.5" />
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                setDeleteError('');
+                                setDeleteModalUser(u);
+                              }}
+                              className="p-1.5 rounded-lg bg-rose-950/60 text-rose-400 border border-rose-800/60"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
                       </div>
 
                       {/* Balance & Spent Row */}
@@ -934,6 +972,11 @@ function SuperAdminDashboardContent() {
                                       Root Super Admin
                                     </span>
                                   )}
+                                  {u.status === 'pending' && (
+                                    <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse">
+                                      Pending Approval
+                                    </span>
+                                  )}
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <span className="text-[10px] text-amber-300 font-mono font-semibold">
@@ -985,6 +1028,16 @@ function SuperAdminDashboardContent() {
                           {/* Balance Actions & Delete Member */}
                           <td className="py-3.5 px-4 sm:px-6 text-right whitespace-nowrap">
                             <div className="flex items-center justify-end gap-2">
+                              {u.status === 'pending' && (
+                                <button
+                                  onClick={() => handleApproveUser(u)}
+                                  title="Approve User Registration"
+                                  className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold text-xs shadow-sm inline-flex items-center gap-1"
+                                >
+                                  <CheckCircle className="w-3.5 h-3.5" />
+                                  <span>{language === 'bn' ? 'অনুমোদন' : 'Approve'}</span>
+                                </button>
+                              )}
                               <button
                                 onClick={() => openBalanceModal(u, 'add')}
                                 title="Add Balance (+)"

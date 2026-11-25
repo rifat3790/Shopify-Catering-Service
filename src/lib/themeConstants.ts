@@ -767,6 +767,17 @@ a[class*="via-amber-"] {
   --tw-gradient-stops: var(--tw-gradient-from), var(--theme-accent-light) var(--tw-gradient-via-position), var(--tw-gradient-to) !important;
 }
 
+/* High contrast text on bright luxury gradients in all themes */
+button[class*="from-"],
+a[class*="from-"].bg-gradient-to-r {
+  color: #020617 !important;
+  font-weight: 700 !important;
+}
+button[class*="from-"] svg,
+a[class*="from-"].bg-gradient-to-r svg {
+  color: #020617 !important;
+}
+
 /* 7. Solid Buttons & Pills */
 [class*="bg-emerald-600"],
 [class*="bg-emerald-500"],

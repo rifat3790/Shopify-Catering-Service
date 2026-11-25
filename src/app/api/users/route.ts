@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getAllUsers, updateUserRole, updateUserBalance, deleteUser } from '@/lib/dataStore';
+import { getAllUsers, updateUserRole, updateUserStatus, updateUserBalance, deleteUser } from '@/lib/dataStore';
 
 export async function GET(request: Request) {
   try {
@@ -24,11 +24,16 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { userId, email, role, balanceDelta, balanceAmount, action } = body;
+    const { userId, email, role, status, balanceDelta, balanceAmount, action } = body;
 
     const idOrEmail = userId || email;
     if (!idOrEmail) {
       return NextResponse.json({ success: false, error: 'User ID or Email is required' }, { status: 400 });
+    }
+
+    if (status) {
+      const updated = await updateUserStatus(idOrEmail, status, email);
+      return NextResponse.json({ success: true, data: updated, message: `Status updated to ${status}` });
     }
 
     if (role) {

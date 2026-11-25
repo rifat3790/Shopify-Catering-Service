@@ -319,14 +319,14 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
             onClick={handleOrderClick}
             className={`w-full mt-3 py-2.5 px-4 rounded-xl font-bold text-xs shadow-lg transition-all flex items-center justify-center gap-2 ${
               isOrderAllowedForMe
-                ? 'bg-gradient-to-r from-emerald-600 via-emerald-500 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-white shadow-emerald-950/40 hover:scale-[1.02] active:scale-[0.98]'
+                ? 'bg-gradient-to-r from-emerald-500 via-emerald-400 to-amber-500 hover:from-emerald-400 hover:to-amber-400 text-slate-950 font-bold shadow-emerald-950/40 hover:scale-[1.02] active:scale-[0.98]'
                 : 'bg-slate-900 border border-rose-500/40 text-rose-300 hover:bg-slate-850 hover:border-rose-400'
             }`}
           >
             {isOrderAllowedForMe ? (
               <>
-                <PlusCircle className="w-4 h-4 text-white" />
-                <span>{language === 'bn' ? 'নতুন খাবার অর্ডার' : 'New Quick Order'}</span>
+                <PlusCircle className="w-4 h-4 text-slate-950" />
+                <span className="text-slate-950 font-bold">{language === 'bn' ? 'নতুন খাবার অর্ডার' : 'New Quick Order'}</span>
               </>
             ) : (
               <>
@@ -357,19 +357,19 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
               onClick={() => setMobileOpen(false)}
               className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
                 isActive
-                  ? 'bg-gradient-to-r from-emerald-600 to-amber-600 text-white shadow-md shadow-emerald-950/30'
+                  ? 'bg-gradient-to-r from-emerald-500 to-amber-500 text-slate-950 font-bold shadow-md shadow-emerald-950/30'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-900'
               } ${!allowed ? 'opacity-60' : ''}`}
             >
               <div className="flex items-center gap-2.5">
-                <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-500 dark:text-slate-400'}`} />
-                <span>{language === 'bn' ? item.labelBn : item.labelEn}</span>
+                <Icon className={`w-4 h-4 ${isActive ? 'text-slate-950' : 'text-slate-500 dark:text-slate-400'}`} />
+                <span className={isActive ? 'text-slate-950 font-bold' : ''}>{language === 'bn' ? item.labelBn : item.labelEn}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 {!allowed && (
                   <span className={`flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full font-bold ${
                     isActive
-                      ? 'bg-black/25 text-white border border-white/20'
+                      ? 'bg-black/25 text-slate-950 border border-black/20'
                       : 'bg-rose-100 text-rose-700 border border-rose-300 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800'
                   }`}>
                     <Lock className="w-2.5 h-2.5" />
@@ -379,7 +379,7 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
                 {item.badge && allowed && (
                   <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold font-mono leading-none ${
                     isActive
-                      ? 'bg-black/25 text-white border border-white/20'
+                      ? 'bg-black/20 text-slate-950 border border-black/10'
                       : 'bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30'
                   }`}>
                     {item.badge}
@@ -409,12 +409,12 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
                   onClick={() => setMobileOpen(false)}
                   className={`flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all ${
                     isActive
-                      ? 'bg-gradient-to-r from-emerald-600 to-amber-600 text-white shadow-md'
+                      ? 'bg-gradient-to-r from-emerald-500 to-amber-500 text-slate-950 font-bold shadow-md'
                       : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-900/60'
                   }`}
                 >
-                  <Icon className={`w-4 h-4 ${isActive ? 'text-white' : item.color}`} />
-                  <span>{language === 'bn' ? item.labelBn : item.labelEn}</span>
+                  <Icon className={`w-4 h-4 ${isActive ? 'text-slate-950' : item.color}`} />
+                  <span className={isActive ? 'text-slate-950 font-bold' : ''}>{language === 'bn' ? item.labelBn : item.labelEn}</span>
                 </Link>
               );
             })}

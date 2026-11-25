@@ -388,6 +388,17 @@ function OrdersPageContent() {
               {filteredOrders.map((order) => {
                 const isPaid = order.status === 'Paid';
                 const isDue = order.status === 'Due' || order.changeDue < 0;
+                const isOwner = Boolean(
+                  user && (
+                    (order.userId && (order.userId === user.uid || order.userId === (user as any).id || order.userId.toLowerCase() === user.email?.toLowerCase())) ||
+                    (order.customerEmail && user.email && order.customerEmail.toLowerCase().trim() === user.email.toLowerCase().trim()) ||
+                    (order.customerName && (
+                      (user.name && order.customerName.toLowerCase().trim() === user.name.toLowerCase().trim()) ||
+                      (user.displayName && order.customerName.toLowerCase().trim() === user.displayName.toLowerCase().trim())
+                    ))
+                  )
+                );
+                const canManage = isSuperOrAdmin || isOwner;
 
                 return (
                   <div
@@ -482,19 +493,19 @@ function OrdersPageContent() {
                         >
                           <Download className="w-3.5 h-3.5" />
                         </button>
-                        {isSuperOrAdmin && (
+                        {canManage && (
                           <>
                             <button
                               onClick={() => handleOpenEdit(order)}
                               className="p-2 rounded-xl bg-amber-50 hover:bg-amber-100 dark:bg-slate-800 dark:hover:bg-amber-900/60 text-amber-800 dark:text-amber-400 border border-amber-300 dark:border-slate-700 text-xs"
-                              title="Edit"
+                              title={isOwner && !isSuperOrAdmin ? "Edit My Order" : "Edit"}
                             >
                               <Edit3 className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={() => handleDeleteOrder(order)}
                               className="p-2 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-slate-800 dark:hover:bg-rose-950 text-rose-800 dark:text-rose-400 border border-rose-300 dark:border-slate-700 text-xs"
-                              title="Delete"
+                              title={isOwner && !isSuperOrAdmin ? "Delete My Order" : "Delete"}
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -527,6 +538,17 @@ function OrdersPageContent() {
                   {filteredOrders.map((order) => {
                     const isPaid = order.status === 'Paid';
                     const isDue = order.status === 'Due' || order.changeDue < 0;
+                    const isOwner = Boolean(
+                      user && (
+                        (order.userId && (order.userId === user.uid || order.userId === (user as any).id || order.userId.toLowerCase() === user.email?.toLowerCase())) ||
+                        (order.customerEmail && user.email && order.customerEmail.toLowerCase().trim() === user.email.toLowerCase().trim()) ||
+                        (order.customerName && (
+                          (user.name && order.customerName.toLowerCase().trim() === user.name.toLowerCase().trim()) ||
+                          (user.displayName && order.customerName.toLowerCase().trim() === user.displayName.toLowerCase().trim())
+                        ))
+                      )
+                    );
+                    const canManage = isSuperOrAdmin || isOwner;
 
                     return (
                       <tr key={order._id || order.orderNumber} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
@@ -636,19 +658,19 @@ function OrdersPageContent() {
                               <Eye className="w-3.5 h-3.5" />
                             </button>
 
-                            {/* Admin Edit & Delete buttons */}
-                            {isSuperOrAdmin && (
+                            {/* Edit & Delete buttons (For Admins OR Order Owner) */}
+                            {canManage && (
                               <>
                                 <button
                                   onClick={() => handleOpenEdit(order)}
-                                  title="Edit Order"
+                                  title={isOwner && !isSuperOrAdmin ? "Edit My Order" : "Edit Order"}
                                   className="p-1.5 rounded-xl bg-amber-50/90 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/60 text-amber-800 dark:text-amber-300 border border-amber-500/20 dark:border-amber-500/30 transition-all hover:scale-105 shadow-xs"
                                 >
                                   <Edit3 className="w-3.5 h-3.5" />
                                 </button>
                                 <button
                                   onClick={() => handleDeleteOrder(order)}
-                                  title="Delete Order"
+                                  title={isOwner && !isSuperOrAdmin ? "Delete My Order" : "Delete Order"}
                                   className="p-1.5 rounded-xl bg-rose-50/90 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 text-rose-800 dark:text-rose-300 border border-rose-500/20 dark:border-rose-500/30 transition-all hover:scale-105 shadow-xs"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />

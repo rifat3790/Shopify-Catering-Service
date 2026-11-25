@@ -252,6 +252,7 @@ export async function getAllUsers(): Promise<UserRecord[]> {
         username: d.username || ('@' + d.email.split('@')[0].replace(/[^a-z0-9_]/g, '')),
         email: d.email,
         role: (isSuper ? 'super_admin' : d.role) as UserRole,
+        status: (isSuper ? 'approved' : (d.status || 'approved')) as any,
         balance: Number(d.balance) || 0,
         currentDue: realDue,
         totalSpent: realSpent,
@@ -518,6 +519,7 @@ export async function syncUser(userData: {
           name: userData.name || emailClean.split('@')[0],
           email: emailClean,
           role: isSuper ? 'super_admin' : 'user',
+          status: isSuper ? 'approved' : 'pending',
           balance: 0,
           currentDue: 0,
           totalSpent: 0,
@@ -555,6 +557,7 @@ export async function syncUser(userData: {
         username: doc.username,
         email: doc.email,
         role: (isSuper ? 'super_admin' : doc.role) as UserRole,
+        status: (isSuper ? 'approved' : (doc.status || 'approved')) as any,
         balance: Number(doc.balance) || 0,
         currentDue: Number(doc.currentDue) || 0,
         totalSpent: Number(doc.totalSpent) || 0,
@@ -739,6 +742,84 @@ export async function updateUserRole(
     persistentStore.updateUserProfile(usersCache[idx].email, { role: newRole });
     return usersCache[idx];
   }
+  return null;
+}
+
+// Update User Approval Status ('approved' | 'pending' | 'rejected')
+export async function updateUserStatus(
+  idOrEmail: string,
+  newStatus: 'approved' | 'pending' | 'rejected',
+  fallbackEmail?: string
+): Promise<UserRecord | null> {
+  invalidateUsersCache();
+  const search = idOrEmail.toLowerCase().trim();
+  const cleanEmail = (fallbackEmail || (idOrEmail.includes('@') ? idOrEmail : '')).toLowerCase().trim();
+
+  // Primary super admin is always approved
+  if (search === SUPER_ADMIN_EMAIL.toLowerCase() || cleanEmail === SUPER_ADMIN_EMAIL.toLowerCase()) {
+    newStatus = 'approved';
+  }
+
+  try {
+    await connectToDatabase();
+    if (User) {
+      const isObjectId = idOrEmail.match(/^[0-9a-fA-F]{24}$/);
+      const orConditions: any[] = [];
+      if (cleanEmail) orConditions.push({ email: cleanEmail });
+      orConditions.push({ uid: idOrEmail });
+      if (isObjectId) orConditions.push({ _id: idOrEmail });
+      if (search && search !== cleanEmail) {
+        orConditions.push({ email: search });
+        orConditions.push({ name: search });
+      }
+
+      const query = orConditions.length === 1 ? orConditions[0] : { $or: orConditions };
+      let doc = await User.findOneAndUpdate(query, { status: newStatus }, { new: true });
+      if (!doc && cleanEmail) {
+        doc = await User.findOneAndUpdate({ email: cleanEmail }, { status: newStatus }, { new: true });
+      }
+
+      if (doc) {
+        lastFbFetch = 0;
+        persistentStore.updateUserProfile(doc.email, { status: newStatus } as any);
+
+        const updated: UserRecord = {
+          id: doc.uid || doc._id.toString(),
+          name: doc.name,
+          username: doc.username,
+          email: doc.email,
+          role: (doc.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase() ? 'super_admin' : doc.role) as UserRole,
+          status: (doc.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase() ? 'approved' : doc.status) as any,
+          balance: Number(doc.balance) || 0,
+          currentDue: Number(doc.currentDue) || 0,
+          totalSpent: Number(doc.totalSpent) || 0,
+          department: doc.department || 'Shopify Team',
+          avatar: doc.avatar,
+          phone: doc.phone || '',
+          blockedUsers: doc.blockedUsers || [],
+          themeColor: doc.themeColor || 'emerald',
+          customTheme: doc.customTheme,
+          createdAt: doc.createdAt?.toISOString?.() || new Date().toISOString()
+        };
+
+        const idx = usersCache.findIndex(u => u.id === idOrEmail || u.email.toLowerCase() === cleanEmail || u.email.toLowerCase() === search);
+        if (idx !== -1) {
+          usersCache[idx] = { ...usersCache[idx], status: newStatus };
+        }
+        return applyUserOverridesAndUsername(updated);
+      }
+    }
+  } catch (e) {
+    console.warn('updateUserStatus error:', e);
+  }
+
+  const idx = usersCache.findIndex(u => u.id === idOrEmail || u.email.toLowerCase() === cleanEmail || u.email.toLowerCase() === search);
+  if (idx !== -1) {
+    usersCache[idx].status = newStatus;
+    persistentStore.updateUserProfile(usersCache[idx].email, { status: newStatus } as any);
+    return usersCache[idx];
+  }
+
   return null;
 }
 
@@ -1988,14 +2069,32 @@ export async function toggleGroupAdmin(
 
 export async function deleteChatGroup(
   groupId: string,
-  requesterId: string
+  requesterId: string,
+  requesterEmail?: string
 ): Promise<boolean> {
   const groups = await getAllChatGroups();
   const group = groups.find(g => g.id === groupId);
   if (!group) return false;
 
-  const isSuper = requesterId === SUPER_ADMIN_EMAIL;
-  const isOwner = group.createdBy === requesterId || isSuper;
+  const cleanReqEmail = (requesterEmail || '').toLowerCase().trim();
+  const cleanReqId = (requesterId || '').toLowerCase().trim();
+
+  // Find user to check role
+  const allUsers = await getAllUsers();
+  const reqUser = allUsers.find(u => 
+    (cleanReqEmail && u.email.toLowerCase() === cleanReqEmail) ||
+    (cleanReqId && (u.id.toLowerCase() === cleanReqId || u.email.toLowerCase() === cleanReqId))
+  );
+
+  const isSuper = cleanReqEmail === SUPER_ADMIN_EMAIL.toLowerCase() ||
+                  cleanReqId === SUPER_ADMIN_EMAIL.toLowerCase() ||
+                  reqUser?.role === 'super_admin' ||
+                  reqUser?.role === 'admin';
+
+  const isOwner = isSuper ||
+                  group.createdBy === requesterId ||
+                  (cleanReqEmail && group.createdBy.toLowerCase() === cleanReqEmail) ||
+                  (reqUser && (group.createdBy === reqUser.id || group.createdBy.toLowerCase() === reqUser.email.toLowerCase()));
 
   if (!isOwner) {
     throw new Error("Unauthorized: Only the group owner or Super Admin can delete this group.");
@@ -2122,15 +2221,13 @@ export async function getCallSessionForUser(userId: string, userEmail?: string):
 
   // 1. Check in-memory map
   for (const [id, session] of activeCallSessions.entries()) {
-    if (now - session.createdAt > 60000 && session.status === 'ringing') {
+    if (session.status === 'ended' || session.status === 'rejected') {
       activeCallSessions.delete(id);
       continue;
     }
-    if (session.status === 'ended' || session.status === 'rejected') {
-      if (now - session.updatedAt > 6000) {
-        activeCallSessions.delete(id);
-        continue;
-      }
+    if (now - session.createdAt > 35000 && session.status === 'ringing') {
+      activeCallSessions.delete(id);
+      continue;
     }
 
     if (matchesUser(session.receiverId) || matchesUser(session.callerId)) {
@@ -2145,8 +2242,13 @@ export async function getCallSessionForUser(userId: string, userEmail?: string):
       const docs = await Setting.find({ key: { $regex: '^call_' } }).lean();
       for (const d of docs) {
         const val: ActiveCallSession = (d as any).value;
-        if (val && (matchesUser(val.receiverId) || matchesUser(val.callerId))) {
-          if (now - val.createdAt < 60000) {
+        if (val) {
+          if (val.status === 'ended' || val.status === 'rejected' || (now - val.createdAt > 35000 && val.status === 'ringing')) {
+            Setting.deleteOne({ _id: (d as any)._id }).catch(() => {});
+            activeCallSessions.delete(val.callId);
+            continue;
+          }
+          if (matchesUser(val.receiverId) || matchesUser(val.callerId)) {
             activeCallSessions.set(val.callId, val);
             return val;
           }

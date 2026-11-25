@@ -227,8 +227,6 @@ export default function LiveTrackerTable({
               </tr>
             ) : (
               filteredOrders.map((order) => {
-                // Highlight row for Ismail as in Google Sheet
-                const isIsmail = order.customerName.toLowerCase().includes('ismail');
                 const isPaid = order.status === 'Paid';
                 const isDue = order.status === 'Due';
                 const isPending = order.status === 'Pending';
@@ -236,8 +234,7 @@ export default function LiveTrackerTable({
                 return (
                   <tr
                     key={order._id || order.orderNumber}
-                    className={`hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors ${isIsmail ? 'bg-amber-500/5' : ''
-                      }`}
+                    className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"
                   >
                     {/* Customer Column */}
                     <td className="py-3.5 px-4 sm:px-6">
@@ -256,11 +253,6 @@ export default function LiveTrackerTable({
                         <div>
                           <p className="font-semibold text-slate-900 dark:text-white tracking-wide flex items-center gap-1.5">
                             {order.customerName}
-                            {isIsmail && (
-                              <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-400/20 text-amber-700 dark:text-amber-300 border border-amber-400/30">
-                                Special
-                              </span>
-                            )}
                           </p>
                           <p className="text-[11px] text-slate-500 dark:text-slate-400">
                             {order.orderNumber}

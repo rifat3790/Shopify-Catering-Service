@@ -7,6 +7,7 @@ export interface IUser extends Document {
   username?: string;
   email: string;
   role: UserRole;
+  status?: 'approved' | 'pending' | 'rejected';
   balance: number;
   currentDue: number;
   totalSpent: number;
@@ -36,6 +37,11 @@ const UserSchema = new Schema<IUser>(
       type: String,
       enum: ['super_admin', 'admin', 'staff', 'user'],
       default: 'user',
+    },
+    status: {
+      type: String,
+      enum: ['approved', 'pending', 'rejected'],
+      default: 'approved',
     },
     balance: { type: Number, default: 0 },
     currentDue: { type: Number, default: 0 },

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import IncomingCallDialog from '@/components/IncomingCallDialog';
@@ -13,6 +13,7 @@ export default function GlobalCallManager() {
   const [incomingCall, setIncomingCall] = useState<any>(null);
   const [activeCallSession, setActiveCallSession] = useState<any>(null);
   const [isAudioCallOpen, setIsAudioCallOpen] = useState(false);
+  const declinedCallIdsRef = useRef<Set<string>>(new Set());
 
   // If user is currently on /chat, /chat already has its own dedicated handler
   const isChatPage = pathname?.startsWith('/chat');
@@ -34,6 +35,7 @@ export default function GlobalCallManager() {
         const session = json?.session;
 
         if (session && session.status === 'ringing') {
+          if (declinedCallIdsRef.current.has(session.callId)) return;
           const myId = (user.uid || '').toLowerCase();
           const myEmail = (user.email || '').toLowerCase();
           const isCaller = session.callerId?.toLowerCase() === myId || session.callerId?.toLowerCase() === myEmail;
@@ -61,6 +63,7 @@ export default function GlobalCallManager() {
   const handleDecline = async () => {
     if (!incomingCall) return;
     const cId = incomingCall.callId;
+    declinedCallIdsRef.current.add(cId);
     setIncomingCall(null);
     try {
       await fetch('/api/chat/call', {

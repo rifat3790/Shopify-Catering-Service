@@ -23,6 +23,7 @@ export interface AuthUser {
   photoURL: string | null;
   avatar?: string;
   role: UserRole;
+  status?: 'approved' | 'pending' | 'rejected';
   balance: number;
   currentDue: number;
   totalSpent: number;
@@ -121,6 +122,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             photoURL: avatarVal,
             avatar: avatarVal,
             role: determinedRole,
+            status: isSuper ? 'approved' : (dbUser.status || 'approved'),
             balance: Number(dbUser.balance) || 0,
             currentDue: Number(dbUser.currentDue) || 0,
             totalSpent: Number(dbUser.totalSpent) || 0,

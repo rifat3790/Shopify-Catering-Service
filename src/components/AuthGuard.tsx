@@ -5,8 +5,98 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { UserRole, RoutePermissions, DEFAULT_ROUTE_PERMISSIONS } from '@/lib/types';
 import Link from 'next/link';
-import { ShieldAlert, Lock, ArrowRight, ShieldX } from 'lucide-react';
+import { ShieldAlert, Lock, ArrowRight, ShieldX, Clock, RefreshCw, LogOut } from 'lucide-react';
 import LuxuryLoader from '@/components/LuxuryLoader';
+
+function PendingApprovalScreen({ user, onRefresh, onLogout }: { user: any; onRefresh: () => Promise<void>; onLogout: () => Promise<void> }) {
+  const [checking, setChecking] = useState(false);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      onRefresh().catch(() => {});
+    }, 7000);
+    return () => clearInterval(timer);
+  }, [onRefresh]);
+
+  const handleManualCheck = async () => {
+    setChecking(true);
+    try {
+      await onRefresh();
+    } finally {
+      setTimeout(() => setChecking(false), 800);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 text-slate-100">
+      <div className="text-center space-y-6 max-w-lg w-full p-8 sm:p-10 rounded-3xl bg-slate-900/90 border border-amber-500/40 shadow-2xl backdrop-blur-xl relative overflow-hidden">
+        {/* Ambient Top Glow */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-2 bg-gradient-to-r from-amber-500 via-emerald-500 to-amber-500 blur-sm rounded-full" />
+
+        {/* Pulsing Status Icon */}
+        <div className="relative mx-auto w-20 h-20 flex items-center justify-center">
+          <div className="absolute inset-0 rounded-full bg-amber-500/20 animate-ping opacity-75" />
+          <div className="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500/20 to-amber-950/60 border border-amber-500/60 flex items-center justify-center text-amber-400 shadow-xl">
+            <Clock className="w-8 h-8 animate-pulse text-amber-400" />
+          </div>
+        </div>
+
+        {/* User Profile Card Snippet */}
+        <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800/80 flex items-center gap-3.5 text-left">
+          <img
+            src={user.avatar || user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'Member')}&background=047857&color=fff`}
+            alt={user.name || 'Member'}
+            className="w-12 h-12 rounded-xl object-cover ring-2 ring-amber-500/40 shrink-0"
+          />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <p className="font-bold text-white text-sm truncate">{user.name || user.displayName || 'New Member'}</p>
+              <span className="text-[10px] px-2 py-0.5 rounded-full font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                Pending Approval
+              </span>
+            </div>
+            <p className="text-xs text-slate-400 truncate">{user.email}</p>
+          </div>
+        </div>
+
+        {/* Explanatory Text */}
+        <div className="space-y-2">
+          <h2 className="font-serif font-bold text-xl sm:text-2xl text-white">
+            অ্যাকাউন্ট অনুমোদনের অপেক্ষায়
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-sans">
+            আপনার রেজিস্ট্রেশন সফল হয়েছে। সিকিউরিটি ও ক্যাটারিং কোটা নিশ্চিত করতে 
+            <strong className="text-amber-300"> অ্যাডমিন বা সুপার অ্যাডমিনের </strong> 
+            অনুমোদন প্রয়োজন।
+          </p>
+          <p className="text-[11px] text-slate-500 font-sans">
+            (Once approved by Admin, this screen will automatically refresh and unlock your dashboard.)
+          </p>
+        </div>
+
+        {/* Action Controls */}
+        <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+          <button
+            onClick={handleManualCheck}
+            disabled={checking}
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 via-emerald-400 to-amber-500 hover:from-emerald-400 hover:to-amber-400 text-slate-950 font-bold text-xs shadow-lg hover:scale-105 active:scale-95 transition-all disabled:opacity-60"
+          >
+            <RefreshCw className={`w-4 h-4 text-slate-950 ${checking ? 'animate-spin' : ''}`} />
+            <span>{checking ? 'যাচাই করা হচ্ছে...' : 'স্ট্যাটাস চেক করুন (Check Status)'}</span>
+          </button>
+
+          <button
+            onClick={() => onLogout()}
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold border border-slate-700 transition-all hover:scale-105"
+          >
+            <LogOut className="w-3.5 h-3.5 text-rose-400" />
+            <span>লগআউট (Sign Out)</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -14,7 +104,7 @@ interface AuthGuardProps {
 }
 
 export default function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
-  const { user, loading } = useAuth();
+  const { user, loading, logout, refreshUser } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [routePerms, setRoutePerms] = useState<RoutePermissions | null>(null);
@@ -77,6 +167,17 @@ export default function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
 
   // Super Admin bypasses all checks
   const isSuper = user.role === 'super_admin';
+
+  // 1. Pending User Approval Check - New users cannot access until approved
+  if (!isSuper && user.status === 'pending') {
+    return (
+      <PendingApprovalScreen
+        user={user}
+        onRefresh={refreshUser}
+        onLogout={logout}
+      />
+    );
+  }
 
   // Role authorization check (static role restrictions)
   if (!isSuper && allowedRoles && !allowedRoles.includes(user.role)) {

@@ -60,6 +60,19 @@ function ChatHubContent() {
   const [selectedMember, setSelectedMember] = useState<UserRecord | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<ChatGroup | null>(null);
 
+  const selectedMemberRef = useRef<UserRecord | null>(null);
+  const selectedGroupRef = useRef<ChatGroup | null>(null);
+  const hasInitializedSelection = useRef<boolean>(false);
+  const declinedCallIdsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    selectedMemberRef.current = selectedMember;
+  }, [selectedMember]);
+
+  useEffect(() => {
+    selectedGroupRef.current = selectedGroup;
+  }, [selectedGroup]);
+
   // Messages state
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
@@ -144,11 +157,15 @@ function ChatHubContent() {
         const uJson = await uRes.json();
         if (uJson.success && uJson.data) {
           setMembers(uJson.data);
+          const curMember = selectedMemberRef.current;
+          const curGroup = selectedGroupRef.current;
+
           // If a member is currently selected, update its record
-          if (selectedMember) {
-            const updated = uJson.data.find((m: UserRecord) => m.id === selectedMember.id);
+          if (curMember) {
+            const updated = uJson.data.find((m: UserRecord) => m.id === curMember.id || m.email.toLowerCase() === curMember.email.toLowerCase());
             if (updated) setSelectedMember(updated);
-          } else if (!selectedGroup && uJson.data.length > 0) {
+          } else if (!curGroup && !hasInitializedSelection.current && uJson.data.length > 0) {
+            hasInitializedSelection.current = true;
             let targetFromUrl: UserRecord | undefined;
             if (typeof window !== 'undefined') {
               const sp = new URLSearchParams(window.location.search);
@@ -175,9 +192,10 @@ function ChatHubContent() {
         const gJson = await gRes.json();
         if (gJson.success && gJson.data) {
           setGroups(gJson.data);
+          const curGroup = selectedGroupRef.current;
           // If a group is currently selected, update its state
-          if (selectedGroup) {
-            const updated = gJson.data.find((g: ChatGroup) => g.id === selectedGroup.id);
+          if (curGroup) {
+            const updated = gJson.data.find((g: ChatGroup) => g.id === curGroup.id);
             if (updated) setSelectedGroup(updated);
           }
         }
@@ -269,6 +287,7 @@ function ChatHubContent() {
         const session = json?.session;
 
         if (session && session.status === 'ringing') {
+          if (declinedCallIdsRef.current.has(session.callId)) return;
           const myId = (user.uid || '').toLowerCase();
           const myEmail = (user.email || '').toLowerCase();
           const isCaller = session.callerId?.toLowerCase() === myId || session.callerId?.toLowerCase() === myEmail;
@@ -337,6 +356,7 @@ function ChatHubContent() {
   const handleDeclineIncomingCall = async () => {
     if (!incomingCall) return;
     const cId = incomingCall.callId;
+    declinedCallIdsRef.current.add(cId);
     setIncomingCall(null);
     try {
       await fetch('/api/chat/call', {
@@ -608,7 +628,7 @@ function ChatHubContent() {
     setDeletingGroup(true);
 
     try {
-      const res = await fetch(`/api/chat/groups/${selectedGroup.id}?requesterId=${user.uid}`, {
+      const res = await fetch(`/api/chat/groups/${selectedGroup.id}?requesterId=${encodeURIComponent(user.uid)}&requesterEmail=${encodeURIComponent(user.email || '')}`, {
         method: 'DELETE',
       });
 
@@ -880,7 +900,7 @@ function ChatHubContent() {
                               handleStartCall(m, null);
                             }}
                             title={`Audio Call ${m.name}`}
-                            className="p-2 rounded-xl bg-slate-100 hover:bg-amber-500 dark:bg-slate-900 dark:hover:bg-amber-500 text-amber-700 hover:text-white dark:text-amber-300 dark:hover:text-slate-950 border border-slate-200/80 dark:border-amber-500/40 transition-all hover:scale-105 shadow-xs"
+                            className="p-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500 text-emerald-600 dark:text-emerald-400 hover:text-slate-950 dark:hover:text-slate-950 border border-emerald-500/20 hover:border-emerald-500 transition-all hover:scale-105 shadow-xs"
                           >
                             <Phone className="w-3.5 h-3.5" />
                           </button>
@@ -958,7 +978,7 @@ function ChatHubContent() {
                             handleStartCall(m, null);
                           }}
                           title={`Audio Call ${m.name}`}
-                          className="p-2 rounded-xl bg-slate-900 hover:bg-emerald-600 text-slate-400 hover:text-slate-950 border border-slate-800 transition-all hover:scale-105 shrink-0"
+                          className="p-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500 text-emerald-600 dark:text-emerald-400 hover:text-slate-950 dark:hover:text-slate-950 border border-emerald-500/20 hover:border-emerald-500 transition-all hover:scale-105 shrink-0 shadow-xs"
                         >
                           <Phone className="w-3.5 h-3.5" />
                         </button>
@@ -1023,7 +1043,7 @@ function ChatHubContent() {
                             handleStartCall(null, g);
                           }}
                           title={`Audio Conference with ${g.name}`}
-                          className="p-2 rounded-xl bg-slate-900 hover:bg-amber-400 text-slate-400 hover:text-slate-950 border border-slate-800 transition-all hover:scale-105 shrink-0"
+                          className="p-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500 text-emerald-600 dark:text-emerald-400 hover:text-slate-950 dark:hover:text-slate-950 border border-emerald-500/20 hover:border-emerald-500 transition-all hover:scale-105 shrink-0 shadow-xs"
                         >
                           <Phone className="w-3.5 h-3.5" />
                         </button>

@@ -70,6 +70,7 @@ export default function AudioCallModal({
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animFrameRef = useRef<any>(null);
+  const callInitiatedRef = useRef(false);
 
   // Sync propCallId to activeCallId
   useEffect(() => {
@@ -167,7 +168,8 @@ export default function AudioCallModal({
           await pc.setLocalDescription(offer);
 
           // Initiate call session on server
-          if (!currentCallId && targetUserId && currentUserId) {
+          if (!currentCallId && targetUserId && currentUserId && !callInitiatedRef.current) {
+            callInitiatedRef.current = true;
             try {
               const res = await fetch('/api/chat/call', {
                 method: 'POST',
@@ -359,6 +361,7 @@ export default function AudioCallModal({
 
   // Clean up all resources
   const cleanupCall = () => {
+    callInitiatedRef.current = false;
     if (stopRingbackRef.current) {
       stopRingbackRef.current();
       stopRingbackRef.current = null;

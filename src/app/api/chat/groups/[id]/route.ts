@@ -71,6 +71,7 @@ export async function DELETE(
     const { id: groupId } = await params;
     const { searchParams } = new URL(request.url);
     const requesterId = searchParams.get('requesterId');
+    const requesterEmail = searchParams.get('requesterEmail') || searchParams.get('email') || undefined;
 
     if (!groupId || !requesterId) {
       return NextResponse.json(
@@ -79,7 +80,7 @@ export async function DELETE(
       );
     }
 
-    const success = await deleteChatGroup(groupId, requesterId);
+    const success = await deleteChatGroup(groupId, requesterId, requesterEmail);
     if (!success) {
       return NextResponse.json({ success: false, error: 'Group not found or already deleted' }, { status: 404 });
     }

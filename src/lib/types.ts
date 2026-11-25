@@ -83,6 +83,7 @@ export interface UserRecord {
   username?: string;
   email: string;
   role: UserRole;
+  status?: 'approved' | 'pending' | 'rejected';
   balance: number;
   currentDue: number;
   totalSpent: number;
