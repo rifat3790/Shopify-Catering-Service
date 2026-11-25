@@ -39,7 +39,7 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://firebasestorage.googleapis.com" />
         <link rel="dns-prefetch" href="https://ui-avatars.com" />
       </head>
-      <body className="bg-slate-950 text-slate-100 min-h-screen flex flex-col antialiased selection:bg-emerald-500 selection:text-slate-950">
+      <body className="bg-slate-950 text-slate-100 min-h-dvh flex flex-col overflow-x-hidden antialiased selection:bg-emerald-500 selection:text-slate-950">
         <AuthProvider>
           <ThemeProvider>
             <LanguageProvider>
@@ -49,7 +49,7 @@ export default function RootLayout({
                 <OrderCutoffTicker />
                 <UserActivityTracker />
                 <DailyDutyNotificationDialog />
-                <div className="flex-1 flex flex-col">
+                <div className="flex-1 min-h-0 flex flex-col min-w-0">
                   {children}
                 </div>
               </ToastProvider>

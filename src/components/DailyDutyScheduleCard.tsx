@@ -6,13 +6,13 @@ import { useLanguage } from '@/context/LanguageContext';
 import { DailyDutyAssignment } from '@/lib/types';
 import LuxuryLoader from '@/components/LuxuryLoader';
 import { getBangladeshTodayDateString } from '@/lib/dateFilterUtils';
-import { 
-  Calendar, 
-  UserCheck, 
-  Phone, 
-  ShoppingBag, 
-  Clock, 
-  CheckCircle2, 
+import {
+  Calendar,
+  UserCheck,
+  Phone,
+  ShoppingBag,
+  Clock,
+  CheckCircle2,
   Sparkles,
   ChevronRight,
   ShieldAlert
@@ -35,7 +35,7 @@ export default function DailyDutyScheduleCard({ compact = false }: { compact?: b
           setDuties(json.data);
         }
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false));
   }, []);
 
@@ -50,18 +50,18 @@ export default function DailyDutyScheduleCard({ compact = false }: { compact?: b
 
   return (
     <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-amber-500/30 p-5 sm:p-6 shadow-xl relative overflow-hidden">
-      
+
       {/* Decorative luxury gradient tint */}
       <div className="absolute top-0 right-0 w-64 h-32 bg-gradient-to-bl from-amber-500/10 via-emerald-500/5 to-transparent pointer-events-none" />
 
       {/* Header */}
-      <div className="flex items-center justify-between gap-3 mb-4">
-        <div className="flex items-center gap-2.5">
-          <div className="w-10 h-10 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-600 dark:text-amber-400">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-10 h-10 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
             <UserCheck className="w-5 h-5" />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
                 {language === 'bn' ? 'দৈনিক রোস্টার' : 'Daily Rotation'}
               </span>
@@ -105,13 +105,12 @@ export default function DailyDutyScheduleCard({ compact = false }: { compact?: b
                   <span className="px-2 py-0.2 rounded-full text-[10px] font-bold bg-amber-500 text-slate-950 uppercase tracking-wide">
                     {language === 'bn' ? 'আজকের ইন-চার্জ' : 'In-Charge Today'}
                   </span>
-                  <span className={`text-[10px] font-bold px-2 py-0.2 rounded-full border ${
-                    todayDuty.status === 'completed'
-                      ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/40'
-                      : (todayDuty.status === 'in_progress'
-                        ? 'bg-sky-500/20 text-sky-700 dark:text-sky-300 border-sky-500/40'
-                        : 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/40')
-                  }`}>
+                  <span className={`text-[10px] font-bold px-2 py-0.2 rounded-full border ${todayDuty.status === 'completed'
+                    ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/40'
+                    : (todayDuty.status === 'in_progress'
+                      ? 'bg-sky-500/20 text-sky-700 dark:text-sky-300 border-sky-500/40'
+                      : 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/40')
+                    }`}>
                     {todayDuty.status === 'completed' ? 'Delivered' : (todayDuty.status === 'in_progress' ? 'In Progress' : 'Assigned')}
                   </span>
                 </div>
@@ -167,8 +166,8 @@ export default function DailyDutyScheduleCard({ compact = false }: { compact?: b
         <div className="p-4 rounded-2xl bg-slate-100 dark:bg-slate-950/60 border border-dashed border-slate-300 dark:border-slate-800 text-center mb-4">
           <Clock className="w-7 h-7 text-amber-500 mx-auto mb-2 opacity-75" />
           <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">
-            {language === 'bn' 
-              ? 'আজকের জন্য এখনো কোনো নির্দিষ্ট মেম্বারকে দায়িত্ব অর্পণ করা হয়নি।' 
+            {language === 'bn'
+              ? 'আজকের জন্য এখনো কোনো নির্দিষ্ট মেম্বারকে দায়িত্ব অর্পণ করা হয়নি।'
               : 'No member is assigned for today yet.'}
           </p>
           {isSuperOrAdmin && (
@@ -204,11 +203,10 @@ export default function DailyDutyScheduleCard({ compact = false }: { compact?: b
                     </p>
                   </div>
                 </div>
-                <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold shrink-0 ${
-                  d.status === 'completed'
-                    ? 'bg-emerald-500/20 text-emerald-400'
-                    : 'bg-amber-500/20 text-amber-400'
-                }`}>
+                <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold shrink-0 ${d.status === 'completed'
+                  ? 'bg-emerald-500/20 text-emerald-400'
+                  : 'bg-amber-500/20 text-amber-400'
+                  }`}>
                   {d.status}
                 </span>
               </div>

@@ -30,13 +30,13 @@ export default function DateFilterPills({
   ];
 
   return (
-    <div className={`flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin ${className}`}>
-      <div className="flex items-center gap-1 px-2.5 py-1 text-slate-600 dark:text-slate-400 text-xs font-semibold shrink-0">
+    <div className={`w-full max-w-full min-w-0 flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin ${className}`}>
+      <div className="flex items-center gap-1 px-2 sm:px-2.5 py-1 text-slate-600 dark:text-slate-400 text-xs font-semibold shrink-0">
         <Calendar className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
-        <span>{language === 'bn' ? 'সময়কাল:' : 'Period:'}</span>
+        <span className="hidden sm:inline">{language === 'bn' ? 'সময়কাল:' : 'Period:'}</span>
       </div>
 
-      <div className="flex items-center gap-1 p-1 rounded-2xl bg-slate-100/90 dark:bg-slate-900/90 border border-slate-200/70 dark:border-slate-800 shadow-xs">
+      <div className="flex items-center gap-1 p-1 rounded-2xl bg-slate-100/90 dark:bg-slate-900/90 border border-slate-200/70 dark:border-slate-800 shadow-xs shrink-0">
         {options.map((opt) => {
           const isActive = selected === opt.id;
           const count = counts ? counts[opt.id] : undefined;

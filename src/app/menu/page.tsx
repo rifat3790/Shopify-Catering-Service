@@ -261,7 +261,7 @@ function MenuPageContent() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 flex-wrap">
             {/* Add Dish Button (Admin & Super Admin CRUD) */}
             {isSuperOrAdmin && (
               <button
@@ -287,12 +287,12 @@ function MenuPageContent() {
         </div>
 
         {/* Category Filter Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-slate-200/80 dark:border-slate-800">
+        <div className="w-full min-w-0 flex items-center gap-2 overflow-x-auto pb-2 border-b border-slate-200/80 dark:border-slate-800">
           {categories.map((cat) => (
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
-              className={`px-4 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all shadow-xs ${selectedCategory === cat
+              className={`px-4 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-all shadow-xs ${selectedCategory === cat
                 ? 'bg-gradient-to-r from-emerald-600 to-amber-600 text-white font-bold shadow-sm scale-[1.02]'
                 : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800'
                 }`}
@@ -334,7 +334,7 @@ function MenuPageContent() {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5 sm:gap-6">
             {filteredItems.map((item) => {
               const countInCart = cart[item._id || item.name] || 0;
 

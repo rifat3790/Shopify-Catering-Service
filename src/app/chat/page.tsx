@@ -749,37 +749,40 @@ function ChatHubContent() {
     : [];
 
   return (
-    <div className="fixed inset-0 h-screen max-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col lg:flex-row text-slate-900 dark:text-slate-100 overflow-hidden select-none">
+    <div
+      data-viewport-lock="true"
+      className="flex-1 min-h-0 w-full bg-slate-50 dark:bg-slate-950 flex flex-col lg:flex-row text-slate-900 dark:text-slate-100 overflow-hidden select-none"
+    >
       <Sidebar />
 
       {/* Main Workspace Frame */}
-      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
         
         {/* Telegram-style Split: Directory Column (Left) + Chat Window (Right) */}
-        <div className="flex-1 flex overflow-hidden relative">
+        <div className="flex-1 flex min-w-0 min-h-0 overflow-hidden relative">
           
           {/* Left Column: Directory & Channels */}
-          <div className={`w-full md:w-80 lg:w-96 bg-white dark:bg-slate-950 border-r border-slate-200 dark:border-emerald-900/40 flex flex-col shrink-0 h-full transition-all duration-200 z-10 ${
+          <div className={`w-full md:w-72 lg:w-80 xl:w-96 bg-white dark:bg-slate-950 border-r border-slate-200 dark:border-emerald-900/40 flex flex-col shrink-0 min-h-0 transition-all duration-200 z-10 ${
             mobileView === 'chat' ? 'hidden md:flex' : 'flex'
           }`}>
             
             {/* Telegram Header */}
-            <div className="p-3.5 border-b border-slate-200 dark:border-slate-800/80 space-y-3 bg-white dark:bg-slate-950">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-600 to-amber-500 flex items-center justify-center text-white font-bold shadow-md shadow-emerald-950/20">
+            <div className="p-3 sm:p-3.5 border-b border-slate-200 dark:border-slate-800/80 space-y-2.5 sm:space-y-3 bg-white dark:bg-slate-950 shrink-0">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-600 to-amber-500 flex items-center justify-center text-white font-bold shadow-md shadow-emerald-950/20 shrink-0">
                     <MessageSquare className="w-4 h-4" />
                   </div>
-                  <div>
-                    <h2 className="font-serif font-bold text-slate-900 dark:text-white text-base tracking-tight">Team Connect</h2>
-                    <p className="text-[10px] text-emerald-700 dark:text-emerald-400 font-medium">Real-Time Messaging & Voice</p>
+                  <div className="min-w-0">
+                    <h2 className="font-serif font-bold text-slate-900 dark:text-white text-sm sm:text-base tracking-tight truncate">Team Connect</h2>
+                    <p className="text-[10px] text-emerald-700 dark:text-emerald-400 font-medium truncate">Real-Time Messaging & Voice</p>
                   </div>
                 </div>
 
                 <button
                   onClick={() => setIsCreateGroupOpen(true)}
                   title="Create New Team Group"
-                  className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-amber-700 dark:text-amber-300 border border-slate-200 dark:border-amber-500/40 text-xs font-semibold flex items-center gap-1.5 transition-all hover:scale-105 active:scale-95 shadow-sm"
+                  className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-amber-700 dark:text-amber-300 border border-slate-200 dark:border-amber-500/40 text-xs font-semibold flex items-center gap-1 transition-all hover:scale-105 active:scale-95 shadow-sm shrink-0"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Group</span>
@@ -799,39 +802,39 @@ function ChatHubContent() {
               </div>
 
               {/* Telegram-style 3 Segment Tabs: Active | Members | Groups */}
-              <div className="grid grid-cols-3 gap-1 p-1 bg-slate-100 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800/80 text-[11px] font-semibold">
+              <div className="grid grid-cols-3 gap-1 p-1 bg-slate-100 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800/80 text-[10px] sm:text-[11px] font-semibold">
                 <button
                   onClick={() => setActiveTab('active')}
-                  className={`py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                  className={`py-1.5 px-1 rounded-lg transition-all flex items-center justify-center gap-1 min-w-0 ${
                     activeTab === 'active'
                       ? 'bg-gradient-to-r from-emerald-600 to-amber-600 text-white font-bold shadow-sm'
                       : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-                  <span>Active ({activeMembers.length})</span>
+                  <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                  <span className="truncate">Active ({activeMembers.length})</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('members')}
-                  className={`py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                  className={`py-1.5 px-1 rounded-lg transition-all flex items-center justify-center gap-1 min-w-0 ${
                     activeTab === 'members'
                       ? 'bg-gradient-to-r from-emerald-600 to-amber-600 text-white font-bold shadow-sm'
                       : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
                   <Users className="w-3 h-3 shrink-0" />
-                  <span>Members ({otherMembers.length})</span>
+                  <span className="truncate">Members ({otherMembers.length})</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('groups')}
-                  className={`py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                  className={`py-1.5 px-1 rounded-lg transition-all flex items-center justify-center gap-1 min-w-0 ${
                     activeTab === 'groups'
                       ? 'bg-gradient-to-r from-emerald-600 to-amber-600 text-white font-bold shadow-sm'
                       : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
                   <MessageSquare className="w-3 h-3 shrink-0" />
-                  <span>Groups ({groups.length})</span>
+                  <span className="truncate">Groups ({groups.length})</span>
                 </button>
               </div>
             </div>
@@ -1072,18 +1075,18 @@ function ChatHubContent() {
           </div>
 
           {/* Right Column: Chat Room Window */}
-          <div className={`flex-1 flex flex-col bg-slate-950 h-full overflow-hidden ${
+          <div className={`flex-1 flex flex-col min-w-0 min-h-0 bg-slate-950 overflow-hidden ${
             mobileView === 'list' ? 'hidden md:flex' : 'flex'
           }`}>
             
             {/* Telegram Chat Header */}
             {(selectedMember || selectedGroup) ? (
-              <div className="p-3.5 border-b border-emerald-900/40 bg-slate-950/95 backdrop-blur-md flex items-center justify-between gap-3 shrink-0 z-20">
-                <div className="flex items-center gap-3 min-w-0">
+              <div className="p-3 sm:p-3.5 border-b border-emerald-900/40 bg-slate-950/95 backdrop-blur-md flex items-center justify-between gap-2 sm:gap-3 shrink-0 z-20">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                   {/* Mobile Back Button */}
                   <button
                     onClick={() => setMobileView('list')}
-                    className="p-2 -ml-1 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 md:hidden"
+                    className="p-2 -ml-1 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 md:hidden shrink-0"
                     title="Back to conversations"
                   >
                     <ArrowLeft className="w-4 h-4" />
@@ -1098,7 +1101,7 @@ function ChatHubContent() {
                         setIsGroupSettingsOpen(true);
                       }
                     }}
-                    className={`flex items-center gap-3 min-w-0 ${selectedGroup ? 'cursor-pointer hover:opacity-90' : ''}`}
+                    className={`flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1 ${selectedGroup ? 'cursor-pointer hover:opacity-90' : ''}`}
                   >
                     <div className="relative shrink-0">
                       <img
@@ -1108,7 +1111,7 @@ function ChatHubContent() {
                             : (selectedMember?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedMember?.name || 'User')}&background=047857&color=fff`)
                         }
                         alt="Avatar"
-                        className="w-10 h-10 rounded-2xl object-cover ring-2 ring-emerald-500/40"
+                        className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl object-cover ring-2 ring-emerald-500/40"
                       />
                       {!selectedGroup && selectedMember && (
                         <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-950 ${
@@ -1117,28 +1120,28 @@ function ChatHubContent() {
                       )}
                     </div>
 
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 min-w-0">
                         <h3 className="font-serif font-bold text-white text-sm sm:text-base truncate">
                           {selectedGroup ? selectedGroup.name : selectedMember?.name}
                         </h3>
                         {selectedGroup && (
-                          <span className="p-1 text-slate-400 hover:text-amber-300">
+                          <span className="p-1 text-slate-400 hover:text-amber-300 shrink-0">
                             <Settings className="w-3.5 h-3.5" />
                           </span>
                         )}
                       </div>
                       
-                      <div className="flex items-center gap-2 text-xs">
+                      <div className="flex items-center gap-1.5 text-xs min-w-0">
                         {selectedGroup ? (
-                          <span className="text-amber-400/90 font-medium text-[11px]">
-                            {selectedGroup.members?.length || 0} members • click for group info & settings
+                          <span className="text-amber-400/90 font-medium text-[11px] truncate block">
+                            {selectedGroup.members?.length || 0} members • settings
                           </span>
                         ) : (
                           <>
-                            <span className="text-slate-400 text-[11px]">{selectedMember?.department}</span>
-                            <span className="text-slate-600">•</span>
-                            <span className={`font-mono text-[11px] font-medium ${selectedMember?.isOnline ? 'text-emerald-400' : 'text-slate-400'}`}>
+                            <span className="text-slate-400 text-[11px] truncate max-w-[110px] sm:max-w-none">{selectedMember?.department}</span>
+                            <span className="text-slate-600 shrink-0">•</span>
+                            <span className={`font-mono text-[11px] font-medium truncate ${selectedMember?.isOnline ? 'text-emerald-400' : 'text-slate-400'}`}>
                               {formatLastSeen(selectedMember?.lastSeen, selectedMember?.isOnline)}
                             </span>
                           </>
@@ -1149,7 +1152,7 @@ function ChatHubContent() {
                 </div>
 
                 {/* Header Actions */}
-                <div className="flex items-center gap-2 relative">
+                <div className="flex items-center gap-1.5 sm:gap-2 relative shrink-0">
                   {/* Start Audio Call */}
                   <button
                     onClick={() => handleStartCall(selectedMember, selectedGroup)}
@@ -1280,7 +1283,7 @@ function ChatHubContent() {
                       )}
 
                       <div
-                        className={`max-w-md sm:max-w-lg rounded-2xl p-3.5 text-xs shadow-md space-y-1 ${
+                        className={`max-w-[82%] sm:max-w-md lg:max-w-lg rounded-2xl p-3 sm:p-3.5 text-xs shadow-md space-y-1 break-words ${
                           isMine
                             ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-slate-950 font-medium rounded-br-none'
                             : 'bg-slate-900 border border-slate-800 text-slate-100 rounded-bl-none'
@@ -1707,8 +1710,8 @@ function ChatHubContent() {
 
       {/* Create Group Modal */}
       {isCreateGroupOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
-          <div className="w-full max-w-md bg-slate-900 border border-amber-500/50 rounded-3xl p-6 shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
+          <div className="w-full max-w-md bg-slate-900 border border-amber-500/50 rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90dvh] overflow-y-auto">
             
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <div className="flex items-center gap-2">

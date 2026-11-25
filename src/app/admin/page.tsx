@@ -482,7 +482,7 @@ function AdminPageContent() {
           </div>
 
           {/* 5 Tab Switcher */}
-          <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-slate-100 dark:bg-slate-900 rounded-2xl w-fit border border-slate-200 dark:border-slate-800 shadow-sm">
+          <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-slate-100 dark:bg-slate-900 rounded-2xl w-full lg:w-fit border border-slate-200 dark:border-slate-800 shadow-sm">
             <button
               onClick={() => setActiveTab('orders')}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
@@ -1110,8 +1110,8 @@ function AdminPageContent() {
 
       {/* Admin Balance Modal (Add, Deduct, Set) */}
       {balanceModalUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
-          <div className="w-full max-w-md bg-slate-900 border border-amber-500/50 rounded-3xl p-6 shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
+          <div className="w-full max-w-md bg-slate-900 border border-amber-500/50 rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90dvh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <div className="flex items-center gap-2">
                 <Coins className="w-5 h-5 text-amber-400" />
@@ -1183,7 +1183,7 @@ function AdminPageContent() {
                 </label>
 
                 {balanceAction !== 'set' && (
-                  <div className="grid grid-cols-4 gap-1.5 mb-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 mb-2">
                     {[100, 200, 500, 1000].map(amt => (
                       <button
                         type="button"

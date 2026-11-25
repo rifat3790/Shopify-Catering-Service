@@ -217,18 +217,18 @@ function PosPageContent() {
 
       <main className="flex-1 w-full min-w-0 px-4 sm:px-6 lg:px-10 py-6 space-y-6">
         {/* Top Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-emerald-900/40">
-          <div>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-200 dark:border-emerald-900/40">
+          <div className="min-w-0">
             <h1 className="text-xl sm:text-2xl font-bold font-serif text-slate-900 dark:text-white flex items-center gap-2">
-              <Calculator className="w-6 h-6 text-amber-500 dark:text-amber-400" />
-              <span>{language === 'bn' ? 'কাউন্টার পিওএস এক্সপ্রেস (Counter POS)' : 'Counter POS Express'}</span>
+              <Calculator className="w-6 h-6 text-amber-500 dark:text-amber-400 shrink-0" />
+              <span className="truncate">{language === 'bn' ? 'কাউন্টার পিওএস এক্সপ্রেস (Counter POS)' : 'Counter POS Express'}</span>
             </h1>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               {language === 'bn' ? 'দ্রুত ক্যাশ গ্রহণ, খাবার সিলেক্ট ও স্বয়ংক্রিয় বাকি/ফেরত ক্যালকুলেটর' : 'Rapid item tapping, instant cash tender calculation, and receipt generation'}
             </p>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 flex-wrap shrink-0">
             <button
               onClick={() => setShowCustomInput(!showCustomInput)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-amber-700 dark:text-amber-300 border border-slate-200/80 dark:border-amber-500/40 text-xs font-semibold transition-all shadow-xs"
@@ -467,7 +467,7 @@ function PosPageContent() {
                   <label className="text-[11px] text-slate-500 dark:text-slate-400 mb-1.5 block font-medium">
                     {language === 'bn' ? 'পেমেন্ট মাধ্যম:' : 'Payment Method:'}
                   </label>
-                  <div className="grid grid-cols-4 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {(['Cash', 'Wallet', 'bKash', 'Nagad'] as const).map((method) => {
                       const isSelected = paymentMethod === method;
                       return (
@@ -497,7 +497,7 @@ function PosPageContent() {
 
                 {/* Wallet Balance Display when Wallet Selected */}
                 {paymentMethod === 'Wallet' && (
-                  <div className={`p-3 rounded-xl border flex items-center justify-between text-xs ${
+                  <div className={`p-3 rounded-xl border flex flex-wrap items-center justify-between gap-2 text-xs ${
                     selectedMember && (selectedMember.balance || 0) >= totalBill
                       ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-500/40 text-emerald-800 dark:text-emerald-300'
                       : 'bg-rose-50 dark:bg-rose-950/40 border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-300'
@@ -519,7 +519,7 @@ function PosPageContent() {
                         {language === 'bn' ? 'গ্রাহক কত টাকার নোট দিয়েছেন?' : 'Cash Handed by Customer:'}
                       </p>
 
-                      <div className="grid grid-cols-4 gap-2">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                         {cashPresets.map((preset) => (
                           <button
                             key={preset}
@@ -574,7 +574,7 @@ function PosPageContent() {
 
                     {/* Credit Change to Member Wallet Toggle */}
                     {dueAmount === 0 && changeToReturn > 0 && selectedMember && (
-                      <div className="p-3.5 rounded-2xl bg-slate-100/90 dark:bg-slate-900 dark:bg-gradient-to-r dark:from-emerald-950/60 dark:via-slate-900 dark:to-amber-950/40 border border-slate-200/80 dark:border-amber-500/40 flex items-center justify-between gap-3 shadow-sm">
+                      <div className="p-3.5 rounded-2xl bg-slate-100/90 dark:bg-slate-900 dark:bg-gradient-to-r dark:from-emerald-950/60 dark:via-slate-900 dark:to-amber-950/40 border border-slate-200/80 dark:border-amber-500/40 flex flex-wrap items-center justify-between gap-2.5 shadow-sm">
                         <label className="flex items-center gap-2.5 cursor-pointer text-xs select-none">
                           <input
                             type="checkbox"

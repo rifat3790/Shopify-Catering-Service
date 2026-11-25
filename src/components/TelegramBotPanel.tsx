@@ -403,8 +403,8 @@ export default function TelegramBotPanel() {
 
           <div className="space-y-3">
             {/* Master Bot Switch */}
-            <label className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between cursor-pointer">
-              <div>
+            <label className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-3 cursor-pointer">
+              <div className="min-w-0">
                 <p className="text-xs font-bold text-white">Enable Telegram Bot Automation</p>
                 <p className="text-[11px] text-slate-400">Master switch for all automated broadcasts</p>
               </div>
@@ -412,16 +412,16 @@ export default function TelegramBotPanel() {
                 type="checkbox"
                 checked={botEnabled}
                 onChange={(e) => setBotEnabled(e.target.checked)}
-                className="w-4 h-4 accent-emerald-500 rounded"
+                className="w-4 h-4 accent-emerald-500 rounded shrink-0"
               />
             </label>
 
             {/* Morning Alert */}
             <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-2.5">
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
                   <p className="text-xs font-bold text-white flex items-center gap-1.5">
-                    <Bell className="w-3.5 h-3.5 text-amber-400" />
+                    <Bell className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                     <span>Daily Morning @everyone Alert (BDT)</span>
                   </p>
                   <p className="text-[11px] text-slate-400">Sends website link + order callout daily</p>
@@ -430,7 +430,7 @@ export default function TelegramBotPanel() {
                   type="checkbox"
                   checked={morningAlertEnabled}
                   onChange={(e) => setMorningAlertEnabled(e.target.checked)}
-                  className="w-4 h-4 accent-emerald-500"
+                  className="w-4 h-4 accent-emerald-500 shrink-0"
                 />
               </div>
               <div className="flex flex-wrap items-center gap-2.5">
@@ -444,10 +444,10 @@ export default function TelegramBotPanel() {
             </div>
 
             {/* Duty Alert */}
-            <label className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between cursor-pointer">
-              <div>
+            <label className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-3 cursor-pointer">
+              <div className="min-w-0">
                 <p className="text-xs font-bold text-white flex items-center gap-1.5">
-                  <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
+                  <UserCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                   <span>Instant Daily Responsibility Broadcast</span>
                 </p>
                 <p className="text-[11px] text-slate-400">Posts member name when assigned duty</p>
@@ -456,15 +456,15 @@ export default function TelegramBotPanel() {
                 type="checkbox"
                 checked={dutyAlertEnabled}
                 onChange={(e) => setDutyAlertEnabled(e.target.checked)}
-                className="w-4 h-4 accent-emerald-500"
+                className="w-4 h-4 accent-emerald-500 shrink-0"
               />
             </label>
 
             {/* Cutoff Table Image Alert */}
-            <label className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between cursor-pointer">
-              <div>
+            <label className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-3 cursor-pointer">
+              <div className="min-w-0">
                 <p className="text-xs font-bold text-white flex items-center gap-1.5">
-                  <ImageIcon className="w-3.5 h-3.5 text-sky-400" />
+                  <ImageIcon className="w-3.5 h-3.5 text-sky-400 shrink-0" />
                   <span>Auto Send Orders Table Image on Cutoff Close</span>
                 </p>
                 <p className="text-[11px] text-slate-400">Posts Orders Closed notice + high-res PNG table</p>
@@ -473,7 +473,7 @@ export default function TelegramBotPanel() {
                 type="checkbox"
                 checked={cutoffAlertEnabled}
                 onChange={(e) => setCutoffAlertEnabled(e.target.checked)}
-                className="w-4 h-4 accent-emerald-500"
+                className="w-4 h-4 accent-emerald-500 shrink-0"
               />
             </label>
           </div>
@@ -518,8 +518,8 @@ export default function TelegramBotPanel() {
           </div>
 
           {/* Automation Endpoint Copy */}
-          <div className="p-3 rounded-2xl bg-slate-950/80 border border-slate-800 flex items-center justify-between gap-2">
-            <div className="min-w-0">
+          <div className="p-3 rounded-2xl bg-slate-950/80 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="min-w-0 flex-1">
               <p className="text-[10px] text-slate-400 font-bold uppercase">24/7 Cron Trigger Endpoint (Optional external ping)</p>
               <p className="text-[11px] font-mono text-sky-400 truncate">
                 https://shopify-catering-service.vercel.app/api/telegram/automate
@@ -532,7 +532,7 @@ export default function TelegramBotPanel() {
                 setCopiedCron(true);
                 setTimeout(() => setCopiedCron(false), 2000);
               }}
-              className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 font-semibold flex items-center gap-1 shrink-0"
+              className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 font-semibold flex items-center justify-center gap-1 shrink-0 self-start sm:self-auto"
             >
               {copiedCron ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
               <span>{copiedCron ? 'Copied' : 'Copy'}</span>

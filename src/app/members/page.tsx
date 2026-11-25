@@ -265,28 +265,28 @@ function MembersPageContent() {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col lg:flex-row text-slate-900 dark:text-slate-100">
       <Sidebar onOpenNewOrder={() => setSelectedOrderMember('Member')} />
 
-      <main className="flex-1 w-full min-w-0 px-4 sm:px-6 lg:px-10 py-8 space-y-6">
+      <main className="flex-1 w-full min-w-0 px-3.5 sm:px-6 lg:px-10 py-6 sm:py-8 space-y-6">
 
         {/* Top Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200/80 dark:border-emerald-900/40">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-800 to-emerald-600 p-[2px] shadow-lg">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-tr from-emerald-800 to-emerald-600 p-[2px] shadow-lg shrink-0">
               <div className="w-full h-full bg-white dark:bg-slate-950 rounded-[14px] flex items-center justify-center">
-                <Users className="w-6 h-6 text-amber-500 dark:text-amber-400" />
+                <Users className="w-5 h-5 sm:w-6 sm:h-6 text-amber-500 dark:text-amber-400" />
               </div>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-bold font-serif text-slate-900 dark:text-white">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-lg sm:text-2xl font-bold font-serif text-slate-900 dark:text-white">
                   {isAdminOrSuper
                     ? (language === 'bn' ? 'মেম্বার তালিকা ও ক্যাটারিং হিসাব' : 'Team Member Directory & Balances')
                     : (language === 'bn' ? 'টিম মেম্বার ডিরেক্টরি' : 'Team Member Directory')}
                 </h1>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 shrink-0">
                   {isAdminOrSuper ? members.length : approvedCount} Members
                 </span>
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                 {isAdminOrSuper
                   ? (language === 'bn'
                       ? 'সকল মেম্বারের রিয়েল-টাইম ব্যালেন্স, যোগ/কর্তন/এডিট এবং সরাসরি খাবারের অর্ডার'
@@ -298,7 +298,7 @@ function MembersPageContent() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 flex-wrap shrink-0">
             <button
               onClick={() => fetchMembers()}
               className="p-2.5 rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border border-slate-200/80 dark:border-slate-800 shadow-xs transition-colors"
@@ -395,10 +395,10 @@ function MembersPageContent() {
 
         {/* Member Status Tabs (Pending vs Active Filter for Admins & Super Admin) */}
         {isAdminOrSuper && (
-          <div className="flex flex-wrap items-center gap-2 p-1.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 w-fit shadow-xs">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 p-1.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 w-full sm:w-fit shadow-xs">
             <button
               onClick={() => setStatusTab('all')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs font-bold transition-all ${
                 statusTab === 'all'
                   ? 'bg-gradient-to-r from-emerald-600 to-amber-600 text-white shadow-sm'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -408,7 +408,7 @@ function MembersPageContent() {
             </button>
             <button
               onClick={() => setStatusTab('approved')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs font-bold transition-all ${
                 statusTab === 'approved'
                   ? 'bg-emerald-600 text-white shadow-sm'
                   : 'text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-300'
@@ -418,7 +418,7 @@ function MembersPageContent() {
             </button>
             <button
               onClick={() => setStatusTab('pending')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+              className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
                 statusTab === 'pending'
                   ? 'bg-amber-500 text-slate-950 shadow-sm'
                   : 'text-slate-600 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-300'
@@ -433,8 +433,8 @@ function MembersPageContent() {
         )}
 
         {/* Filter and Search Bar */}
-        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 shadow-xs">
-          <div className="relative flex-1 max-w-md">
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 shadow-xs">
+          <div className="relative w-full md:w-72 lg:w-80 shrink-0">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
               type="text"
@@ -445,12 +445,12 @@ function MembersPageContent() {
             />
           </div>
 
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+          <div className="min-w-0 flex-1 flex items-center gap-1.5 overflow-x-auto pb-1">
             {departments.map(dept => (
               <button
                 key={dept}
                 onClick={() => setDepartmentFilter(dept)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${departmentFilter === dept
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-all ${departmentFilter === dept
                   ? 'bg-gradient-to-r from-emerald-600 to-amber-600 text-white font-bold shadow-xs'
                   : 'bg-slate-100/80 dark:bg-slate-950 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/70 dark:hover:bg-slate-800 border border-slate-200/70 dark:border-slate-800'
                   }`}
@@ -471,7 +471,7 @@ function MembersPageContent() {
               : 'No registered members found. Members appear dynamically upon sign-in or via "+ Add Member" above.'}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
             {filteredMembers.map(member => {
               const isMemberRootSuper = member.email?.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase();
 
@@ -509,7 +509,7 @@ function MembersPageContent() {
                       </div>
 
                       {/* Admin Actions */}
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 shrink-0">
                         {isAdminOrSuper && member.status === 'pending' && (
                           <button
                             onClick={() => handleApproveMember(member)}
@@ -586,50 +586,50 @@ function MembersPageContent() {
                     )}
                   </div>
 
-                  <div className="space-y-3">
+                  <div className="space-y-2.5 sm:space-y-3">
                     {/* Balance Manage Buttons (Admin & Super Admin Only) */}
                     {isAdminOrSuper && (
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
                         <button
                           onClick={() => openBalanceModal(member, 'add')}
-                          className="py-2 px-2 rounded-xl bg-emerald-50/90 hover:bg-emerald-100 dark:bg-emerald-950/70 dark:hover:bg-emerald-900 text-emerald-800 dark:text-emerald-300 border border-emerald-500/20 dark:border-emerald-700/60 font-semibold text-xs flex items-center justify-center gap-1 shadow-xs transition-all hover:scale-[1.02]"
+                          className="py-2 px-1.5 rounded-xl bg-emerald-50/90 hover:bg-emerald-100 dark:bg-emerald-950/70 dark:hover:bg-emerald-900 text-emerald-800 dark:text-emerald-300 border border-emerald-500/20 dark:border-emerald-700/60 font-semibold text-[11px] sm:text-xs flex items-center justify-center gap-1 whitespace-nowrap shadow-xs transition-all hover:scale-[1.02]"
                         >
-                          <PlusCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                          <PlusCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                           <span>Add</span>
                         </button>
                         <button
                           onClick={() => openBalanceModal(member, 'deduct')}
-                          className="py-2 px-2 rounded-xl bg-rose-50/90 hover:bg-rose-100 dark:bg-rose-950/60 dark:hover:bg-rose-900 text-rose-800 dark:text-rose-300 border border-rose-500/20 dark:border-rose-800/60 font-semibold text-xs flex items-center justify-center gap-1 shadow-xs transition-all hover:scale-[1.02]"
+                          className="py-2 px-1.5 rounded-xl bg-rose-50/90 hover:bg-rose-100 dark:bg-rose-950/60 dark:hover:bg-rose-900 text-rose-800 dark:text-rose-300 border border-rose-500/20 dark:border-rose-800/60 font-semibold text-[11px] sm:text-xs flex items-center justify-center gap-1 whitespace-nowrap shadow-xs transition-all hover:scale-[1.02]"
                         >
-                          <MinusCircle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+                          <MinusCircle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400 shrink-0" />
                           <span>Deduct</span>
                         </button>
                         <button
                           onClick={() => openBalanceModal(member, 'set')}
-                          className="py-2 px-2 rounded-xl bg-amber-50/90 hover:bg-amber-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-amber-800 dark:text-amber-300 border border-amber-500/20 dark:border-slate-700 font-semibold text-xs flex items-center justify-center gap-1 shadow-xs transition-all hover:scale-[1.02]"
+                          className="py-2 px-1.5 rounded-xl bg-amber-50/90 hover:bg-amber-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-amber-800 dark:text-amber-300 border border-amber-500/20 dark:border-slate-700 font-semibold text-[11px] sm:text-xs flex items-center justify-center gap-1 whitespace-nowrap shadow-xs transition-all hover:scale-[1.02]"
                         >
-                          <Edit3 className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                          <Edit3 className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
                           <span>Edit</span>
                         </button>
                       </div>
                     )}
 
                     {/* Member Actions */}
-                    <div className={isAdminOrSuper ? 'grid grid-cols-2 gap-2.5' : 'grid grid-cols-1'}>
+                    <div className={isAdminOrSuper ? 'grid grid-cols-2 gap-2' : 'grid grid-cols-1'}>
                       {isAdminOrSuper && (
                         <button
                           onClick={() => setSelectedOrderMember(member.name)}
-                          className="py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-white font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow-sm hover:scale-[1.02] active:scale-[0.98]"
+                          className="py-2.5 px-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-white font-bold text-[11px] sm:text-xs whitespace-nowrap transition-all flex items-center justify-center gap-1.5 shadow-sm hover:scale-[1.02] active:scale-[0.98]"
                         >
-                          <Utensils className="w-3.5 h-3.5" />
+                          <Utensils className="w-3.5 h-3.5 shrink-0" />
                           <span>{language === 'bn' ? 'অর্ডার দিন' : 'Order Food'}</span>
                         </button>
                       )}
                       <Link
                         href={`/chat?memberId=${encodeURIComponent(member.id)}`}
-                        className="py-2.5 px-3 rounded-xl bg-slate-100/90 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs border border-slate-200/80 dark:border-slate-700/80 transition-all flex items-center justify-center gap-1.5 shadow-xs hover:scale-[1.02] active:scale-[0.98]"
+                        className="py-2.5 px-2.5 rounded-xl bg-slate-100/90 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-[11px] sm:text-xs whitespace-nowrap border border-slate-200/80 dark:border-slate-700/80 transition-all flex items-center justify-center gap-1.5 shadow-xs hover:scale-[1.02] active:scale-[0.98]"
                       >
-                        <MessageSquare className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
+                        <MessageSquare className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400 shrink-0" />
                         <span>{language === 'bn' ? 'মেসেজ ও কল' : 'Chat & Call'}</span>
                       </Link>
                     </div>
@@ -644,8 +644,8 @@ function MembersPageContent() {
 
       {/* Balance & Due Modal (Add, Deduct, Set, Clear Due) */}
       {balanceModalUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
-          <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-amber-500/50 rounded-3xl p-6 shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-amber-500/50 rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90dvh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200/80 dark:border-slate-800">
               <div className="flex items-center gap-2">
                 <Coins className="w-5 h-5 text-amber-500 dark:text-amber-400" />
@@ -812,7 +812,7 @@ function MembersPageContent() {
             ) : (
               /* DUE MODE */
               <>
-                <div className="grid grid-cols-4 gap-1 p-1 bg-slate-100 dark:bg-slate-950 rounded-2xl border border-slate-200/80 dark:border-slate-800">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1.5 bg-slate-100 dark:bg-slate-950 rounded-2xl border border-slate-200/80 dark:border-slate-800">
                   <button
                     type="button"
                     onClick={() => {
@@ -948,8 +948,8 @@ function MembersPageContent() {
 
       {/* Add Member Modal */}
       {isAddMemberOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
-          <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-emerald-700/80 rounded-3xl p-6 shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-emerald-700/80 rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90dvh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200/80 dark:border-slate-800">
               <h3 className="font-serif font-bold text-slate-900 dark:text-white text-base">
                 {language === 'bn' ? 'নতুন মেম্বার যুক্ত করুন' : 'Register New Team Member'}

@@ -39,6 +39,21 @@
   }
 }
 
+/* Lock full-height workspace routes cleanly beneath OrderCutoffTicker without overlapping it */
+body:has([data-viewport-lock="true"]) {
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+}
+
+@media (min-width: 1024px) {
+  body:has([data-viewport-lock="true"]) .sidebar-aside {
+    height: 100% !important;
+    max-height: 100% !important;
+    position: static !important;
+  }
+}
+
 /* Custom Enterprise Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;

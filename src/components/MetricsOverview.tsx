@@ -130,32 +130,32 @@ export default function MetricsOverview({ stats, isLoading }: MetricsProps) {
 
   return (
     <section className="w-full">
-      <div className={`grid grid-cols-2 md:grid-cols-3 ${stats.totalMemberBalance !== undefined ? 'lg:grid-cols-6' : 'lg:grid-cols-5'} gap-3 sm:gap-4`}>
+      <div className={`grid grid-cols-2 md:grid-cols-3 ${stats.totalMemberBalance !== undefined ? 'xl:grid-cols-6' : 'xl:grid-cols-5'} gap-3 sm:gap-4`}>
         {cards.map((card) => {
           const Icon = card.icon;
           return (
             <div
               key={card.id}
-              className={`relative overflow-hidden rounded-2xl bg-white dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:${card.borderColor} p-4 sm:p-5 shadow-md dark:shadow-xl dark:shadow-black/30 hover:scale-[1.02] hover:shadow-lg transition-all duration-300 group`}
+              className={`relative overflow-hidden rounded-2xl bg-white dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:${card.borderColor} p-3.5 sm:p-5 shadow-md dark:shadow-xl dark:shadow-black/30 hover:scale-[1.02] hover:shadow-lg transition-all duration-300 group min-w-0`}
             >
               {/* Soft Ambient Radial Corner Glow (subtle & non-intrusive) */}
               <div className={`absolute -right-8 -bottom-8 w-28 h-28 rounded-full blur-2xl pointer-events-none opacity-20 group-hover:opacity-40 transition-opacity duration-500 ${card.glowColor}`} />
 
-              <div className="flex items-center justify-between mb-3">
-                <div className={`p-2 rounded-xl bg-slate-100 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 ${card.iconColor} shadow-inner`}>
-                  <Icon className="w-5 h-5" />
+              <div className="flex items-center justify-between gap-1.5 mb-2.5 sm:mb-3">
+                <div className={`p-1.5 sm:p-2 rounded-xl bg-slate-100 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 ${card.iconColor} shadow-inner shrink-0`}>
+                  <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${card.badgeColor} bg-slate-100 dark:bg-slate-950/80`}>
+                <span className={`hidden sm:inline-flex text-[10px] font-bold px-2 py-0.5 rounded-full border ${card.badgeColor} bg-slate-100 dark:bg-slate-950/80 truncate max-w-[110px]`}>
                   {card.badge}
                 </span>
               </div>
 
-              <div>
-                <p className="text-xs font-bold text-slate-700 dark:text-slate-200 tracking-wider uppercase mb-1">
+              <div className="min-w-0">
+                <p className="text-[11px] sm:text-xs font-bold text-slate-700 dark:text-slate-200 tracking-wider uppercase mb-1 truncate">
                   {language === 'bn' ? card.titleBn : card.titleEn}
                 </p>
-                <div className="flex items-baseline gap-1">
-                  <h3 className={`text-xl sm:text-2xl font-extrabold font-mono tracking-tight ${card.valueColor}`}>
+                <div className="flex items-baseline gap-1 min-w-0">
+                  <h3 className={`text-lg sm:text-xl 2xl:text-2xl font-extrabold font-mono tracking-tight truncate ${card.valueColor}`}>
                     {isLoading ? (
                       <span className="inline-flex items-center py-1"><LuxurySpinnerIcon size="sm" /></span>
                     ) : (
@@ -163,12 +163,12 @@ export default function MetricsOverview({ stats, isLoading }: MetricsProps) {
                     )}
                   </h3>
                   {card.unit && (
-                    <span className="text-xs text-slate-500 dark:text-slate-400 font-semibold pl-0.5">
+                    <span className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-semibold pl-0.5 shrink-0">
                       {card.unit}
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-slate-500 dark:text-slate-300 font-medium mt-1.5 flex items-center gap-1">
+                <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-300 font-medium mt-1 sm:mt-1.5 truncate">
                   <span>{language === 'bn' ? card.subtextBn : card.subtextEn}</span>
                 </p>
               </div>

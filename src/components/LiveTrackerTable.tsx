@@ -134,7 +134,7 @@ export default function LiveTrackerTable({
       <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/60 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
 
         {/* Search Input */}
-        <div className="relative flex-1 max-w-md">
+        <div className="relative flex-1 min-w-0 md:max-w-md">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
@@ -146,9 +146,9 @@ export default function LiveTrackerTable({
         </div>
 
         {/* Status Filters & Actions */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 min-w-0">
           {/* Status Pills */}
-          <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs gap-1">
+          <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs gap-1 overflow-x-auto max-w-full">
             {(['All', 'Paid', 'Pending', 'Due'] as const).map((st) => (
               <button
                 key={st}

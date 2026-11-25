@@ -347,13 +347,13 @@ function UserDashboardContent() {
 
               {/* Elevated Inspector for Super Admin */}
               {isElevated && elevatedMemberList.length > 0 && (
-                <div className="flex items-center gap-2 text-xs min-w-[240px]">
-                  <span className="text-[10px] text-slate-400 font-semibold uppercase whitespace-nowrap">Inspect:</span>
+                <div className="flex items-center gap-2 text-xs w-full sm:w-auto sm:min-w-[240px]">
+                  <span className="text-[10px] text-slate-400 font-semibold uppercase whitespace-nowrap shrink-0">Inspect:</span>
                   <LuxurySelect
                     value={inspectedUserName}
                     onChange={setInspectedUserName}
                     searchable={true}
-                    className="flex-1 min-w-[210px]"
+                    className="flex-1 min-w-0 sm:min-w-[210px]"
                     triggerClassName="py-2"
                     options={[
                       { value: '', label: `My Own Account (${user?.displayName || user?.name || 'Self'})` },
@@ -400,7 +400,7 @@ function UserDashboardContent() {
           <DailyDutyScheduleCard />
 
           {/* User Balance Master Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
             {/* Main Dynamic Balance */}
             <div className="relative overflow-hidden p-6 rounded-3xl bg-white dark:bg-slate-900 dark:bg-gradient-to-br dark:from-emerald-950/80 dark:via-slate-900 dark:to-emerald-950/60 border border-slate-200 dark:border-emerald-500/40 shadow-xl">

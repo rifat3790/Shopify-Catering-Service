@@ -601,12 +601,12 @@ function SuperAdminDashboardContent() {
                   <Crown className="w-6 h-6 text-amber-400" />
                 </div>
               </div>
-              <div>
+              <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h1 className="text-2xl sm:text-3xl font-bold font-serif text-white tracking-tight">
+                  <h1 className="text-xl sm:text-3xl font-bold font-serif text-white tracking-tight">
                     {language === 'bn' ? 'সুপার অ্যাডমিন কমান্ড সেন্টার' : 'Super Admin Command Center'}
                   </h1>
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase max-w-full truncate">
                     Root Master: {SUPER_ADMIN_EMAIL}
                   </span>
                 </div>
@@ -784,7 +784,7 @@ function SuperAdminDashboardContent() {
           )}
 
           {/* Super Admin Control Menu Tabs */}
-          <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-900 rounded-2xl w-fit border border-slate-800 shadow-xl">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 p-1.5 bg-slate-900 rounded-2xl w-full lg:w-fit border border-slate-800 shadow-xl">
             <button
               onClick={() => setSuperTab('users')}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
@@ -2054,7 +2054,7 @@ function SuperAdminDashboardContent() {
             ) : (
               /* DUE MANAGEMENT */
               <>
-                <div className="grid grid-cols-4 gap-1 p-1 bg-slate-950 rounded-2xl border border-slate-800">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1.5 bg-slate-950 rounded-2xl border border-slate-800">
                   <button
                     type="button"
                     onClick={() => {
@@ -2195,8 +2195,8 @@ function SuperAdminDashboardContent() {
 
       {/* New User Creation Modal */}
       {isNewUserModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
-          <div className="w-full max-w-md bg-slate-900 border border-emerald-700/80 rounded-3xl p-6 shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
+          <div className="w-full max-w-md bg-slate-900 border border-emerald-700/80 rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90dvh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <h3 className="font-bold text-white text-base">
                 {language === 'bn' ? 'নতুন ব্যবহারকারী নিবন্ধন' : 'Register New Team Account'}

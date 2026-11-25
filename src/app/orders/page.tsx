@@ -305,7 +305,7 @@ function OrdersPageContent() {
 
         {/* Search & Filter Toolbar */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-sm">
-          <div className="relative flex-1 min-w-[220px]">
+          <div className="relative flex-1 min-w-0 sm:min-w-[220px]">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
               type="text"
@@ -316,7 +316,7 @@ function OrdersPageContent() {
             />
           </div>
 
-          <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-slate-100/80 dark:bg-slate-950 border border-slate-200/60 dark:border-slate-800/80 overflow-x-auto pb-1 sm:pb-0">
+          <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-slate-100/80 dark:bg-slate-950 border border-slate-200/60 dark:border-slate-800/80 overflow-x-auto max-w-full pb-1 sm:pb-1">
             {['All', 'Paid', 'Due', 'Pending', 'Delivered'].map((status) => (
               <button
                 key={status}

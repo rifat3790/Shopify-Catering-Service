@@ -467,20 +467,20 @@ export default function Sidebar({ onOpenNewOrder }: SidebarProps) {
   return (
     <>
       {/* Desktop Persistent Sidebar */}
-      <aside className="hidden lg:block w-72 shrink-0 h-screen sticky top-0 z-40">
+      <aside className="sidebar-aside hidden lg:block w-72 shrink-0 h-dvh sticky top-0 z-40">
         {content}
       </aside>
 
       {/* Mobile Top Navbar with Hamburger */}
-      <div className="lg:hidden sticky top-0 z-50 bg-slate-950/95 backdrop-blur-md border-b border-emerald-900/40 px-4 py-3 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-emerald-900/80 border border-amber-500/40 flex items-center justify-center text-amber-400">
+      <div className="lg:hidden sticky top-0 z-50 bg-slate-950/95 backdrop-blur-md border-b border-emerald-900/40 px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2 shrink-0">
+        <Link href="/" className="flex items-center gap-2 min-w-0">
+          <div className="w-8 h-8 rounded-xl bg-emerald-900/80 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
             <UtensilsCrossed className="w-4 h-4" />
           </div>
-          <span className="font-serif font-bold text-white text-base">Shopify Catering</span>
+          <span className="font-serif font-bold text-white text-sm sm:text-base truncate">Shopify Catering</span>
         </Link>
 
-        <div className="flex items-center gap-1.5 sm:gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           {/* Theme Palette Button for Mobile */}
           <button
             onClick={() => setIsThemeModalOpen(true)}
