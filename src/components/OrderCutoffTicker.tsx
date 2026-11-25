@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Clock, X } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
+import { useTheme } from '@/context/ThemeContext';
+import { isLightColor } from '@/lib/themeConstants';
 
 function formatCutoff12Hour(hhmm: string): string {
   const [h, m] = (hhmm || '09:20').split(':').map(Number);
@@ -15,6 +17,8 @@ function formatCutoff12Hour(hhmm: string): string {
 
 export default function OrderCutoffTicker() {
   const { language } = useLanguage();
+  const { activeTheme } = useTheme();
+  const isLight = isLightColor(activeTheme.bgBase);
   const [control, setControl] = useState<{
     ordersEnabled: boolean;
     dailyCutoffTime: string;
@@ -88,16 +92,89 @@ export default function OrderCutoffTicker() {
 
   const customNotice = language === 'bn' ? dynamicNoticeBn : dynamicNoticeEn;
 
+  // Color tokens: keep Dark mode 100% intact and provide crisp high-contrast Light mode without themeConstants class collisions
+  const palette = isLight
+    ? isAllowed
+      ? {
+          barBg: '#ecfdf5',
+          barBorder: 'rgba(16, 185, 129, 0.35)',
+          badgeBg: '#d1fae5',
+          badgeShadow: '6px 0 14px rgba(4, 120, 87, 0.08)',
+          badgeBorderRight: '1px solid rgba(5, 150, 105, 0.22)',
+          clockBg: 'rgba(5, 150, 105, 0.16)',
+          clockColor: '#047857',
+          badgeText: '#065f46',
+          mainText: '#0f172a',
+          timeText: '#92400e',
+          dotBg: '#059669',
+          statusText: '#065f46',
+          dividerText: 'rgba(15, 23, 42, 0.35)',
+          starText: '#d97706',
+          closeColor: '#065f46',
+        }
+      : {
+          barBg: '#fff1f2',
+          barBorder: 'rgba(225, 29, 72, 0.28)',
+          badgeBg: '#ffe4e6',
+          badgeShadow: '6px 0 14px rgba(190, 18, 60, 0.08)',
+          badgeBorderRight: '1px solid rgba(190, 18, 60, 0.2)',
+          clockBg: 'rgba(225, 29, 72, 0.14)',
+          clockColor: '#be123c',
+          badgeText: '#9f1239',
+          mainText: '#0f172a',
+          timeText: '#9a3412',
+          dotBg: '#e11d48',
+          statusText: '#9f1239',
+          dividerText: 'rgba(15, 23, 42, 0.35)',
+          starText: '#d97706',
+          closeColor: '#9f1239',
+        }
+    : isAllowed
+    ? {
+        barBg: '#052e22',
+        barBorder: 'rgba(52, 211, 153, 0.35)',
+        badgeBg: '#052e22',
+        badgeShadow: '8px 0 16px rgba(0, 0, 0, 0.45)',
+        badgeBorderRight: 'none',
+        clockBg: 'rgba(52, 211, 153, 0.2)',
+        clockColor: '#6ee7b7',
+        badgeText: '#ffffff',
+        mainText: '#ffffff',
+        timeText: '#fde68a',
+        dotBg: '#6ee7b7',
+        statusText: '#ffffff',
+        dividerText: 'rgba(255, 255, 255, 0.4)',
+        starText: 'rgba(252, 211, 77, 0.7)',
+        closeColor: 'rgba(255, 255, 255, 0.8)',
+      }
+    : {
+        barBg: '#3a0915',
+        barBorder: 'rgba(251, 113, 133, 0.35)',
+        badgeBg: '#3a0915',
+        badgeShadow: '8px 0 16px rgba(0, 0, 0, 0.45)',
+        badgeBorderRight: 'none',
+        clockBg: 'rgba(251, 113, 133, 0.2)',
+        clockColor: '#fda4af',
+        badgeText: '#ffffff',
+        mainText: '#ffffff',
+        timeText: '#fde68a',
+        dotBg: '#fda4af',
+        statusText: '#ffffff',
+        dividerText: 'rgba(255, 255, 255, 0.4)',
+        starText: 'rgba(252, 211, 77, 0.7)',
+        closeColor: 'rgba(255, 255, 255, 0.8)',
+      };
+
   const AnnouncementItemBlock = () => (
     <div className="flex items-center gap-8 px-5 shrink-0 font-semibold text-[11.5px] tracking-wide">
-      <span className="flex items-center gap-1.5 text-white">
+      <span className="flex items-center gap-1.5" style={{ color: palette.mainText }}>
         <span>📢</span>
         <span>{customNotice}</span>
       </span>
 
-      <span className="text-white/40">•</span>
+      <span style={{ color: palette.dividerText }}>•</span>
 
-      <span className="flex items-center gap-1.5 text-amber-200">
+      <span className="flex items-center gap-1.5" style={{ color: palette.timeText }}>
         <span>⏰</span>
         <span>
           {language === 'bn'
@@ -106,15 +183,14 @@ export default function OrderCutoffTicker() {
         </span>
       </span>
 
-      <span className="text-white/40">•</span>
+      <span style={{ color: palette.dividerText }}>•</span>
 
       <span className="flex items-center gap-1.5">
         <span
-          className={`w-2 h-2 rounded-full ${
-            isAllowed ? 'bg-emerald-300 animate-ping' : 'bg-rose-300 animate-pulse'
-          }`}
+          className={`w-2 h-2 rounded-full ${isAllowed ? 'animate-ping' : 'animate-pulse'}`}
+          style={{ backgroundColor: palette.dotBg }}
         />
-        <span className="font-bold text-white">
+        <span className="font-bold" style={{ color: palette.statusText }}>
           {isAllowed
             ? language === 'bn'
               ? 'অর্ডার গ্রহণ চলছে (OPEN)'
@@ -125,26 +201,21 @@ export default function OrderCutoffTicker() {
         </span>
       </span>
 
-      <span className="text-amber-300/70">✦</span>
+      <span style={{ color: palette.starText }}>✦</span>
     </div>
   );
 
-  // Explicit inline background colors immune to themeConstants.ts emerald pill CSS overrides
-  const barStyle: React.CSSProperties = isAllowed
-    ? {
-        backgroundColor: '#052e22',
-        borderColor: 'rgba(52, 211, 153, 0.35)',
-        color: '#ffffff',
-      }
-    : {
-        backgroundColor: '#3a0915',
-        borderColor: 'rgba(251, 113, 133, 0.35)',
-        color: '#ffffff',
-      };
+  const barStyle: React.CSSProperties = {
+    backgroundColor: palette.barBg,
+    borderColor: palette.barBorder,
+    color: palette.mainText,
+  };
 
-  const badgeStyle: React.CSSProperties = isAllowed
-    ? { backgroundColor: '#052e22' }
-    : { backgroundColor: '#3a0915' };
+  const badgeStyle: React.CSSProperties = {
+    backgroundColor: palette.badgeBg,
+    boxShadow: palette.badgeShadow,
+    borderRight: palette.badgeBorderRight,
+  };
 
   return (
     <div
@@ -155,16 +226,18 @@ export default function OrderCutoffTicker() {
         {/* Fixed Left Status Badge */}
         <div
           style={badgeStyle}
-          className="flex items-center gap-1.5 shrink-0 pr-3 z-20 shadow-[8px_0_16px_rgba(0,0,0,0.45)]"
+          className="flex items-center gap-1.5 shrink-0 pr-3 z-20 rounded-r-md"
         >
           <div
-            className={`p-1 rounded-md ${
-              isAllowed ? 'bg-emerald-400/20 text-emerald-300' : 'bg-rose-400/20 text-rose-300'
-            }`}
+            className="p-1 rounded-md"
+            style={{ backgroundColor: palette.clockBg, color: palette.clockColor }}
           >
             <Clock className="w-3.5 h-3.5 animate-pulse" />
           </div>
-          <span className="font-bold font-mono uppercase text-[11px] tracking-wide whitespace-nowrap text-white">
+          <span
+            className="font-bold font-mono uppercase text-[11px] tracking-wide whitespace-nowrap"
+            style={{ color: palette.badgeText }}
+          >
             {isAllowed
               ? language === 'bn'
                 ? `কাট-অফ: ${cutoffTime}`
@@ -188,7 +261,8 @@ export default function OrderCutoffTicker() {
         {/* Dismiss Button */}
         <button
           onClick={() => setDismissed(true)}
-          className="ml-2 p-1 rounded hover:bg-white/15 text-white/80 hover:text-white transition-all shrink-0 z-20"
+          style={{ color: palette.closeColor }}
+          className="ml-2 p-1 rounded hover:opacity-75 transition-all shrink-0 z-20"
           title="Dismiss banner"
         >
           <X className="w-3.5 h-3.5" />
