@@ -55,7 +55,13 @@ export default function OrderCutoffTicker() {
     };
 
     fetchStatus();
-    // Telegram automations are triggered server-side by a scheduler; browsers only nudge on a live close transition.
+    // Telegram automations are triggered server-side by a scheduler. Open browsers add a light
+    // once-a-minute backup nudge (idempotent: every alert is locked once per day in the database).
+    pingTelegramAutomator();
+    const botTimer = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      pingTelegramAutomator();
+    }, 60000);
 
     const onControlUpdate = () => fetchStatus();
     window.addEventListener('orderControlUpdated', onControlUpdate);
@@ -70,6 +76,7 @@ export default function OrderCutoffTicker() {
       window.removeEventListener('orderControlUpdated', onControlUpdate);
       document.removeEventListener('visibilitychange', onVisible);
       clearInterval(statusTimer);
+      clearInterval(botTimer);
     };
   }, []);
 
