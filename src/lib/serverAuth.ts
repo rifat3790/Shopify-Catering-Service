@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { adminAuth } from './firebaseAdmin';
+import * as admin from 'firebase-admin';
+import './firebaseAdmin';
 import { connectToDatabase } from './mongodb';
 import User from './models/User';
 import { SUPER_ADMIN_EMAIL } from './types';
@@ -13,6 +14,26 @@ export interface Requester {
   dbId?: string;
 }
 
+/**
+ * ID-token verification only needs the Firebase project id (Google's public keys are fetched
+ * automatically) — no service-account private key. Using a dedicated app means sign-in checks keep
+ * working even if the admin credentials are missing, malformed or being rotated.
+ */
+const FIREBASE_PROJECT_ID =
+  process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'shopify-catering-service';
+
+function getVerifierAuth(): admin.auth.Auth | null {
+  try {
+    const name = 'id-token-verifier';
+    const existing = admin.apps.find((a) => a?.name === name);
+    const app = existing || admin.initializeApp({ projectId: FIREBASE_PROJECT_ID }, name);
+    return app.auth();
+  } catch (e) {
+    console.warn('ID token verifier init failed:', e);
+    return null;
+  }
+}
+
 // Small per-instance cache so every API call doesn't re-verify + re-query the role
 const requesterCache = new Map<string, { value: Requester; expires: number }>();
 const CACHE_MS = 60 * 1000;
@@ -24,13 +45,15 @@ const CACHE_MS = 60 * 1000;
 export async function getRequester(request: Request): Promise<Requester | null> {
   const header = request.headers.get('authorization') || '';
   const token = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
-  if (!token || !adminAuth) return null;
+  if (!token) return null;
+  const verifier = getVerifierAuth();
+  if (!verifier) return null;
 
   const cached = requesterCache.get(token);
   if (cached && cached.expires > Date.now()) return cached.value;
 
   try {
-    const decoded = await adminAuth.verifyIdToken(token);
+    const decoded = await verifier.verifyIdToken(token);
     const email = (decoded.email || '').toLowerCase().trim();
     let role: RequesterRole = 'user';
     let dbId: string | undefined;
@@ -61,7 +84,8 @@ export async function getRequester(request: Request): Promise<Requester | null> 
       for (const [k, v] of requesterCache) if (v.expires < now) requesterCache.delete(k);
     }
     return value;
-  } catch {
+  } catch (e: any) {
+    console.warn('ID token verification failed:', e?.code || e?.message);
     return null;
   }
 }

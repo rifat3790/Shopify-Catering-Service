@@ -189,41 +189,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.warn('Backend sync warning (using cached role):', e);
     }
 
-    // Local fallback preserving cached role - NEVER downgrade an admin to 'user'
-    let cachedRole: UserRole = 'user';
+    // Sync failed (network / server). Keep the last profile we got from the database —
+    // never overwrite the real name / balance with placeholders like "Member" / 0.
+    let cached: any = null;
     if (typeof window !== 'undefined') {
       try {
         const saved = localStorage.getItem('shopify_cached_user');
         if (saved) {
           const parsed = JSON.parse(saved);
-          if (parsed.role) cachedRole = parsed.role;
+          if (parsed && (parsed.uid === firebaseUser.uid || parsed.email?.toLowerCase() === firebaseUser.email?.toLowerCase())) {
+            cached = parsed;
+          }
         }
       } catch (e) {}
     }
 
-    const effectiveRole: UserRole = isSuper ? 'super_admin' : (tokenClaimRole || user?.role || cachedRole);
-    const fallbackUsername = '@' + (firebaseUser.email || 'member').split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '');
-    const fallbackName = firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Member';
-    const fallbackAvatar = firebaseUser.photoURL || `https://ui-avatars.com/api/?name=Member&background=047857&color=fff`;
+    const effectiveRole: UserRole = isSuper ? 'super_admin' : (tokenClaimRole || user?.role || cached?.role || 'user');
+    const emailPrefix = firebaseUser.email?.split('@')[0] || '';
+    const isPlaceholder = (n?: string | null) => !n || n.trim().toLowerCase() === 'member';
+    const pickName = [user?.name, cached?.name, user?.displayName, cached?.displayName, firebaseUser.displayName]
+      .find((n) => !isPlaceholder(n)) || emailPrefix || 'Member';
+    const fallbackAvatar = user?.avatar || cached?.avatar || firebaseUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(pickName)}&background=047857&color=fff`;
     const fallbackUser: AuthUser = {
       uid: firebaseUser.uid,
       email: firebaseUser.email,
-      displayName: fallbackName,
-      name: fallbackName,
-      username: fallbackUsername,
+      displayName: pickName,
+      name: pickName,
+      username: user?.username || cached?.username || ('@' + emailPrefix.toLowerCase().replace(/[^a-z0-9_]/g, '')),
       photoURL: fallbackAvatar,
       avatar: fallbackAvatar,
       role: effectiveRole,
-      status: isSuper ? 'approved' : (user?.status || 'pending'),
-      balance: user?.balance || 0,
-      currentDue: user?.currentDue || 0,
-      totalSpent: user?.totalSpent || 0,
-      department: user?.department || (isSuper ? 'Executive Management' : (effectiveRole === 'admin' ? 'Admin Team' : 'Shopify Member')),
-      phone: user?.phone || '',
+      status: isSuper ? 'approved' : (user?.status || cached?.status || 'pending'),
+      balance: user?.balance ?? cached?.balance ?? 0,
+      currentDue: user?.currentDue ?? cached?.currentDue ?? 0,
+      totalSpent: user?.totalSpent ?? cached?.totalSpent ?? 0,
+      department: user?.department || cached?.department || (isSuper ? 'Executive Management' : (effectiveRole === 'admin' ? 'Admin Team' : 'Shopify Member')),
+      phone: user?.phone || cached?.phone || '',
+      themeColor: user?.themeColor || cached?.themeColor,
+      customTheme: user?.customTheme || cached?.customTheme,
     };
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('shopify_cached_user', JSON.stringify(fallbackUser));
-    }
+    // Do not persist the fallback over a good cached profile
     return fallbackUser;
   };
 

@@ -221,6 +221,11 @@ export default function QuickOrderModal({
                 u.id === user?.uid
               );
               if (found) {
+                // Always use the member's current profile name from the database (reflects profile renames)
+                if (!editingOrder && found.name) {
+                  const selfFallbacks = ['', 'member', (user?.displayName || '').toLowerCase(), (user?.name || '').toLowerCase(), (user?.email || '').split('@')[0].toLowerCase()];
+                  setCustomerName(prev => (selfFallbacks.includes((prev || '').trim().toLowerCase()) ? found.name : prev));
+                }
                 if (found.balance !== undefined) setLiveBalance(Number(found.balance) || 0);
                 if (found.department) setDepartment(found.department);
                 if (found.avatar) setCustomerAvatar(found.avatar);
