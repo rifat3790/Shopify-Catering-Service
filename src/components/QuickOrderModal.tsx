@@ -35,6 +35,7 @@ const cashPresets = [20, 30, 50, 100, 200, 500, 1000];
 
 const DEFAULT_CATERING_DISHES: MenuItemData[] = [
   { _id: 'def-singara', name: 'Singara (সিঙ্গারা)', nameBn: 'সিঙ্গারা', price: 10, category: 'Refreshments', description: 'Crispy catering singara', descriptionBn: 'মচমচে সিঙ্গারা', imageUrl: '', isAvailable: true, popular: true },
+  { _id: 'def-small-singara', name: 'Small Singara (ছোট সিঙ্গারা)', nameBn: 'ছোট সিঙ্গারা', price: 5, category: 'Refreshments', description: 'Crispy small singara', descriptionBn: 'ছোট মচমচে সিঙ্গারা', imageUrl: '', isAvailable: true, popular: true },
   { _id: 'def-somocha', name: 'Somocha (সমুচা)', nameBn: 'সমুচা', price: 10, category: 'Refreshments', description: 'Fresh hot somocha', descriptionBn: 'গরম সমুচা', imageUrl: '', isAvailable: true, popular: true },
   { _id: 'def-dalsobji', name: 'Dal Sobji (ডাল সবজি)', nameBn: 'ডাল সবজি', price: 10, category: 'Refreshments', description: 'Fresh hot dal sobji', descriptionBn: 'ডাল সবজি', imageUrl: '', isAvailable: true, popular: true },
   { _id: 'def-porota', name: 'Porota (পরোটা)', nameBn: 'পরোটা', price: 10, category: 'Refreshments', description: 'Warm flaky porota', descriptionBn: 'গরম পরোটা', imageUrl: '', isAvailable: true, popular: true },
@@ -135,7 +136,8 @@ export default function QuickOrderModal({
 
         rawItems.forEach((it, idx) => {
           const cleanName = (it.name || '').toLowerCase().trim();
-          const matchedPreset = availablePresets.find((m) => {
+          const itBaseExact = cleanName.split('(')[0].trim();
+          const matchedPreset = availablePresets.find((m) => m.name.split('(')[0].toLowerCase().trim() === itBaseExact) || availablePresets.find((m) => {
             const mFull = m.name.toLowerCase().trim();
             const mBase = m.name.split('(')[0].toLowerCase().trim();
             const itBase = cleanName.split('(')[0].toLowerCase().trim();
@@ -251,7 +253,7 @@ export default function QuickOrderModal({
     if (qty > 0) {
       const sub = qty * item.price;
       calculatedBill += sub;
-      selectedItemsSummary.push(`${qty}x ${item.name.split(' ')[0]}`);
+      selectedItemsSummary.push(`${qty}x ${item.name.split('(')[0].trim()}`);
       itemsList.push({
         name: item.name,
         quantity: qty,
