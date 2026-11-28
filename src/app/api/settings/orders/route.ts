@@ -1,86 +1,11 @@
 import { NextResponse } from 'next/server';
+import { requireAdmin } from '@/lib/serverAuth';
 import { connectToDatabase } from '@/lib/mongodb';
 import Setting from '@/lib/models/Setting';
-import { SUPER_ADMIN_EMAIL } from '@/lib/dataStore';
-import { sendOrderClosedAndTableReport, getBangladeshTimeInfo, checkAndRunTelegramAutomations } from '@/lib/telegramService';
+import { sendOrderClosedAndTableReport, getBangladeshTimeInfo } from '@/lib/telegramService';
+import { OrderControlData, DEFAULT_ORDER_CONTROL, evaluateOrderAllowed } from '@/lib/orderControl';
 
-export interface OrderControlData {
-  ordersEnabled: boolean;
-  dailyCutoffTime: string; // "HH:mm" in 24hr format, e.g. "09:20"
-  cutoffEnabled: boolean;
-  noticeMessageBn?: string;
-  noticeMessageEn?: string;
-}
-
-const DEFAULT_SETTINGS: OrderControlData = {
-  ordersEnabled: true,
-  dailyCutoffTime: '09:20',
-  cutoffEnabled: true,
-  noticeMessageBn: 'প্রতিদিন সকাল ৯:২০ এর মধ্যে খাবার অর্ডার করতে হবে। এরপর অর্ডার স্বয়ংক্রিয়ভাবে বন্ধ হয়ে যাবে।',
-  noticeMessageEn: 'Catering orders must be placed by 09:20 AM daily.',
-};
-
-function evaluateOrderAllowed(settings: OrderControlData) {
-  if (!settings.ordersEnabled) {
-    return {
-      allowed: false,
-      reason: 'manual_disabled',
-      messageBn: 'অ্যাডমিন কর্তৃক খাবার অর্ডার সাময়িকভাবে বন্ধ রাখা হয়েছে।',
-      messageEn: 'Orders are temporarily disabled by the administration.'
-    };
-  }
-
-  if (!settings.cutoffEnabled) {
-    return {
-      allowed: true,
-      reason: 'unrestricted',
-      messageBn: 'অর্ডার গ্রহণ সক্রিয় রয়েছে।',
-      messageEn: 'Orders are currently open.'
-    };
-  }
-
-  // Get current time in Bangladesh (GMT+6)
-  // To be resilient in serverless environments, calculate BD time directly
-  const nowUtc = new Date();
-  const bdTime = new Date(nowUtc.getTime() + (6 * 60 + nowUtc.getTimezoneOffset()) * 60 * 1000);
-
-  const currentHours = bdTime.getHours();
-  const currentMinutes = bdTime.getMinutes();
-  const currentTotal = currentHours * 60 + currentMinutes;
-
-  const [rawH, rawM] = (settings.dailyCutoffTime || '09:20').split(':').map(Number);
-  const cutoffH = isNaN(rawH) ? 9 : rawH;
-  const cutoffM = isNaN(rawM) ? 20 : rawM;
-  const cutoffTotal = cutoffH * 60 + cutoffM;
-
-  const isAllowed = currentTotal <= cutoffTotal;
-  const remaining = Math.max(0, cutoffTotal - currentTotal);
-
-  // Format 12-hour string (e.g. 09:20 AM)
-  const ampm = cutoffH >= 12 ? 'PM' : 'AM';
-  const displayHours = (cutoffH % 12) || 12;
-  const displayTime = `${displayHours.toString().padStart(2, '0')}:${cutoffM.toString().padStart(2, '0')} ${ampm}`;
-
-  if (!isAllowed) {
-    return {
-      allowed: false,
-      reason: 'cutoff_passed',
-      cutoffTime: displayTime,
-      remainingMinutes: 0,
-      messageBn: `আজকের খাবার অর্ডারের নির্ধারিত সময় (${displayTime}) শেষ হয়ে গেছে। পরবর্তী দিনের জন্য অপেক্ষা করুন।`,
-      messageEn: `Daily order cutoff (${displayTime}) has passed. Orders are closed for today.`
-    };
-  }
-
-  return {
-    allowed: true,
-    reason: 'within_cutoff',
-    cutoffTime: displayTime,
-    remainingMinutes: remaining,
-    messageBn: `আজকের খাবার অর্ডার গ্রহণ চালু আছে (সময়সীমা: ${displayTime} পর্যন্ত)।`,
-    messageEn: `Orders are open until ${displayTime}.`
-  };
-}
+const DEFAULT_SETTINGS = DEFAULT_ORDER_CONTROL;
 
 export async function GET() {
   try {
@@ -103,10 +28,7 @@ export async function GET() {
         ? `Catering orders must be placed by ${displayTime} daily.`
         : currentSettings.noticeMessageEn;
 
-    // Trigger Telegram cutoff close report immediately if daily cutoff just passed!
-    if (evaluation.reason === 'cutoff_passed') {
-      await checkAndRunTelegramAutomations().catch(() => {});
-    }
+    // Telegram automations run from the server-side scheduler (/api/telegram/automate), not inside user polls.
 
     return NextResponse.json({
       success: true,
@@ -134,6 +56,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const __auth = await requireAdmin(request);
+  if (__auth instanceof NextResponse) return __auth;
+
   try {
     const body = await request.json();
     const { ordersEnabled, dailyCutoffTime, cutoffEnabled, noticeMessageBn, noticeMessageEn } = body;
@@ -177,13 +102,17 @@ export async function POST(request: Request) {
       // If orders JUST CLOSED (either manually disabled OR dailyCutoffTime changed so it's now past cutoff!),
       // IMMEDIATELY await sending Telegram Closed notification + today's full Order Table PNG!
       if (wasAllowed && !isNowAllowed) {
-        await Setting.findOneAndUpdate(
-          { key: 'telegram_settings' },
-          { $set: { 'value.lastCutoffReportDate': todayStr } }
-        ).catch(() => {});
-        await sendOrderClosedAndTableReport(false, todayStr).catch((err) =>
-          console.warn('Telegram close alert warning:', err)
-        );
+        // Atomic claim so a concurrent scheduler run cannot send the same report twice
+        const claimed = await Setting.findOneAndUpdate(
+          { key: 'telegram_settings', 'value.lastCutoffReportDate': { $ne: todayStr } },
+          { $set: { 'value.lastCutoffReportDate': todayStr } },
+          { new: true }
+        ).catch(() => null);
+        if (claimed) {
+          await sendOrderClosedAndTableReport(false, todayStr).catch((err) =>
+            console.warn('Telegram close alert warning:', err)
+          );
+        }
       } else if (!wasAllowed && isNowAllowed) {
         // Re-opened orders for today: clear cutoff lock so closing again later triggers fresh Telegram report
         await Setting.findOneAndUpdate(

@@ -153,9 +153,8 @@ function AdminPageContent() {
 
   const fetchAdminData = async () => {
     try {
-      const [ordRes, statRes, menuRes, userRes, resetRes] = await Promise.all([
+      const [ordRes, menuRes, userRes, resetRes] = await Promise.all([
         fetch('/api/orders'),
-        fetch('/api/stats'),
         fetch('/api/menu'),
         fetch('/api/users'),
         fetch('/api/auth/reset-password')
@@ -163,19 +162,13 @@ function AdminPageContent() {
 
       if (ordRes.ok) {
         const o = await ordRes.json();
-        if (o.success && o.data) setOrders(o.data);
         if (o.success && o.data) {
           setOrders(o.data);
           setClientCache('orders_list', o.data);
         }
       }
-      if (statRes.ok) {
-        const s = await statRes.json();
-        if (s.success && s.data) setStats(s.data);
-      }
       if (menuRes.ok) {
         const m = await menuRes.json();
-        if (m.success && m.data) setMenuItems(m.data);
         if (m.success && m.data) {
           setMenuItems(m.data);
           setClientCache('menu_items', m.data);
@@ -183,7 +176,6 @@ function AdminPageContent() {
       }
       if (userRes.ok) {
         const u = await userRes.json();
-        if (u.success && u.data) setMembers(u.data);
         if (u.success && u.data) {
           setMembers(u.data);
           setClientCache('members_list', u.data);
@@ -311,7 +303,7 @@ function AdminPageContent() {
   }, []);
 
   const handleUpdateStatus = async (id: string, newStatus: OrderData['status']) => {
-    setOrders(prev => prev.map(o => (o._id === id || o.orderNumber === id) ? { ...o, status: newStatus } : o));
+    setOrders(prev => prev.map(o => (o._id === id) ? { ...o, status: newStatus } : o));
     try {
       await fetch(`/api/orders/${id}`, {
         method: 'PUT',
@@ -333,8 +325,13 @@ function AdminPageContent() {
       highlightText: id,
       confirmText: language === 'bn' ? 'অর্ডার ডিলিট করুন' : 'Delete Order',
       onConfirm: async () => {
-        setOrders(prev => prev.filter(o => o._id !== id && o.orderNumber !== id));
-        await fetch(`/api/orders/${id}`, { method: 'DELETE' });
+        const res = await fetch(`/api/orders/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || json.success === false) {
+          toast.error(json.error || 'Failed to delete order', 'Delete Failed');
+          return;
+        }
+        setOrders(prev => prev.filter(o => o._id !== id));
         clearClientCache();
         toast.success(language === 'bn' ? 'অর্ডার ডিলিট হয়েছে' : 'Order deleted successfully', 'Deleted');
         fetchAdminData();
@@ -1246,11 +1243,15 @@ function AdminPageContent() {
         isOpen={isOrderModalOpen}
         onClose={() => setIsOrderModalOpen(false)}
         onSubmit={async (data) => {
-          await fetch('/api/orders', {
+          const res = await fetch('/api/orders', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data),
           });
+          const json = await res.json().catch(() => ({}));
+          if (!res.ok || !json.success) {
+            throw new Error(json.error || 'Failed to place order');
+          }
           fetchAdminData();
         }}
       />

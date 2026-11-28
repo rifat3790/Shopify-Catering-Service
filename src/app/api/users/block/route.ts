@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
+import { requireAdmin } from '@/lib/serverAuth';
 import { toggleBlockUser } from '@/lib/dataStore';
 
 export async function POST(request: Request) {
+  const __auth = await requireAdmin(request);
+  if (__auth instanceof NextResponse) return __auth;
+
   try {
     const body = await request.json();
     const { currentUserId, targetUserId } = body;

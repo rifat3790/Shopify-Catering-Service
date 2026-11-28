@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requireAdmin } from '@/lib/serverAuth';
 import {
   getTelegramSettings,
   saveTelegramSettings,
@@ -10,7 +11,10 @@ import {
 } from '@/lib/telegramService';
 import { getDailyDutyForDate } from '@/lib/dataStore';
 
-export async function GET() {
+export async function GET(request: Request) {
+  const __auth = await requireAdmin(request);
+  if (__auth instanceof NextResponse) return __auth;
+
   try {
     const settings = await getTelegramSettings();
     return NextResponse.json(
@@ -26,6 +30,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const __auth = await requireAdmin(request);
+  if (__auth instanceof NextResponse) return __auth;
+
   try {
     const body = await request.json();
     const { actionType, settings } = body;
@@ -74,8 +81,8 @@ export async function POST(request: Request) {
         id: 'test-duty',
         date: todayStr,
         assignedUserId: 'sample',
-        assignedUserName: body.sampleName || 'Md Refayet Hossen',
-        assignedUserEmail: 'mdrifayethossen@gmail.com',
+        assignedUserName: body.sampleName || ((__auth as any).email || 'admin').split('@')[0],
+        assignedUserEmail: (__auth as any).email || '',
         assignedByName: 'Super Admin',
         instructions: 'Collect payments, purchase fresh snacks & deliver refreshments to team.',
         status: 'assigned' as const,

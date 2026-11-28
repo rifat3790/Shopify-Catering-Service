@@ -630,17 +630,19 @@ function UserDashboardContent() {
         isOpen={isOrderModalOpen}
         onClose={() => setIsOrderModalOpen(false)}
         onSubmit={async (data) => {
-          await fetch('/api/orders', {
+          const res = await fetch('/api/orders', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               ...data,
               customerName: data.customerName || user?.displayName || user?.name || 'Member',
-              customerEmail: user?.email || '',
-              userId: user?.uid || '',
               customerAvatar: data.customerAvatar || user?.photoURL || '',
             }),
           });
+          const json = await res.json().catch(() => ({}));
+          if (!res.ok || !json.success) {
+            throw new Error(json.error || 'Failed to place order');
+          }
           await refreshUser();
           await loadUserData();
         }}

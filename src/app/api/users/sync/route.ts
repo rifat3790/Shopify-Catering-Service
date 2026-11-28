@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getRequester, isAdminRole, isSelf, unauthorized, forbidden } from '@/lib/serverAuth';
 import { syncUser } from '@/lib/dataStore';
 
 export async function POST(request: Request) {
@@ -8,6 +9,13 @@ export async function POST(request: Request) {
 
     if (!email) {
       return NextResponse.json({ success: false, error: 'Email is required' }, { status: 400 });
+    }
+
+    // Only the signed-in user may sync their own account; admins may add / revive members
+    const who = await getRequester(request);
+    if (!who) return unauthorized();
+    if (!isAdminRole(who) && !isSelf(who, email, uid)) {
+      return forbidden('You can only sync your own account.');
     }
 
     const user = await syncUser({ uid, name, email, avatar, allowRevive });

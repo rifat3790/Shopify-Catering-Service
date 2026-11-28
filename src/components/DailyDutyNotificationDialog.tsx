@@ -21,75 +21,65 @@ export default function DailyDutyNotificationDialog() {
   const { language } = useLanguage();
   const [duty, setDuty] = useState<DailyDutyAssignment | null>(null);
   const [isOpen, setIsOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  // Duty is auto-accepted when an admin assigns it. This dialog only informs the member,
+  // once per assignment (keyed by date + duty id + assignment time), via popup + browser notification.
+  const seenKeyFor = (d: DailyDutyAssignment, email: string) =>
+    `duty_seen_${d.date}_${d.id}_${d.updatedAt || ''}_${email.toLowerCase()}`;
+
+  const safeGet = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
+  const safeSet = (k: string) => { try { localStorage.setItem(k, '1'); } catch { } };
 
   useEffect(() => {
     if (!user || !user.email) return;
+    const email = user.email.toLowerCase().trim();
+    let cancelled = false;
 
-    // Get today's Bangladesh calendar date YYYY-MM-DD
-    const today = getBangladeshTodayDateString();
-
-    // Check if dismissed in this browser session today
-    const sessionDismissKey = `duty_dismissed_${today}_${user.email.toLowerCase()}`;
-    if (sessionStorage.getItem(sessionDismissKey)) {
-      return;
-    }
-
-    // Fetch today's duty
-    fetch(`/api/duty?date=${today}`)
-      .then(res => res.json())
-      .then(json => {
-        if (json.success && json.data) {
-          const todayDuty: DailyDutyAssignment = json.data;
-          const userEmail = user.email?.toLowerCase().trim();
-          const assignedEmail = todayDuty.assignedUserEmail?.toLowerCase().trim();
-          const assignedId = todayDuty.assignedUserId;
-
-          // Check if today's duty is assigned to the current user
-          if (assignedEmail === userEmail || assignedId === user.uid) {
-            setDuty(todayDuty);
-            // Open modal if not acknowledged yet, or show once per session
-            if (!todayDuty.acknowledged) {
-              setIsOpen(true);
-            }
-          }
-        }
-      })
-      .catch(() => {});
-  }, [user]);
-
-  const handleAcceptDuty = async () => {
-    if (!duty) return;
-    setIsSubmitting(true);
-    try {
-      await fetch('/api/duty', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          dutyId: duty.id,
-          date: duty.date,
-          status: 'in_progress',
-          acknowledged: true,
-        }),
-      });
-
+    const check = () => {
       const today = getBangladeshTodayDateString();
-      if (user?.email) {
-        sessionStorage.setItem(`duty_dismissed_${today}_${user.email.toLowerCase()}`, 'true');
-      }
-      setIsOpen(false);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+      fetch(`/api/duty?date=${today}`, { cache: 'no-store' })
+        .then(res => res.json())
+        .then(json => {
+          if (cancelled || !json.success || !json.data) return;
+          const todayDuty: DailyDutyAssignment = json.data;
+          const assignedEmail = todayDuty.assignedUserEmail?.toLowerCase().trim();
+          if (assignedEmail !== email && todayDuty.assignedUserId !== user.uid) return;
+
+          const key = seenKeyFor(todayDuty, email);
+          if (safeGet(key)) return;
+          safeSet(key);
+          setDuty(todayDuty);
+          setIsOpen(true);
+
+          // Desktop / mobile browser notification (if the user allowed notifications)
+          try {
+            if (typeof Notification !== 'undefined') {
+              const show = () => new Notification(
+                language === 'bn' ? 'আজ আপনার ক্যাটারিং দায়িত্ব' : "You're on catering duty today",
+                {
+                  body: language === 'bn'
+                    ? `${todayDuty.date} তারিখের ক্যাটারিং দায়িত্বের জন্য আপনাকে নির্বাচন করা হয়েছে।`
+                    : `You have been selected for catering duty on ${todayDuty.date}.`,
+                  icon: '/favicon.ico',
+                  tag: key,
+                }
+              );
+              if (Notification.permission === 'granted') show();
+              else if (Notification.permission === 'default') {
+                Notification.requestPermission().then(p => { if (p === 'granted') show(); }).catch(() => { });
+              }
+            }
+          } catch { }
+        })
+        .catch(() => { });
+    };
+
+    check();
+    const timer = setInterval(check, 60000);
+    return () => { cancelled = true; clearInterval(timer); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.email, user?.uid]);
 
   const handleDismiss = () => {
-    const today = getBangladeshTodayDateString();
-    if (user?.email) {
-      sessionStorage.setItem(`duty_dismissed_${today}_${user.email.toLowerCase()}`, 'true');
-    }
     setIsOpen(false);
   };
 
@@ -201,24 +191,11 @@ export default function DailyDutyNotificationDialog() {
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={handleAcceptDuty}
-            disabled={isSubmitting}
+            onClick={handleDismiss}
             className="flex-1 py-3 px-4 rounded-2xl bg-gradient-to-r from-amber-500 to-emerald-500 hover:from-amber-400 hover:to-emerald-400 text-slate-950 font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
           >
             <CheckCircle2 className="w-4 h-4" />
-            <span>
-              {isSubmitting 
-                ? (language === 'bn' ? 'প্রসেসিং...' : 'Accepting...') 
-                : (language === 'bn' ? 'আমি দায়িত্ব গ্রহণ করলাম (Accept Duty)' : 'I Accept This Duty')}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={handleDismiss}
-            className="py-3 px-4 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs transition-colors"
-          >
-            {language === 'bn' ? 'পরে দেখব' : 'Dismiss'}
+            <span>{language === 'bn' ? 'ঠিক আছে (OK, Got it)' : 'OK, Got it'}</span>
           </button>
         </div>
 

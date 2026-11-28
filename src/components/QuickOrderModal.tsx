@@ -29,7 +29,12 @@ interface QuickOrderModalProps {
   onSubmit: (orderData: Partial<OrderData>) => Promise<void>;
   prefillCustomer?: string;
   editingOrder?: OrderData | null;
+  /** Optional preset quantities keyed by item name (e.g. from the menu page cart). */
+  initialQuantities?: Record<string, number>;
 }
+
+/** Stable quantity key for a menu item: base English name, lowercased (independent of DB ids). */
+const itemKey = (name: string) => (name || '').split('(')[0].trim().toLowerCase();
 
 const cashPresets = [20, 30, 50, 100, 200, 500, 1000];
 
@@ -54,8 +59,14 @@ export default function QuickOrderModal({
   onSubmit,
   prefillCustomer,
   editingOrder,
+  initialQuantities,
 }: QuickOrderModalProps) {
   const { user, refreshUser } = useAuth();
+  // Read the latest user through a ref so profile refreshes don't reset an open form
+  const userRef = React.useRef(user);
+  userRef.current = user;
+  const initialQtyRef = React.useRef(initialQuantities);
+  initialQtyRef.current = initialQuantities;
   const { language } = useLanguage();
   const { toast } = useToast();
   const [customerName, setCustomerName] = useState(prefillCustomer || user?.displayName || user?.name || '');
@@ -92,7 +103,11 @@ export default function QuickOrderModal({
   const isOrderAllowedForMe = Boolean(editingOrder) || isSuperOrAdmin || (orderControl ? orderControl.isOrderAllowedNow : true);
 
   useEffect(() => {
+    const user = userRef.current;
     if (isOpen) {
+      setNewCustomName('');
+      setNewCustomPrice(0);
+      setNewCustomQty(1);
       if (editingOrder) {
         setCustomerName(editingOrder.customerName || '');
         setCustomerAvatar(editingOrder.customerAvatar || user?.photoURL || user?.avatar || '');
@@ -115,42 +130,34 @@ export default function QuickOrderModal({
         const parsedQty: Record<string, number> = {};
         const parsedCustom: CustomItem[] = [];
 
-        const rawItems =
-          editingOrder.items && editingOrder.items.length > 0
-            ? editingOrder.items
-            : (editingOrder.itemsText || '')
-                .split(/[+,]/)
-                .map((seg) => seg.trim())
-                .filter(Boolean)
-                .map((seg) => {
-                  const m = seg.match(/^(\d+)\s*[x×]\s*(.+)$/i);
-                  const qty = m ? Math.max(1, Number(m[1])) : 1;
-                  const itemName = (m ? m[2] : seg).trim();
-                  return {
-                    name: itemName,
-                    quantity: qty,
-                    unitPrice: editingOrder.totalBill && editingOrder.totalBill > 0 ? Math.round(editingOrder.totalBill / qty) : 10,
-                    subtotal: 0,
-                  };
-                });
+        const hasStructuredItems = Boolean(editingOrder.items && editingOrder.items.length > 0);
+        const textSegments = hasStructuredItems
+          ? []
+          : (editingOrder.itemsText || '').split(/[+,]/).map((seg) => seg.trim()).filter(Boolean);
+        const rawItems: Array<{ name: string; quantity: number; unitPrice?: number }> = hasStructuredItems
+          ? (editingOrder.items as any[])
+          : textSegments.map((seg) => {
+              const m = seg.match(/^(\d+)\s*(?:[x×]|ta)\s*(.+)$/i);
+              const qty = m ? Math.max(1, Number(m[1])) : 1;
+              const itemName = (m ? m[2] : seg).trim();
+              const preset = availablePresets.find((p) => itemKey(p.name) === itemKey(itemName));
+              // Legacy text-only orders: prefer the preset price; only a single-item order can derive price from the bill
+              const unitPrice = preset
+                ? preset.price
+                : textSegments.length === 1 && Number(editingOrder.totalBill) > 0
+                ? Math.round(Number(editingOrder.totalBill) / qty)
+                : 10;
+              return { name: itemName, quantity: qty, unitPrice };
+            });
 
         rawItems.forEach((it, idx) => {
-          const cleanName = (it.name || '').toLowerCase().trim();
-          const itBaseExact = cleanName.split('(')[0].trim();
-          const matchedPreset = availablePresets.find((m) => m.name.split('(')[0].toLowerCase().trim() === itBaseExact) || availablePresets.find((m) => {
-            const mFull = m.name.toLowerCase().trim();
-            const mBase = m.name.split('(')[0].toLowerCase().trim();
-            const itBase = cleanName.split('(')[0].toLowerCase().trim();
-            return (
-              mFull === cleanName ||
-              mBase === itBase ||
-              mFull.includes(itBase) ||
-              itBase.includes(mBase)
-            );
-          });
+          const matchedPreset = availablePresets.find((m) => itemKey(m.name) === itemKey(it.name));
+          const storedPrice = Number(it.unitPrice);
+          // Keep historical prices: if the stored unit price differs from today's menu price, keep it as a custom line
+          const priceMatches = !storedPrice || (matchedPreset && storedPrice === Number(matchedPreset.price));
 
-          if (matchedPreset) {
-            const key = matchedPreset._id || matchedPreset.name;
+          if (matchedPreset && priceMatches) {
+            const key = itemKey(matchedPreset.name);
             parsedQty[key] = (parsedQty[key] || 0) + (Number(it.quantity) || 1);
           } else if (it.name) {
             parsedCustom.push({
@@ -166,12 +173,19 @@ export default function QuickOrderModal({
         setCustomItems(parsedCustom);
         setShowAddCustom(parsedCustom.length > 0);
       } else {
-        setItemQuantities({});
+        const seeded: Record<string, number> = {};
+        Object.entries(initialQtyRef.current || {}).forEach(([name, qty]) => {
+          if (Number(qty) > 0) seeded[itemKey(name)] = (seeded[itemKey(name)] || 0) + Number(qty);
+        });
+        setItemQuantities(seeded);
         setCustomItems([]);
         setShowAddCustom(false);
         setPaidAmount(0);
         setPaymentMethod('Cash');
         setNotes('');
+        setDepositChangeToWallet(true);
+        setOrderStatusOverride('Auto');
+        setDepartment((user as any)?.department || 'Shopify Team');
         if (prefillCustomer) {
           setCustomerName(prefillCustomer);
         } else if (user?.displayName || user?.name || user?.email) {
@@ -236,7 +250,8 @@ export default function QuickOrderModal({
         })
         .catch(() => { });
     }
-  }, [isOpen, prefillCustomer, editingOrder, user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, prefillCustomer, editingOrder?._id]);
 
   if (!isOpen) return null;
 
@@ -245,11 +260,13 @@ export default function QuickOrderModal({
   const selectedItemsSummary: string[] = [];
   const itemsList: Array<{ name: string; quantity: number; unitPrice: number; subtotal: number }> = [];
 
-  const effectiveMenuItems = menuItems.length > 0 ? menuItems : DEFAULT_CATERING_DISHES;
+  const effectiveMenuItems = (menuItems.length > 0 ? menuItems : DEFAULT_CATERING_DISHES).filter(
+    (m) => m.isAvailable !== false || (itemQuantities[itemKey(m.name)] || 0) > 0
+  );
 
   // 1. Presets from dynamic menuItems
   effectiveMenuItems.forEach((item) => {
-    const qty = itemQuantities[item._id || item.name] || 0;
+    const qty = itemQuantities[itemKey(item.name)] || 0;
     if (qty > 0) {
       const sub = qty * item.price;
       calculatedBill += sub;
@@ -278,7 +295,7 @@ export default function QuickOrderModal({
     }
   });
 
-  const changeDue = paidAmount > 0 ? paidAmount - calculatedBill : 0;
+  const changeDue = paymentMethod === 'Wallet' ? 0 : paidAmount > 0 ? paidAmount - calculatedBill : 0;
 
   const handleItemCount = (id: string, delta: number) => {
     setItemQuantities((prev) => {
@@ -378,12 +395,46 @@ export default function QuickOrderModal({
       return;
     }
 
+    // Wallet orders are always charged the full bill from the wallet
     const effectivePaid =
-      editingOrder && !isSuperOrAdmin
-        ? paymentMethod === 'Wallet'
-          ? effectiveBill
-          : Number(editingOrder.paidAmount) || 0
-        : Number(paidAmount) || (paymentMethod === 'Wallet' ? effectiveBill : 0);
+      paymentMethod === 'Wallet'
+        ? effectiveBill
+        : editingOrder && !isSuperOrAdmin
+        ? Number(editingOrder.paidAmount) || 0
+        : Number(paidAmount) || 0;
+
+    // Resolve which account this order belongs to (an admin may order for another member)
+    const nameKey = finalCust.trim().toLowerCase();
+    const selfNames = [user?.displayName, user?.name, user?.email?.split('@')[0]]
+      .filter(Boolean)
+      .map((n) => String(n).trim().toLowerCase());
+    const matchedMember = allMembers.find(
+      (m: any) =>
+        (m.name || '').trim().toLowerCase() === nameKey ||
+        (m.email || '').toLowerCase() === nameKey ||
+        (m.id && m.id === finalCust.trim())
+    );
+    let resolvedEmail = '';
+    let resolvedUserId = '';
+    if (editingOrder) {
+      resolvedEmail = editingOrder.customerEmail || '';
+      resolvedUserId = editingOrder.userId || '';
+      // Admin re-assigned the order to a different person
+      if (isSuperOrAdmin && nameKey !== (editingOrder.customerName || '').trim().toLowerCase()) {
+        resolvedEmail = matchedMember?.email || '';
+        resolvedUserId = matchedMember?.id || '';
+      }
+    } else if (!isSuperOrAdmin) {
+      // Regular members can only place orders on their own account
+      resolvedEmail = user?.email || '';
+      resolvedUserId = user?.uid || '';
+    } else if (matchedMember) {
+      resolvedEmail = matchedMember.email || '';
+      resolvedUserId = matchedMember.id || '';
+    } else if (selfNames.includes(nameKey)) {
+      resolvedEmail = user?.email || '';
+      resolvedUserId = user?.uid || '';
+    }
 
     const effChange = paymentMethod === 'Wallet' ? 0 : effectivePaid - effectiveBill;
     const willDepositChange = Boolean(paymentMethod === 'Cash' && depositChangeToWallet && effChange > 0);
@@ -393,8 +444,8 @@ export default function QuickOrderModal({
       const payload: Partial<OrderData> = {
         customerName: finalCust,
         customerAvatar: finalAvatar,
-        customerEmail: editingOrder?.customerEmail ?? (user?.email || ''),
-        userId: editingOrder?.userId ?? (user?.uid || ''),
+        customerEmail: resolvedEmail,
+        userId: resolvedUserId,
         customerDepartment: department,
         itemsText: effectiveSummary.join(' + ') || (language === 'bn' ? 'ক্যাটারিং খাবার অর্ডার' : 'Catering Order'),
         items: effectiveItemsList,
@@ -738,7 +789,7 @@ export default function QuickOrderModal({
             {/* Catalog Grid (Always Active & Interactive for Multi-Item Selection) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-56 overflow-y-auto pr-1">
               {effectiveMenuItems.map((item) => {
-                const count = itemQuantities[item._id || item.name] || 0;
+                const count = itemQuantities[itemKey(item.name)] || 0;
                 return (
                   <div
                     key={item._id || item.name}
@@ -762,7 +813,7 @@ export default function QuickOrderModal({
                     <div className="flex items-center gap-1.5 shrink-0">
                       <button
                         type="button"
-                        onClick={() => handleItemCount(item._id || item.name, -1)}
+                        onClick={() => handleItemCount(itemKey(item.name), -1)}
                         className="w-7 h-7 rounded-lg bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 flex items-center justify-center transition-colors font-bold"
                       >
                         <Minus className="w-3.5 h-3.5" />
@@ -772,13 +823,13 @@ export default function QuickOrderModal({
                         min="0"
                         max="999"
                         value={count === 0 ? '' : count}
-                        onChange={(e) => handleSetItemCount(item._id || item.name, Math.max(0, parseInt(e.target.value) || 0))}
+                        onChange={(e) => handleSetItemCount(itemKey(item.name), Math.max(0, parseInt(e.target.value) || 0))}
                         placeholder="0"
                         className="w-12 h-7 text-center bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:border-amber-400 rounded-lg text-xs font-mono font-bold text-slate-900 dark:text-white outline-none"
                       />
                       <button
                         type="button"
-                        onClick={() => handleItemCount(item._id || item.name, 1)}
+                        onClick={() => handleItemCount(itemKey(item.name), 1)}
                         className="w-7 h-7 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold flex items-center justify-center transition-colors shadow-xs"
                       >
                         <Plus className="w-3.5 h-3.5 text-slate-950" />
@@ -843,8 +894,8 @@ export default function QuickOrderModal({
                     type="number"
                     min="0"
                     step="any"
-                    disabled={Boolean(editingOrder && !isSuperOrAdmin)}
-                    value={paidAmount || ''}
+                    disabled={Boolean((editingOrder && !isSuperOrAdmin) || paymentMethod === 'Wallet')}
+                    value={(paymentMethod === 'Wallet' ? calculatedBill : paidAmount) || ''}
                     onChange={(e) => setPaidAmount(Number(e.target.value))}
                     placeholder="0.00"
                     className="w-full pl-8 pr-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-sm font-mono text-teal-700 dark:text-teal-300 font-bold focus:outline-none focus:border-amber-400 transition-colors disabled:opacity-65 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"

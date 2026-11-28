@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getRequester, isAdminRole, isSelf, unauthorized, forbidden } from '@/lib/serverAuth';
 import { updateUserProfile, getAllUsers } from '@/lib/dataStore';
 
 export async function GET(request: Request) {
@@ -34,6 +35,12 @@ export async function POST(request: Request) {
         { success: false, error: 'userId or email is required to update profile' },
         { status: 400 }
       );
+    }
+
+    const who = await getRequester(request);
+    if (!who) return unauthorized();
+    if (!isAdminRole(who) && !isSelf(who, userId, email)) {
+      return forbidden('You can only edit your own profile.');
     }
 
     const updates: any = {};

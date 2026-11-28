@@ -368,7 +368,7 @@ export async function generateOrdersTablePngBuffer(
             color: '#64748b',
           }}
         >
-          <span>Shopify Catering Service  •  https://shopify-catering-service.vercel.app/</span>
+          <span>{`Shopify Catering Service  •  ${(process.env.NEXT_PUBLIC_BASE_URL || 'https://shopify-catering-service.vercel.app').replace(/\/+$/, '')}/`}</span>
           <span>Automated Enterprise Ledger Snapshot</span>
         </div>
       </div>

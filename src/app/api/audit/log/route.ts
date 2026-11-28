@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
+import { requireAdmin, requireUser } from '@/lib/serverAuth';
 import { recordAuditLog, getAuditLogs, clearAuditLogs } from '@/lib/dataStore';
 
 export async function POST(request: Request) {
+  const __auth = await requireUser(request);
+  if (__auth instanceof NextResponse) return __auth;
+
   try {
     const body = await request.json();
     const { userId, userName, userEmail, userAvatar, userRole, path, pageTitle, action, details, device } = body;
@@ -34,6 +38,9 @@ export async function POST(request: Request) {
 }
 
 export async function GET(request: Request) {
+  const __auth = await requireAdmin(request);
+  if (__auth instanceof NextResponse) return __auth;
+
   try {
     const { searchParams } = new URL(request.url);
     const limit = Number(searchParams.get('limit')) || 150;
@@ -68,7 +75,10 @@ export async function GET(request: Request) {
   }
 }
 
-export async function DELETE() {
+export async function DELETE(request: Request) {
+  const __auth = await requireAdmin(request);
+  if (__auth instanceof NextResponse) return __auth;
+
   try {
     await clearAuditLogs();
     return NextResponse.json({ success: true, message: 'Audit logs cleared' });

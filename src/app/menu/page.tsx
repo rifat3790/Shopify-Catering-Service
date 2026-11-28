@@ -108,7 +108,7 @@ function MenuPageContent() {
 
   const totalCartCount = Object.values(cart).reduce((a, b) => a + b, 0);
   const totalCartPrice = Object.entries(cart).reduce((sum, [id, qty]) => {
-    const item = menuItems.find((m) => m._id === id || m.name.includes(id));
+    const item = menuItems.find((m) => (m._id || m.name) === id);
     return sum + (item ? item.price * qty : 0);
   }, 0);
 
@@ -564,31 +564,27 @@ function MenuPageContent() {
       <QuickOrderModal
         isOpen={isOrderModalOpen}
         onClose={() => setIsOrderModalOpen(false)}
+        initialQuantities={Object.fromEntries(
+          Object.entries(cart).map(([id, qty]) => {
+            const item = menuItems.find((m) => (m._id || m.name) === id);
+            return [item ? item.name : id, qty];
+          })
+        )}
         onSubmit={async (data) => {
-          try {
-            const res = await fetch('/api/orders', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                ...data,
-                customerName: data.customerName || user?.displayName || user?.name || 'User',
-                customerEmail: user?.email || '',
-                customerAvatar: data.customerAvatar || user?.photoURL || '',
-                userId: user?.uid || '',
-              }),
-            });
-            if (res.ok) {
-              setCart({});
-              toast.success(
-                language === 'bn' ? 'অর্ডার সফলভাবে গ্রহণ করা হয়েছে!' : 'Order confirmed successfully!',
-                'Order Placed 🎉'
-              );
-            } else {
-              toast.error('Could not submit order', 'Error');
-            }
-          } catch (e: any) {
-            toast.error(e.message || 'Error submitting order', 'Error');
+          const res = await fetch('/api/orders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ...data,
+              customerName: data.customerName || user?.displayName || user?.name || 'User',
+              customerAvatar: data.customerAvatar || user?.photoURL || '',
+            }),
+          });
+          const json = await res.json().catch(() => ({}));
+          if (!res.ok || !json.success) {
+            throw new Error(json.error || 'Could not submit order');
           }
+          setCart({});
         }}
       />
     </div>

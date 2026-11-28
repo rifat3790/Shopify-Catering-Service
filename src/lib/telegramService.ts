@@ -3,11 +3,12 @@ import Setting from './models/Setting';
 import { getAllOrders } from './dataStore';
 import { DailyDutyAssignment, OrderData } from './types';
 import { generateOrdersTablePngBuffer } from './telegramTableGenerator';
+import DutyAssignment from './models/DutyAssignment';
 
 export const DEFAULT_TELEGRAM_BOT_TOKEN =
-  process.env.TELEGRAM_BOT_TOKEN || '9227851975:AAHTo88AtVR3BJYil_rA4Xv9qjIMvRBwdkY';
+  process.env.TELEGRAM_BOT_TOKEN || ''; // real token lives in env or the DB settings — never in source
 
-export const DEFAULT_WEBSITE_URL = 'https://shopify-catering-service.vercel.app/';
+export const DEFAULT_WEBSITE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://shopify-catering-service.vercel.app/';
 
 export interface TelegramGroupTarget {
   chatId: string;
@@ -83,7 +84,8 @@ export async function getTelegramSettings(): Promise<TelegramSettingsData> {
           ...val,
           botToken: val.botToken || DEFAULT_TELEGRAM_BOT_TOKEN,
           websiteUrl: val.websiteUrl || DEFAULT_WEBSITE_URL,
-          groups: Array.isArray(val.groups) && val.groups.length > 0 ? val.groups : DEFAULT_TELEGRAM_SETTINGS.groups,
+          // An empty list means the admin removed all groups — don't resurrect the default group
+          groups: Array.isArray(val.groups) ? val.groups : DEFAULT_TELEGRAM_SETTINGS.groups,
           logs: Array.isArray(val.logs) ? val.logs : [],
         };
       }
@@ -94,46 +96,50 @@ export async function getTelegramSettings(): Promise<TelegramSettingsData> {
   return { ...DEFAULT_TELEGRAM_SETTINGS };
 }
 
+// Fields an admin may change. Automation locks (lastMorningAlertDate / lastCutoffReportDate) are
+// never written from here, so a panel save can't wipe them and cause duplicate alerts.
+const EDITABLE_TELEGRAM_FIELDS: (keyof TelegramSettingsData)[] = [
+  'botToken',
+  'botEnabled',
+  'groups',
+  'websiteUrl',
+  'morningAlertEnabled',
+  'morningAlertTime',
+  'dutyAlertEnabled',
+  'cutoffAlertEnabled',
+  'sendTableImageOnClose',
+];
+
 export async function saveTelegramSettings(
   updates: Partial<TelegramSettingsData>
 ): Promise<TelegramSettingsData> {
-  const current = await getTelegramSettings();
-  const next: TelegramSettingsData = {
-    ...current,
-    ...updates,
-    botToken: (updates.botToken ?? current.botToken) || DEFAULT_TELEGRAM_BOT_TOKEN,
-    websiteUrl: (updates.websiteUrl ?? current.websiteUrl) || DEFAULT_WEBSITE_URL,
-    groups: updates.groups !== undefined ? updates.groups : current.groups,
-    logs: updates.logs !== undefined ? updates.logs.slice(0, 30) : current.logs,
-  };
-
-  try {
-    await connectToDatabase();
-    if (Setting) {
-      await Setting.findOneAndUpdate(
-        { key: 'telegram_settings' },
-        { $set: { value: next } },
-        { upsert: true, new: true }
-      );
-    }
-  } catch (err) {
-    console.warn('saveTelegramSettings error:', err);
+  const $set: Record<string, any> = {};
+  for (const k of EDITABLE_TELEGRAM_FIELDS) {
+    const v = (updates as any)[k];
+    if (v === undefined) continue;
+    if (k === 'botToken' && !String(v || '').trim()) continue; // never clear the token with an empty value
+    $set[`value.${k}`] = v;
   }
-  return next;
+  if (updates.logs !== undefined) $set['value.logs'] = updates.logs.slice(0, 30);
+
+  await connectToDatabase();
+  if (Setting && Object.keys($set).length > 0) {
+    await Setting.findOneAndUpdate({ key: 'telegram_settings' }, { $set }, { upsert: true, new: true });
+  }
+  return getTelegramSettings();
 }
 
 async function appendTelegramLog(entry: Omit<TelegramLogEntry, 'id' | 'timestamp'>) {
   try {
-    const current = await getTelegramSettings();
     const newEntry: TelegramLogEntry = {
       ...entry,
       id: `tglog-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       timestamp: new Date().toISOString(),
     };
-    const nextLogs = [newEntry, ...(current.logs || [])].slice(0, 30);
-    await Setting?.findOneAndUpdate(
+    // Atomic push: concurrent sends no longer overwrite each other's log entries
+    await Setting?.updateOne(
       { key: 'telegram_settings' },
-      { $set: { 'value.logs': nextLogs } }
+      { $push: { 'value.logs': { $each: [newEntry], $position: 0, $slice: 30 } } }
     );
   } catch (e) {}
 }
@@ -152,6 +158,7 @@ export async function testTelegramBotToken(botToken: string) {
   const res = await fetch(`https://api.telegram.org/bot${botToken}/getMe`, {
     method: 'GET',
     cache: 'no-store',
+    signal: AbortSignal.timeout(15000),
   });
   return res.json();
 }
@@ -164,6 +171,7 @@ export async function sendTelegramTextMessage(
   try {
     const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       method: 'POST',
+      signal: AbortSignal.timeout(15000),
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         chat_id: chatId,
@@ -180,6 +188,7 @@ export async function sendTelegramTextMessage(
       await migrateGroupChatIdIfNeeded(chatId, migratedId);
       const retryRes = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: 'POST',
+        signal: AbortSignal.timeout(15000),
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           chat_id: migratedId,
@@ -226,6 +235,7 @@ export async function sendTelegramPhotoMessage(
 
     const res = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
       method: 'POST',
+      signal: AbortSignal.timeout(30000),
       body: buildForm(chatId),
     });
     const data = await res.json();
@@ -235,6 +245,7 @@ export async function sendTelegramPhotoMessage(
       await migrateGroupChatIdIfNeeded(chatId, migratedId);
       const retryRes = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
         method: 'POST',
+        signal: AbortSignal.timeout(30000),
         body: buildForm(migratedId),
       });
       const retryData = await retryRes.json();
@@ -413,11 +424,11 @@ export async function sendOrderClosedAndTableReport(
   const { todayStr } = getBangladeshTimeInfo();
   const targetDate = customDateLabel || todayStr;
   const allOrders = await getAllOrders();
-  const todaysOrders = getTodaysOrdersBDT(allOrders, targetDate);
+  const todaysOrders = getTodaysOrdersBDT(allOrders, targetDate).filter((o) => o.status !== 'Cancelled');
 
   const totalBill = todaysOrders.reduce((s, o) => s + (Number(o.totalBill) || 0), 0);
-  const totalPaid = todaysOrders.reduce((s, o) => s + (Number(o.paidAmount) || 0), 0);
-  const totalDue = todaysOrders.reduce((s, o) => s + (o.changeDue < 0 ? Math.abs(o.changeDue) : 0), 0);
+  const totalPaid = todaysOrders.reduce((s, o) => s + Math.min(Number(o.paidAmount) || 0, Number(o.totalBill) || 0), 0);
+  const totalDue = todaysOrders.reduce((s, o) => s + (o.paymentMethod !== 'Wallet' && o.changeDue < 0 ? Math.abs(o.changeDue) : 0), 0);
   const collRate = totalBill > 0 ? Math.min(100, (totalPaid / totalBill) * 100) : 0;
 
   const captionHtml = [
@@ -449,9 +460,13 @@ export async function sendOrderClosedAndTableReport(
   const errors: string[] = [];
 
   for (const grp of activeGroups) {
-    const res = pngBuffer
+    let res = pngBuffer
       ? await sendTelegramPhotoMessage(settings.botToken, grp.chatId.trim(), pngBuffer, captionHtml)
       : await sendTelegramTextMessage(settings.botToken, grp.chatId.trim(), captionHtml);
+    if (!res.ok && pngBuffer) {
+      // Image upload failed (size / timeout) — still deliver the summary as text
+      res = await sendTelegramTextMessage(settings.botToken, grp.chatId.trim(), captionHtml);
+    }
 
     if (res.ok) {
       sentCount++;
@@ -477,10 +492,43 @@ export async function sendOrderClosedAndTableReport(
 }
 
 /**
- * Idempotent daily scheduler: checks Bangladesh Time (GMT+6) and triggers
- * (1) 08:20 AM Morning Order Reminder
- * (2) Daily Cutoff Order Closed + Master Table Image
- * Safe to invoke concurrently; atomic MongoDB locks prevent duplicate alerts on the same date.
+ * Sends today's duty alert once per (date + assignee). Atomic claim on the duty document,
+ * so repeated saves / concurrent scheduler runs never duplicate it; a reassignment sends again.
+ * Future-dated duties are sent on their own day by the scheduler.
+ */
+export async function notifyDutyIfDue(duty: DailyDutyAssignment | null | undefined): Promise<boolean> {
+  try {
+    if (!duty || !duty.date || !duty.assignedUserEmail) return false;
+    const { todayStr } = getBangladeshTimeInfo();
+    if (duty.date !== todayStr) return false;
+
+    await connectToDatabase();
+    if (!DutyAssignment) return false;
+    const key = `${duty.date}|${duty.assignedUserEmail.toLowerCase()}`;
+    const claimed = await DutyAssignment.findOneAndUpdate(
+      { date: duty.date, telegramNotifiedFor: { $ne: key } },
+      { $set: { telegramNotifiedFor: key } },
+      { new: true }
+    );
+    if (!claimed) return false;
+
+    const r = await sendTelegramDutyNotification(duty, false);
+    if (r.sentCount === 0) {
+      // roll back so the scheduler can retry later
+      await DutyAssignment.updateOne({ date: duty.date, telegramNotifiedFor: key }, { $set: { telegramNotifiedFor: '' } });
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.warn('notifyDutyIfDue error:', e);
+    return false;
+  }
+}
+
+/**
+ * Idempotent daily scheduler (called every few minutes by the server-side scheduler):
+ * (1) Morning order reminder  (2) Today's duty alert  (3) Cutoff "orders closed" report + table image.
+ * Each send is claimed atomically per day; if delivery fails the claim is released so the next run retries.
  */
 export async function checkAndRunTelegramAutomations() {
   const actions: string[] = [];
@@ -510,56 +558,80 @@ export async function checkAndRunTelegramAutomations() {
     const dHour = ((isNaN(cH) ? 9 : cH) % 12) || 12;
     const cutoffDisplay = `${String(dHour).padStart(2, '0')}:${String(isNaN(cM) ? 20 : cM).padStart(2, '0')} ${ampm}`;
 
-    // Ensure telegram_settings exists before atomic lock attempt
+    // Ensure telegram_settings exists before atomic lock attempts
     if (Setting) {
       const exists = await Setting.findOne({ key: 'telegram_settings' }).lean();
       if (!exists) {
-        await saveTelegramSettings(settings);
+        await Setting.updateOne(
+          { key: 'telegram_settings' },
+          { $setOnInsert: { value: { ...settings, logs: [] } } },
+          { upsert: true }
+        );
       }
     }
 
-    // 1. Morning 08:20 AM BDT Alert (fires once per day inside open window [morningTime .. cutoffTime])
+    const claim = async (field: 'lastMorningAlertDate' | 'lastCutoffReportDate') => {
+      if (!Setting) return null;
+      const prev = (settings as any)[field] || '';
+      const doc = await Setting.findOneAndUpdate(
+        { key: 'telegram_settings', [`value.${field}`]: { $ne: todayStr } },
+        { $set: { [`value.${field}`]: todayStr } },
+        { new: true }
+      );
+      return doc ? { prev } : null;
+    };
+    const release = async (field: 'lastMorningAlertDate' | 'lastCutoffReportDate', prev: string) => {
+      await Setting?.updateOne(
+        { key: 'telegram_settings', [`value.${field}`]: todayStr },
+        { $set: { [`value.${field}`]: prev } }
+      ).catch(() => {});
+    };
+
+    // 1. Morning reminder (once per day, inside [morningTime .. cutoffTime])
     if (
       settings.morningAlertEnabled &&
       orderCtrl.ordersEnabled !== false &&
       totalMinutes >= morningMins &&
       totalMinutes <= cutoffMins &&
-      settings.lastMorningAlertDate !== todayStr &&
-      Setting
+      settings.lastMorningAlertDate !== todayStr
     ) {
-      const lock = await Setting.findOneAndUpdate(
-        {
-          key: 'telegram_settings',
-          'value.lastMorningAlertDate': { $ne: todayStr },
-        },
-        { $set: { 'value.lastMorningAlertDate': todayStr } },
-        { new: true }
-      );
+      const lock = await claim('lastMorningAlertDate');
       if (lock) {
-        await sendMorningOrderReminder(cutoffDisplay, false);
-        actions.push(`sent_morning_alert_${todayStr}`);
+        const r = await sendMorningOrderReminder(cutoffDisplay, false).catch(() => ({ sentCount: 0, errors: ['exception'] }));
+        if (r.sentCount > 0) actions.push(`sent_morning_alert_${todayStr}`);
+        else {
+          await release('lastMorningAlertDate', lock.prev);
+          actions.push(`morning_alert_failed_will_retry`);
+        }
       }
     }
 
-    // 2. Order Cutoff Passed Alert + Table Image Report (fires once per day right after cutoffMins)
+    // 2. Today's duty alert (for duties assigned in advance)
+    if (settings.dutyAlertEnabled && DutyAssignment) {
+      // Duties saved before this field existed were already announced at assignment time — skip them
+      const todayDuty: any = await DutyAssignment.findOne({ date: todayStr, telegramNotifiedFor: { $exists: true } }).lean();
+      if (todayDuty) {
+        const sent = await notifyDutyIfDue({ ...todayDuty, id: todayDuty._id?.toString() } as DailyDutyAssignment);
+        if (sent) actions.push(`sent_duty_alert_${todayStr}`);
+      }
+    }
+
+    // 3. Cutoff report (once per day, after cutoff; skipped when orders are disabled e.g. holidays)
     if (
       settings.cutoffAlertEnabled &&
       orderCtrl.cutoffEnabled !== false &&
+      orderCtrl.ordersEnabled !== false &&
       totalMinutes > cutoffMins &&
-      settings.lastCutoffReportDate !== todayStr &&
-      Setting
+      settings.lastCutoffReportDate !== todayStr
     ) {
-      const lock = await Setting.findOneAndUpdate(
-        {
-          key: 'telegram_settings',
-          'value.lastCutoffReportDate': { $ne: todayStr },
-        },
-        { $set: { 'value.lastCutoffReportDate': todayStr } },
-        { new: true }
-      );
+      const lock = await claim('lastCutoffReportDate');
       if (lock) {
-        await sendOrderClosedAndTableReport(false, todayStr);
-        actions.push(`sent_cutoff_report_${todayStr}`);
+        const r = await sendOrderClosedAndTableReport(false, todayStr).catch(() => ({ sentCount: 0, ordersCount: 0, errors: ['exception'] }));
+        if (r.sentCount > 0) actions.push(`sent_cutoff_report_${todayStr}`);
+        else {
+          await release('lastCutoffReportDate', lock.prev);
+          actions.push(`cutoff_report_failed_will_retry`);
+        }
       }
     }
 

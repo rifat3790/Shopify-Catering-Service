@@ -1,11 +1,15 @@
 import { NextResponse } from 'next/server';
+import { requireSuperAdmin } from '@/lib/serverAuth';
 import { connectToDatabase } from '@/lib/mongodb';
 import Order from '@/lib/models/Order';
 import MenuItem from '@/lib/models/MenuItem';
 import User from '@/lib/models/User';
 import { SUPER_ADMIN_EMAIL } from '@/lib/types';
 
-export async function POST() {
+export async function POST(request: Request) {
+  const __auth = await requireSuperAdmin(request);
+  if (__auth instanceof NextResponse) return __auth;
+
   try {
     await connectToDatabase();
     

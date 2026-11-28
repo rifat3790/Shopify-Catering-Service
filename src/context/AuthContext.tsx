@@ -14,6 +14,42 @@ import {
 } from '@/lib/firebase';
 import { UserRole, SUPER_ADMIN_EMAIL } from '@/lib/types';
 
+// Attach the signed-in user's Firebase ID token to every same-origin /api request,
+// so the server can verify who is calling (roles are checked server-side).
+if (typeof window !== 'undefined' && !(window as any).__apiAuthFetchInstalled) {
+  (window as any).__apiAuthFetchInstalled = true;
+  const originalFetch = window.fetch.bind(window);
+  const isApiUrl = (url: string) => {
+    if (url.startsWith('/api/')) return true;
+    try {
+      const u = new URL(url, window.location.href);
+      return u.origin === window.location.origin && u.pathname.startsWith('/api/');
+    } catch {
+      return false;
+    }
+  };
+  window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    try {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      if (isApiUrl(url)) {
+        if (!auth.currentUser && typeof (auth as any).authStateReady === 'function') {
+          await Promise.race([(auth as any).authStateReady(), new Promise((r) => setTimeout(r, 3000))]);
+        }
+        const current = auth.currentUser;
+        if (current) {
+          const token = await current.getIdToken();
+          const headers = new Headers(init?.headers || (input instanceof Request ? input.headers : undefined));
+          if (!headers.has('Authorization')) headers.set('Authorization', `Bearer ${token}`);
+          return originalFetch(input, { ...init, headers });
+        }
+      }
+    } catch {
+      // fall back to an unauthenticated request
+    }
+    return originalFetch(input, init);
+  };
+}
+
 export interface AuthUser {
   uid: string;
   email: string | null;

@@ -225,8 +225,11 @@ function ChatHubContent() {
   }, [user]);
 
   // Fetch messages when selected target changes
+  const msgTargetRef = useRef<string>('');
+  const msgInFlightRef = useRef(false);
   const fetchMessages = async () => {
     if (!user) return;
+    if (msgInFlightRef.current) return; // never stack requests
 
     let url = '';
     if (selectedGroup) {
@@ -237,10 +240,14 @@ function ChatHubContent() {
 
     if (!url) return;
 
+    const requestTarget = url;
+    msgInFlightRef.current = true;
     try {
-      const res = await fetch(url);
+      const res = await fetch(url, { cache: 'no-store' });
       if (res.ok) {
         const json = await res.json();
+        // Drop responses for a conversation the user has already switched away from
+        if (msgTargetRef.current !== requestTarget) return;
         if (json.success && json.data) {
           const serverMsgs: ChatMessage[] = json.data;
           // Merge with any local pending optimistic messages so messages NEVER vanish
@@ -263,14 +270,26 @@ function ChatHubContent() {
       }
     } catch (err) {
       console.warn('Error fetching messages:', err);
+    } finally {
+      msgInFlightRef.current = false;
     }
   };
 
   useEffect(() => {
+    msgTargetRef.current = selectedGroup
+      ? `/api/chat/messages?groupId=${selectedGroup.id}`
+      : selectedMember && user
+      ? `/api/chat/messages?userId1=${user.uid}&userId2=${selectedMember.id}`
+      : '';
+    msgInFlightRef.current = false;
     fetchMessages();
-    const msgInterval = setInterval(fetchMessages, 1500); // 1.5s realtime message sync
+    const msgInterval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return; // pause while tab hidden
+      fetchMessages();
+    }, 1500); // 1.5s realtime message sync
     return () => clearInterval(msgInterval);
-  }, [selectedMember, selectedGroup, user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedMember?.id, selectedGroup?.id, user?.uid]);
 
   // Contained auto-scroll to bottom inside message container without window scrolling
   const scrollToBottom = () => {
@@ -322,9 +341,10 @@ function ChatHubContent() {
     };
 
     checkIncomingCalls();
-    const callInterval = setInterval(checkIncomingCalls, 1200);
+    const callInterval = setInterval(checkIncomingCalls, 2000);
     return () => clearInterval(callInterval);
-  }, [user, isAudioCallOpen]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.uid, user?.email, isAudioCallOpen]);
 
   const handleStartCall = (member?: UserRecord | null, group?: ChatGroup | null) => {
     const targetM = member || selectedMember;

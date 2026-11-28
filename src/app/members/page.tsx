@@ -1047,14 +1047,18 @@ function MembersPageContent() {
           prefillCustomer={selectedOrderMember}
           onClose={() => setSelectedOrderMember(null)}
           onSubmit={async (data) => {
-            await fetch('/api/orders', {
+            const res = await fetch('/api/orders', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 ...data,
-                customerName: selectedOrderMember,
+                customerName: data.customerName || selectedOrderMember,
               }),
             });
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok || !json.success) {
+              throw new Error(json.error || 'Failed to place order');
+            }
             fetchMembers();
           }}
         />

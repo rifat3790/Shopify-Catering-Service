@@ -39,14 +39,20 @@ interface LogItem {
   message: string;
 }
 
+const SITE_URL = (
+  process.env.NEXT_PUBLIC_BASE_URL ||
+  (typeof window !== 'undefined' ? window.location.origin : '') ||
+  'https://shopify-catering-service.vercel.app'
+).replace(/\/+$/, '');
+
 export default function TelegramBotPanel() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const [botToken, setBotToken] = useState('9227851975:AAHTo88AtVR3BJYil_rA4Xv9qjIMvRBwdkY');
+  const [botToken, setBotToken] = useState('');
   const [botEnabled, setBotEnabled] = useState(true);
-  const [websiteUrl, setWebsiteUrl] = useState('https://shopify-catering-service.vercel.app/');
+  const [websiteUrl, setWebsiteUrl] = useState(SITE_URL + '/');
   const [groups, setGroups] = useState<GroupTarget[]>([]);
   const [newChatId, setNewChatId] = useState('');
   const [newChatLabel, setNewChatLabel] = useState('');
@@ -69,9 +75,9 @@ export default function TelegramBotPanel() {
       const json = await res.json();
       if (json.success && json.data) {
         const d = json.data;
-        setBotToken(d.botToken || '9227851975:AAHTo88AtVR3BJYil_rA4Xv9qjIMvRBwdkY');
+        setBotToken(d.botToken || '');
         setBotEnabled(d.botEnabled !== false);
-        setWebsiteUrl(d.websiteUrl || 'https://shopify-catering-service.vercel.app/');
+        setWebsiteUrl(d.websiteUrl || SITE_URL + '/');
         setGroups(Array.isArray(d.groups) ? d.groups : []);
         setMorningAlertEnabled(d.morningAlertEnabled !== false);
         setMorningAlertTime(d.morningAlertTime || '08:20');
@@ -522,13 +528,13 @@ export default function TelegramBotPanel() {
             <div className="min-w-0 flex-1">
               <p className="text-[10px] text-slate-400 font-bold uppercase">24/7 Cron Trigger Endpoint (Optional external ping)</p>
               <p className="text-[11px] font-mono text-sky-400 truncate">
-                https://shopify-catering-service.vercel.app/api/telegram/automate
+                {SITE_URL}/api/telegram/automate
               </p>
             </div>
             <button
               type="button"
               onClick={() => {
-                navigator.clipboard.writeText('https://shopify-catering-service.vercel.app/api/telegram/automate');
+                navigator.clipboard.writeText(`${SITE_URL}/api/telegram/automate`);
                 setCopiedCron(true);
                 setTimeout(() => setCopiedCron(false), 2000);
               }}

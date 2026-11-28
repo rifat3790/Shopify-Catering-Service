@@ -13,11 +13,12 @@ function PendingApprovalScreen({ user, onRefresh, onLogout }: { user: any; onRef
   const [checking, setChecking] = useState(false);
 
   useEffect(() => {
-    // Immediate check on mount + fast live polling every 2.5s so approved users enter dashboard instantly with 0 refresh
+    // Immediate check on mount + light polling every 20s (focus/visibility events give instant re-checks)
     onRefresh().catch(() => {});
     const timer = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
       onRefresh().catch(() => {});
-    }, 2500);
+    }, 20000);
 
     const handleFocus = () => {
       onRefresh().catch(() => {});
@@ -157,7 +158,8 @@ export default function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
         })
         .catch(() => {});
     }
-  }, [user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.uid, user?.role]);
 
   // Luxury Fast Loading state
   if (loading) {

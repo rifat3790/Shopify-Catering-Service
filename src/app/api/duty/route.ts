@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requireAdmin, requireUser } from '@/lib/serverAuth';
 import { 
   getAllDailyDuties, 
   getDailyDutyForDate, 
@@ -6,7 +7,7 @@ import {
   updateDailyDutyStatus, 
   deleteDailyDuty 
 } from '@/lib/dataStore';
-import { sendTelegramDutyNotification } from '@/lib/telegramService';
+import { notifyDutyIfDue } from '@/lib/telegramService';
 
 // GET: fetch duties (all or for a specific date)
 export async function GET(request: Request) {
@@ -40,6 +41,9 @@ export async function GET(request: Request) {
 
 // POST: Admin / Super Admin assigns or updates daily duty
 export async function POST(request: Request) {
+  const __auth = await requireAdmin(request);
+  if (__auth instanceof NextResponse) return __auth;
+
   try {
     const body = await request.json();
     const { 
@@ -75,10 +79,8 @@ export async function POST(request: Request) {
       tasks,
     });
 
-    // Immediately broadcast assigned responsibility to configured Telegram groups
-    await sendTelegramDutyNotification(duty, false).catch((e) =>
-      console.warn('Telegram duty notify skipped:', e)
-    );
+    // Telegram alert: sent now if the duty is for today (once per assignee); future duties are sent on their day by the scheduler
+    await notifyDutyIfDue(duty).catch((e) => console.warn('Telegram duty notify skipped:', e));
 
     return NextResponse.json({
       success: true,
@@ -95,6 +97,9 @@ export async function POST(request: Request) {
 
 // PATCH: User acknowledges or updates status
 export async function PATCH(request: Request) {
+  const __auth = await requireUser(request);
+  if (__auth instanceof NextResponse) return __auth;
+
   try {
     const body = await request.json();
     const { dutyId, date, status, acknowledged } = body;
@@ -120,6 +125,9 @@ export async function PATCH(request: Request) {
 
 // DELETE: Cancel / remove duty assignment
 export async function DELETE(request: Request) {
+  const __auth = await requireAdmin(request);
+  if (__auth instanceof NextResponse) return __auth;
+
   try {
     const { searchParams } = new URL(request.url);
     const date = searchParams.get('date');

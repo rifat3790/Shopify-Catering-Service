@@ -26,9 +26,15 @@ export default function GlobalCallManager() {
       return;
     }
 
+    let inFlight = false;
+    let tick = 0;
     const checkIncoming = async () => {
-      if (isAudioCallOpen) return;
+      if (isAudioCallOpen || inFlight) return;
+      tick++;
+      // Background tabs poll ~4x less often to save server load
+      if (typeof document !== 'undefined' && document.hidden && tick % 4 !== 0) return;
 
+      inFlight = true;
       try {
         const queryId = user.uid || '';
         const queryEmail = user.email || '';
@@ -57,13 +63,17 @@ export default function GlobalCallManager() {
         } else {
           if (incomingCallRef.current) setIncomingCall(null);
         }
-      } catch (e) {}
+      } catch (e) {
+      } finally {
+        inFlight = false;
+      }
     };
 
     checkIncoming();
     const interval = setInterval(checkIncoming, 1500);
     return () => clearInterval(interval);
-  }, [user, isChatPage, isAudioCallOpen]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.uid, user?.email, isChatPage, isAudioCallOpen]);
 
   const handleAccept = () => {
     if (!incomingCall) return;

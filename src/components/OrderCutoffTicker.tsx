@@ -55,17 +55,21 @@ export default function OrderCutoffTicker() {
     };
 
     fetchStatus();
-    pingTelegramAutomator();
+    // Telegram automations are triggered server-side by a scheduler; browsers only nudge on a live close transition.
 
     const onControlUpdate = () => fetchStatus();
     window.addEventListener('orderControlUpdated', onControlUpdate);
 
-    const statusTimer = setInterval(fetchStatus, 20000);
-    const botTimer = setInterval(pingTelegramAutomator, 20000);
+    const statusTimer = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      fetchStatus();
+    }, 20000);
+    const onVisible = () => { if (!document.hidden) fetchStatus(); };
+    document.addEventListener('visibilitychange', onVisible);
     return () => {
       window.removeEventListener('orderControlUpdated', onControlUpdate);
+      document.removeEventListener('visibilitychange', onVisible);
       clearInterval(statusTimer);
-      clearInterval(botTimer);
     };
   }, []);
 

@@ -28,7 +28,7 @@ export default function InvoiceModal({ order, onClose }: InvoiceModalProps) {
     try {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
-      if (!ctx) return;
+      if (!ctx) { setDownloading(false); return; }
 
       // 2x Retina scale for crisp image
       const scale = 2;
@@ -149,7 +149,8 @@ export default function InvoiceModal({ order, onClose }: InvoiceModalProps) {
       ctx.font = '13px sans-serif';
       ctx.fillText('Total Bill (মোট বিল):', 60, calcY + 40);
       ctx.fillText('Cash Received (মোট জমা):', 60, calcY + 80);
-      ctx.fillText(order.depositChangeToWallet ? 'Credited to Wallet (ওয়ালেটে জমা):' : 'Change Returned (ফেরত বাকি):', 60, calcY + 120);
+      const isDueInvoice = Number(order.changeDue) < 0 && order.paymentMethod !== 'Wallet';
+      ctx.fillText(isDueInvoice ? 'Amount Due (Due):' : order.depositChangeToWallet ? 'Credited to Wallet (ওয়ালেটে জমা):' : 'Change Returned (ফেরত বাকি):', 60, calcY + 120);
 
       ctx.textAlign = 'right';
       ctx.fillStyle = '#fbbf24';
@@ -160,9 +161,9 @@ export default function InvoiceModal({ order, onClose }: InvoiceModalProps) {
       ctx.font = 'bold 16px monospace';
       ctx.fillText(`৳${Number(order.paidAmount).toFixed(2)}`, 530, calcY + 80);
 
-      ctx.fillStyle = '#34d399';
+      ctx.fillStyle = isDueInvoice ? '#fb7185' : '#34d399';
       ctx.font = 'bold 18px monospace';
-      ctx.fillText(`৳${Math.max(0, Number(order.changeDue)).toFixed(2)}`, 530, calcY + 120);
+      ctx.fillText(`৳${Math.abs(isDueInvoice ? Number(order.changeDue) : Math.max(0, Number(order.changeDue))).toFixed(2)}`, 530, calcY + 120);
 
       // Verified Stamp
       ctx.textAlign = 'center';
@@ -276,6 +277,12 @@ export default function InvoiceModal({ order, onClose }: InvoiceModalProps) {
                 ৳{Number(order.paidAmount).toFixed(2)}
               </span>
             </div>
+            {Number(order.changeDue) < 0 && order.paymentMethod !== 'Wallet' ? (
+            <div className="flex justify-between items-center text-rose-400 font-bold border-t border-slate-800/80 pt-2">
+              <span>{language === 'bn' ? 'বকেয়া (Due):' : 'Amount Due:'}</span>
+              <span className="font-mono text-sm">৳{Math.abs(Number(order.changeDue)).toFixed(2)}</span>
+            </div>
+            ) : (
             <div className="flex justify-between items-center text-emerald-400 font-bold border-t border-slate-800/80 pt-2">
               <span className="flex items-center gap-1.5">
                 <span>{order.depositChangeToWallet ? (language === 'bn' ? 'ওয়ালেটে জমা হয়েছে (Wallet):' : 'Credited to Wallet:') : (language === 'bn' ? 'ফেরত দেওয়া হয়েছে (Change):' : 'Change Returned:')}</span>
@@ -289,6 +296,7 @@ export default function InvoiceModal({ order, onClose }: InvoiceModalProps) {
                 ৳{Math.max(0, Number(order.changeDue)).toFixed(2)}
               </span>
             </div>
+            )}
           </div>
 
           {/* Status Badge & Stamp */}

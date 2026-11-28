@@ -57,10 +57,11 @@ export default function LiveTrackerTable({
   });
 
   // Calculate totals from filtered or all
-  const completedOrders = orders.filter((o) => o.status === 'Paid');
-  const totalBillSum = orders.reduce((acc, o) => acc + (o.totalBill || 0), 0);
-  const totalPaidSum = orders.reduce((acc, o) => acc + (o.paidAmount || 0), 0);
-  const totalRefundSum = orders.reduce((acc, o) => {
+  const billableOrders = orders.filter((o) => o.status !== 'Cancelled');
+  const completedOrders = billableOrders.filter((o) => o.status === 'Paid');
+  const totalBillSum = billableOrders.reduce((acc, o) => acc + (o.totalBill || 0), 0);
+  const totalPaidSum = billableOrders.reduce((acc, o) => acc + Math.min(o.paidAmount || 0, o.totalBill || 0), 0);
+  const totalRefundSum = billableOrders.reduce((acc, o) => {
     const diff = (o.paidAmount || 0) - (o.totalBill || 0);
     return diff > 0 ? acc + diff : acc;
   }, 0);

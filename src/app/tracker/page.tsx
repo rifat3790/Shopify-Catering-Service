@@ -65,7 +65,10 @@ function TrackerContent() {
 
   useEffect(() => {
     fetchTrackerData();
-    const interval = setInterval(fetchTrackerData, 10000);
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      fetchTrackerData();
+    }, 20000);
     return () => clearInterval(interval);
   }, []);
 

@@ -87,7 +87,7 @@ function PosPageContent() {
     setCart(prev => {
       const next = { ...prev };
       if (next[id]?.qty > 1) {
-        next[id].qty -= 1;
+        next[id] = { ...next[id], qty: next[id].qty - 1 };
       } else {
         delete next[id];
       }
@@ -125,7 +125,16 @@ function PosPageContent() {
     );
 
     if (paymentMethod === 'Wallet') {
-      if (selectedMember && (selectedMember.balance || 0) < totalBill) {
+      if (!selectedMember) {
+        toast.error(
+          language === 'bn'
+            ? 'ওয়ালেট পেমেন্টের জন্য একজন রেজিস্টার্ড মেম্বার নির্বাচন করুন।'
+            : 'Wallet payment requires a registered member. Select a member or choose another payment method.',
+          'Wallet Error'
+        );
+        return;
+      }
+      if ((selectedMember.balance || 0) < totalBill) {
         toast.error(
           language === 'bn'
             ? `অপর্যাপ্ত ওয়ালেট ব্যালেন্স! বর্তমান ব্যালেন্স: ৳${(selectedMember.balance || 0).toFixed(2)}`
@@ -138,7 +147,7 @@ function PosPageContent() {
 
     setLoading(true);
     try {
-      const itemsText = Object.values(cart).map(i => `${i.qty} ta ${i.name.split(' ')[0]}`).join(' + ');
+      const itemsText = Object.values(cart).map(i => `${i.qty} ta ${i.name.split('(')[0].trim()}`).join(' + ');
       const itemsList = Object.values(cart).map(i => ({
         name: i.name,
         quantity: i.qty,

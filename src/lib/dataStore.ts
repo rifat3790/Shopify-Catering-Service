@@ -233,7 +233,8 @@ export async function getAllUsers(): Promise<UserRecord[]> {
   if (mongoDocs && mongoDocs.length > 0) {
     const mapped: UserRecord[] = mongoDocs.map((d: any) => {
       const lastSeenTime = d.lastSeen ? new Date(d.lastSeen).getTime() : (d.updatedAt ? new Date(d.updatedAt).getTime() : now);
-      const isRecentlyActive = (now - lastSeenTime) < (3 * 60 * 1000);
+      // Heartbeats run every 15-25s; a user is online only if seen in the last 90s (closing a tab never sends "offline")
+      const isRecentlyActive = (now - lastSeenTime) < (90 * 1000);
       const isSuper = d.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase();
 
       const userMail = (d.email || '').toLowerCase().trim();
@@ -265,7 +266,7 @@ export async function getAllUsers(): Promise<UserRecord[]> {
         avatar: d.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(d.name || 'User')}&background=047857&color=fff`,
         phone: d.phone || '',
         lastSeen: d.lastSeen?.toISOString?.() || new Date(lastSeenTime).toISOString(),
-        isOnline: Boolean(d.isOnline || isRecentlyActive),
+        isOnline: isRecentlyActive,
         blockedUsers: d.blockedUsers || [],
         themeColor: d.themeColor || 'emerald',
         customTheme: d.customTheme,
@@ -865,7 +866,8 @@ export async function deleteUser(idOrEmail: string, fallbackEmail?: string): Pro
       if (targetEmail) orList.push({ email: targetEmail });
       if (cleanFallback) orList.push({ email: cleanFallback });
       if (targetUid) orList.push({ uid: targetUid });
-      orList.push({ name: search });
+      // Match by display name only as a last resort (names are not unique)
+      if (!isObjectId && !search.includes('@') && !targetEmail && !targetUid) orList.push({ name: search });
 
       const query = { $or: orList };
       const target = await User.findOne(query).lean();
@@ -1028,16 +1030,15 @@ export async function updateUserBalance(
               { name: { $regex: new RegExp(`^${escapeRegex(search)}$`, 'i') } }
             ] 
           };
-      const userDoc = await User.findOne(query);
+      // Atomic balance update — concurrent orders can no longer overwrite each other's deduction
+      const update =
+        action === 'add'
+          ? { $inc: { balance: amt } }
+          : action === 'deduct'
+          ? [{ $set: { balance: { $max: [0, { $subtract: [{ $ifNull: ['$balance', 0] }, amt] }] } } }]
+          : { $set: { balance: Math.max(0, amt) } };
+      const userDoc: any = await User.findOneAndUpdate(query, update as any, { new: true });
       if (userDoc) {
-        if (action === 'add') {
-          userDoc.balance = (userDoc.balance || 0) + amt;
-        } else if (action === 'deduct') {
-          userDoc.balance = Math.max(0, (userDoc.balance || 0) - amt);
-        } else if (action === 'set') {
-          userDoc.balance = Math.max(0, amt);
-        }
-        await userDoc.save();
 
         // Also sync customClaims in Firebase Auth if available
         if (adminAuth) {
@@ -1228,7 +1229,6 @@ export async function getAllOrders(): Promise<OrderData[]> {
       ordersCache = mapped;
       cachedOrdersResult = mapped;
       lastOrdersFetch = now;
-      mapped.forEach(o => persistentStore.saveOrder(o));
       cloudBackupService.setMongoHealthy(true);
       return mapped;
     }
@@ -1251,14 +1251,99 @@ export async function getAllOrders(): Promise<OrderData[]> {
   return pOrders;
 }
 
+// ---------- Order helpers ----------
+const escapeRegexStr = (s: string) => s.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+
+function bdDateStringOf(d: Date = new Date()): string {
+  try {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dhaka', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+  } catch {
+    return new Date(d.getTime() + 6 * 3600 * 1000).toISOString().split('T')[0];
+  }
+}
+
+// Collision-safe order number (old scheme only had 10,000 values and collided)
+function generateOrderNumber(): string {
+  const ts = Date.now().toString(36).toUpperCase().slice(-5);
+  const rnd = Math.random().toString(36).slice(2, 4).toUpperCase().padEnd(2, '0');
+  return `ORD-${ts}${rnd}`;
+}
+
+function userQueryForId(idOrEmail: string): any {
+  const v = (idOrEmail || '').trim();
+  if (/^[0-9a-fA-F]{24}$/.test(v)) return { $or: [{ _id: v }, { uid: v }] };
+  if (v.includes('@')) return { email: v.toLowerCase() };
+  return { $or: [{ uid: v }, { name: { $regex: new RegExp(`^${escapeRegexStr(v)}$`, 'i') } }] };
+}
+
+// Recompute a customer's totalSpent / currentDue from their remaining orders (excluding cancelled)
+async function recalcCustomerTotals(custEmailRaw: string, custUserId: string, custNameRaw: string) {
+  try {
+    const db = await connectToDatabase();
+    if (!db || !Order || !User) return;
+    const custEmail = (custEmailRaw || '').toLowerCase().trim();
+    const custName = (custNameRaw || '').trim();
+    const nameRe = custName ? new RegExp(`^${escapeRegexStr(custName)}$`, 'i') : null;
+
+    const orderFilterList: any[] = [];
+    if (custEmail) orderFilterList.push({ customerEmail: custEmail });
+    if (custUserId) orderFilterList.push({ userId: custUserId });
+    if (!custEmail && !custUserId && nameRe) orderFilterList.push({ customerName: nameRe });
+    if (orderFilterList.length === 0) return;
+
+    const remaining = await Order.find({ $or: orderFilterList, status: { $ne: 'Cancelled' } })
+      .select('totalBill status changeDue paidAmount').lean();
+    const realTotalSpent = remaining.reduce((s: number, o: any) => s + (Number(o.totalBill) || 0), 0);
+    const realCurrentDue = remaining
+      .filter((o: any) => o.status === 'Due' || o.status === 'Partial' || Number(o.changeDue) < 0)
+      .reduce((s: number, o: any) => s + Math.max(0, (Number(o.totalBill) || 0) - (Number(o.paidAmount) || 0)), 0);
+
+    const userFilterList: any[] = [];
+    if (custEmail) userFilterList.push({ email: custEmail });
+    if (custUserId) {
+      userFilterList.push({ uid: custUserId });
+      if (/^[0-9a-fA-F]{24}$/.test(custUserId)) userFilterList.push({ _id: custUserId });
+    }
+    if (userFilterList.length === 0 && nameRe) userFilterList.push({ name: nameRe });
+    if (userFilterList.length > 0) {
+      await User.updateMany({ $or: userFilterList }, { $set: { totalSpent: realTotalSpent, currentDue: realCurrentDue } });
+    }
+    if (Customer && nameRe) {
+      await Customer.updateOne(
+        { name: nameRe },
+        { $set: { totalSpent: realTotalSpent, totalOrders: remaining.length, currentDue: realCurrentDue } }
+      ).catch(() => {});
+    }
+
+    const matched = usersCache.find(u =>
+      (custEmail && u.email.toLowerCase() === custEmail) ||
+      (custUserId && u.id === custUserId)
+    );
+    if (matched) {
+      matched.totalSpent = realTotalSpent;
+      matched.currentDue = realCurrentDue;
+      persistentStore.updateUserProfile(matched.email, { totalSpent: realTotalSpent, currentDue: realCurrentDue });
+    }
+  } catch (e) {
+    console.warn('recalcCustomerTotals error:', e);
+  }
+}
+
+// Money a cash order credited to the wallet as change
+function depositedChangeOf(o: Partial<OrderData> | null | undefined): number {
+  if (!o || !o.depositChangeToWallet || o.paymentMethod === 'Wallet') return 0;
+  return Math.max(0, Number(o.changeDue) || 0);
+}
+
 export async function createOrder(data: Partial<OrderData>): Promise<OrderData> {
-  const newOrderNumber = `ORD-${Date.now().toString().slice(-4)}`;
   const totalBill = Number(data.totalBill) || 0;
-  const paidAmount = Number(data.paidAmount) || 0;
+  const isWallet = data.paymentMethod === 'Wallet';
+  // Wallet orders are always fully charged from the wallet — never leave a phantom due
+  const paidAmount = isWallet ? totalBill : Number(data.paidAmount) || 0;
   const changeDue = paidAmount - totalBill;
-  
+
   let status: OrderData['status'] = data.status || 'Pending';
-  if (totalBill > 0 && (paidAmount >= totalBill || data.paymentMethod === 'Wallet')) {
+  if (totalBill > 0 && (paidAmount >= totalBill || isWallet)) {
     status = 'Paid';
   } else if (totalBill > 0 && paidAmount > 0 && paidAmount < totalBill) {
     status = 'Partial';
@@ -1266,70 +1351,69 @@ export async function createOrder(data: Partial<OrderData>): Promise<OrderData> 
     status = 'Due';
   }
 
-  // Auto-populate avatar, email, and user id from known users or MongoDB if not provided
   let custAvatar = data.customerAvatar || '';
   let uId = data.userId || '';
   let custEmail = (data.customerEmail || '').toLowerCase().trim();
-  const custName = (data.customerName || '').toLowerCase().trim();
+  const custNameRaw = (data.customerName || '').trim();
+  const custName = custNameRaw.toLowerCase();
 
-  // Find user in cache or MongoDB
+  // Resolve the customer: email -> userId -> (case-insensitive) name
   let matchedUser = usersCache.find(
     u => (custEmail && u.email.toLowerCase() === custEmail) ||
-         (custName && u.name.toLowerCase() === custName)
+         (uId && u.id === uId) ||
+         (!custEmail && !uId && custName && u.name.toLowerCase() === custName)
   );
 
-  if (!matchedUser) {
+  let db: any = null;
+  try { db = await connectToDatabase(); } catch { db = null; }
+
+  if (!matchedUser && db && User) {
     try {
-      await connectToDatabase();
-      if (User) {
-        const uDoc = await User.findOne({
-          $or: [
-            { email: custEmail || '___none___' },
-            { name: custName || '___none___' }
-          ]
-        });
-        if (uDoc) {
-          matchedUser = {
-            id: uDoc._id.toString(),
-            name: uDoc.name,
-            email: uDoc.email,
-            avatar: uDoc.avatar,
-            role: uDoc.role,
-            balance: Number(uDoc.balance) || 0,
-            currentDue: Number(uDoc.currentDue) || 0,
-            totalSpent: Number(uDoc.totalSpent) || 0,
-            department: uDoc.department,
-            createdAt: uDoc.createdAt?.toISOString?.() || new Date().toISOString()
-          };
-          usersCache = [matchedUser, ...usersCache];
-        }
+      const or: any[] = [];
+      if (custEmail) or.push({ email: custEmail });
+      if (uId) { or.push({ uid: uId }); if (/^[0-9a-fA-F]{24}$/.test(uId)) or.push({ _id: uId }); }
+      if (!custEmail && !uId && custNameRaw) or.push({ name: { $regex: new RegExp(`^${escapeRegexStr(custNameRaw)}$`, 'i') } });
+      const uDoc: any = or.length ? await User.findOne({ $or: or }).lean() : null;
+      if (uDoc) {
+        matchedUser = {
+          id: uDoc.uid || uDoc._id.toString(),
+          name: uDoc.name,
+          email: uDoc.email,
+          avatar: uDoc.avatar,
+          role: uDoc.role,
+          balance: Number(uDoc.balance) || 0,
+          currentDue: Number(uDoc.currentDue) || 0,
+          totalSpent: Number(uDoc.totalSpent) || 0,
+          department: uDoc.department,
+          createdAt: uDoc.createdAt?.toISOString?.() || new Date().toISOString()
+        };
       }
     } catch (e) {}
   }
 
   if (matchedUser) {
-    custAvatar = custAvatar || matchedUser.avatar;
+    custAvatar = custAvatar || matchedUser.avatar || '';
     uId = uId || matchedUser.id;
-    custEmail = custEmail || matchedUser.email;
+    custEmail = custEmail || matchedUser.email.toLowerCase();
   }
 
   if (!custAvatar && data.customerName) {
     custAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(data.customerName)}&background=047857&color=fff`;
   }
 
-  // Check if change is to be credited to wallet
-  const shouldDepositChange = Boolean(data.depositChangeToWallet && changeDue > 0);
+  const shouldDepositChange = Boolean(!isWallet && data.depositChangeToWallet && changeDue > 0 && matchedUser);
+  const orderDateIso = data.orderDate || new Date().toISOString();
 
   const newOrder: OrderData = {
     _id: `ord-${Date.now()}`,
-    orderNumber: data.orderNumber || newOrderNumber,
+    orderNumber: generateOrderNumber(),
     customerName: data.customerName || "Customer",
     customerPhone: data.customerPhone || "",
     customerDepartment: data.customerDepartment || "General",
     customerEmail: custEmail,
     customerAvatar: custAvatar,
     userId: uId,
-    itemsText: data.itemsText || (data.items?.map(i => `${i.quantity} ta ${i.name}`).join(' + ') || "Quick Order"),
+    itemsText: data.itemsText || (data.items?.map(i => `${i.quantity}x ${i.name}`).join(' + ') || "Quick Order"),
     items: data.items || [],
     totalBill,
     paidAmount,
@@ -1338,63 +1422,73 @@ export async function createOrder(data: Partial<OrderData>): Promise<OrderData> 
     paymentMethod: data.paymentMethod || 'Cash',
     depositChangeToWallet: shouldDepositChange,
     notes: data.notes || '',
-    orderDate: data.orderDate || new Date().toISOString(),
+    orderDate: orderDateIso,
     createdAt: new Date().toISOString()
   };
 
-  // 1. Update user balance/spent dynamically in database and memory
-  const userTargetIdOrEmail = matchedUser?.id || custEmail || custName;
-  if (userTargetIdOrEmail) {
-    // If Wallet payment: deduct totalBill from balance
-    if (data.paymentMethod === 'Wallet' && totalBill > 0) {
-      await updateUserBalance(userTargetIdOrEmail, totalBill, 'deduct');
-    }
+  const walletUserQuery = matchedUser
+    ? (matchedUser.email ? { email: matchedUser.email.toLowerCase() } : userQueryForId(matchedUser.id))
+    : null;
 
-    // If change is to be credited to wallet: add changeDue to balance
-    if (shouldDepositChange) {
-      await updateUserBalance(userTargetIdOrEmail, changeDue, 'add');
+  // 1. Wallet: atomically deduct ONLY if the balance covers the bill
+  let walletCharged = false;
+  if (isWallet && totalBill > 0) {
+    if (!matchedUser || !walletUserQuery) {
+      throw new Error('Wallet payment needs a registered member account.');
     }
-
-    // Always increment totalSpent for customer in MongoDB Atlas
-    if (totalBill > 0) {
-      try {
-        await connectToDatabase();
-        if (User) {
-          await User.findOneAndUpdate(
-            { $or: [{ email: custEmail }, { name: custName }] },
-            { $inc: { totalSpent: totalBill } }
-          );
-        }
-      } catch (e) {
-        console.warn("MongoDB totalSpent update error:", e);
+    if (db && User) {
+      const charged: any = await User.findOneAndUpdate(
+        { ...walletUserQuery, balance: { $gte: totalBill } },
+        { $inc: { balance: -totalBill } },
+        { new: true }
+      ).lean();
+      if (!charged) {
+        const cur: any = await User.findOne(walletUserQuery).select('balance').lean();
+        throw new Error(`Insufficient wallet balance (available ৳${(Number(cur?.balance) || 0).toFixed(2)}, bill ৳${totalBill.toFixed(2)}).`);
       }
-      if (matchedUser) {
-        matchedUser.totalSpent = (matchedUser.totalSpent || 0) + totalBill;
-        persistentStore.updateUserProfile(matchedUser.email, {
-          totalSpent: matchedUser.totalSpent
-        });
-      }
+      walletCharged = true;
+      invalidateUsersCache();
+    } else {
+      await updateUserBalance(matchedUser.id || custEmail, totalBill, 'deduct');
+      walletCharged = true;
     }
   }
 
-  // 2. Persist to MongoDB Atlas (Awaited for 100% serverless durability)
-  try {
-    const db = await connectToDatabase();
-    if (db && Order) {
+  // 2. Persist the order. If MongoDB is connected and the write fails, undo the wallet charge and fail loudly.
+  if (db && Order) {
+    try {
       const doc = await Order.create({
         ...newOrder,
         _id: undefined,
-        orderDate: new Date(newOrder.orderDate)
+        orderDate: new Date(orderDateIso),
+        dateString: bdDateStringOf(new Date(orderDateIso)),
       });
       if (doc) newOrder._id = doc._id.toString();
       cloudBackupService.setMongoHealthy(true);
+    } catch (e: any) {
+      cloudBackupService.setMongoHealthy(false, e?.message);
+      if (walletCharged && walletUserQuery && User) {
+        await User.updateOne(walletUserQuery, { $inc: { balance: totalBill } }).catch(() => {});
+      }
+      throw new Error(`Order could not be saved: ${e?.message || 'database error'}`);
     }
-  } catch (e: any) {
-    cloudBackupService.setMongoHealthy(false, e?.message);
-    console.warn('MongoDB Order.create storage/connection issue. Resilient backup active:', e?.message);
   }
 
-  // 3. Immediately persist to disk, cloud backup & memory
+  // 3. Credit cash change to wallet (after the order is safely stored)
+  if (shouldDepositChange && matchedUser) {
+    await updateUserBalance(matchedUser.email || matchedUser.id, changeDue, 'add').catch(() => {});
+  }
+
+  // 4. totalSpent
+  if (totalBill > 0 && walletUserQuery && db && User) {
+    await User.updateOne(walletUserQuery, { $inc: { totalSpent: totalBill } }).catch(() => {});
+  }
+  if (matchedUser) {
+    persistentStore.updateUserProfile(matchedUser.email, {
+      totalSpent: (matchedUser.totalSpent || 0) + totalBill
+    });
+  }
+
   persistentStore.saveOrder(newOrder);
   cloudBackupService.backupOrder(newOrder);
   ordersCache = [newOrder, ...ordersCache];
@@ -1405,151 +1499,93 @@ export async function createOrder(data: Partial<OrderData>): Promise<OrderData> 
 }
 
 export async function updateOrder(id: string, updates: Partial<OrderData>): Promise<OrderData | null> {
-  // Fetch previous order first so wallet charges and changeDue stay 100% accurate
-  let prevOrder: OrderData | null =
-    persistentStore.getOrders().find(o => o._id === id || o.orderNumber === id) ||
-    ordersCache.find(o => o._id === id || o.orderNumber === id) ||
-    null;
+  const isObjectId = /^[0-9a-fA-F]{24}$/.test(id);
+  const query = isObjectId ? { _id: id } : { orderNumber: id };
 
-  try {
-    const db = await connectToDatabase();
-    if (db && Order) {
-      const isObjectId = id.match(/^[0-9a-fA-F]{24}$/);
-      const query = isObjectId ? { _id: id } : { orderNumber: id };
-      if (!prevOrder) {
-        const prevDoc = await Order.findOne(query).lean();
-        if (prevDoc) prevOrder = prevDoc as unknown as OrderData;
-      }
+  let db: any = null;
+  try { db = await connectToDatabase(); } catch { db = null; }
 
-      // Compute clean financial & status fields when items, totalBill, paidAmount, or paymentMethod change
-      const enrichedUpdates: Partial<OrderData> = { ...updates };
-      const finalMethod = enrichedUpdates.paymentMethod ?? prevOrder?.paymentMethod ?? 'Cash';
-      const finalBill =
-        enrichedUpdates.totalBill !== undefined
-          ? Number(enrichedUpdates.totalBill) || 0
-          : Number(prevOrder?.totalBill) || 0;
+  if (db && Order) {
+    // Always read the authoritative previous state from MongoDB (never a per-instance cache)
+    const prevOrder = (await Order.findOne(query).lean()) as unknown as OrderData | null;
+    if (!prevOrder) return null;
 
-      let finalPaid =
-        enrichedUpdates.paidAmount !== undefined
-          ? Number(enrichedUpdates.paidAmount) || 0
-          : Number(prevOrder?.paidAmount) || 0;
+    const enrichedUpdates: Partial<OrderData> = { ...updates };
+    delete (enrichedUpdates as any)._id;
+    delete (enrichedUpdates as any).orderNumber;
 
-      if (finalMethod === 'Wallet' && enrichedUpdates.paidAmount === undefined) {
-        finalPaid = finalBill;
-        enrichedUpdates.paidAmount = finalPaid;
-      }
+    const finalMethod = enrichedUpdates.paymentMethod ?? prevOrder.paymentMethod ?? 'Cash';
+    const finalBill = enrichedUpdates.totalBill !== undefined ? Number(enrichedUpdates.totalBill) || 0 : Number(prevOrder.totalBill) || 0;
+    let finalPaid = enrichedUpdates.paidAmount !== undefined ? Number(enrichedUpdates.paidAmount) || 0 : Number(prevOrder.paidAmount) || 0;
 
-      if (
-        enrichedUpdates.totalBill !== undefined ||
-        enrichedUpdates.paidAmount !== undefined ||
-        enrichedUpdates.paymentMethod !== undefined
-      ) {
-        enrichedUpdates.changeDue = finalPaid - finalBill;
-        if (!enrichedUpdates.status || ['Paid', 'Due', 'Partial', 'Pending'].includes(enrichedUpdates.status)) {
-          if (finalBill > 0 && (finalPaid >= finalBill || finalMethod === 'Wallet')) {
-            enrichedUpdates.status = 'Paid';
-          } else if (finalBill > 0 && finalPaid > 0 && finalPaid < finalBill) {
-            enrichedUpdates.status = 'Partial';
-          } else if (finalBill > 0 && finalPaid === 0) {
-            enrichedUpdates.status = 'Due';
-          } else {
-            enrichedUpdates.status = 'Pending';
-          }
-        }
-      }
+    if (finalMethod === 'Wallet') {
+      finalPaid = finalBill;
+      enrichedUpdates.paidAmount = finalPaid;
+    }
 
-      // Adjust user wallet balance automatically if Wallet payment total changed
-      const oldWalletCharged = prevOrder?.paymentMethod === 'Wallet' ? Number(prevOrder.totalBill) || 0 : 0;
-      const newWalletCharge = finalMethod === 'Wallet' ? finalBill : 0;
-      const walletDelta = newWalletCharge - oldWalletCharged;
-      const walletTarget =
-        prevOrder?.userId ||
-        (prevOrder?.customerEmail || '').toLowerCase().trim() ||
-        (prevOrder?.customerName || '').trim();
+    const moneyChanged =
+      enrichedUpdates.totalBill !== undefined ||
+      enrichedUpdates.paidAmount !== undefined ||
+      enrichedUpdates.paymentMethod !== undefined;
 
-      if (walletDelta !== 0 && walletTarget) {
-        await updateUserBalance(
-          walletTarget,
-          Math.abs(walletDelta),
-          walletDelta > 0 ? 'deduct' : 'add'
-        ).catch(() => {});
-      }
-
-      const pUpdated = persistentStore.updateOrder(id, enrichedUpdates);
-      if (pUpdated) {
-        ordersCache = ordersCache.map(o => (o._id === id || o.orderNumber === id) ? pUpdated : o);
-        cloudBackupService.backupOrder(pUpdated);
-      }
-      invalidateOrdersCache();
-      invalidateUsersCache();
-
-      const doc = await Order.findOneAndUpdate(query, enrichedUpdates, { new: true }).lean();
-      if (doc) {
-        const formatted: OrderData = {
-          ...doc,
-          _id: (doc as any)._id.toString(),
-          orderDate: (doc as any).orderDate?.toISOString?.() || new Date().toISOString(),
-        } as unknown as OrderData;
-
-        // Recalculate customer real totalSpent & currentDue from MongoDB orders
-        try {
-          const custEmail = (formatted.customerEmail || '').toLowerCase().trim();
-          const custName = (formatted.customerName || '').toLowerCase().trim();
-          const custUserId = formatted.userId || '';
-          if (custEmail || custUserId || custName) {
-            const orderFilterList: any[] = [];
-            if (custEmail) orderFilterList.push({ customerEmail: custEmail });
-            if (custUserId) orderFilterList.push({ userId: custUserId });
-            if (custName) orderFilterList.push({ customerName: custName });
-
-            const remainingOrders = await Order.find({ $or: orderFilterList }).select('totalBill status changeDue paidAmount').lean();
-            const realTotalSpent = remainingOrders.reduce((sum: number, o: any) => sum + (Number(o.totalBill) || 0), 0);
-            const realCurrentDue = remainingOrders
-              .filter((o: any) => o.status === 'Due' || o.changeDue < 0)
-              .reduce((sum: number, o: any) => sum + Math.max(0, (Number(o.totalBill) || 0) - (Number(o.paidAmount) || 0)), 0);
-
-            const userFilterList: any[] = [];
-            if (custEmail) userFilterList.push({ email: custEmail });
-            if (custUserId) userFilterList.push({ uid: custUserId });
-            if (custName) userFilterList.push({ name: custName });
-
-            await User.updateMany(
-              { $or: userFilterList },
-              { $set: { totalSpent: realTotalSpent, currentDue: realCurrentDue } }
-            );
-
-            if (Customer && custName) {
-              await Customer.updateOne(
-                { name: custName },
-                { $set: { totalSpent: realTotalSpent, totalOrders: remainingOrders.length, currentDue: realCurrentDue } }
-              );
-            }
-
-            const matched = usersCache.find(u =>
-              (custEmail && u.email.toLowerCase() === custEmail) ||
-              (custUserId && u.id === custUserId) ||
-              (custName && u.name.toLowerCase() === custName)
-            );
-            if (matched) {
-              matched.totalSpent = realTotalSpent;
-              matched.currentDue = realCurrentDue;
-              persistentStore.updateUserProfile(matched.email, {
-                totalSpent: realTotalSpent,
-                currentDue: realCurrentDue,
-              });
-            }
-          }
-        } catch (recalcErr) {
-          console.warn('Error recalculating user spent after updateOrder:', recalcErr);
-        }
-
-        return formatted;
+    const finalChange = finalPaid - finalBill;
+    if (moneyChanged) {
+      enrichedUpdates.changeDue = finalChange;
+      if (!enrichedUpdates.status || ['Paid', 'Due', 'Partial', 'Pending'].includes(enrichedUpdates.status)) {
+        if (finalBill > 0 && (finalPaid >= finalBill || finalMethod === 'Wallet')) enrichedUpdates.status = 'Paid';
+        else if (finalBill > 0 && finalPaid > 0 && finalPaid < finalBill) enrichedUpdates.status = 'Partial';
+        else if (finalBill > 0 && finalPaid === 0) enrichedUpdates.status = 'Due';
+        else enrichedUpdates.status = 'Pending';
       }
     }
-  } catch (err) {
-    console.error('MongoDB Order.findOneAndUpdate error:', err);
+
+    // Deposit-change flag: keep previous unless explicitly provided
+    const depositFlag = finalMethod !== 'Wallet' && (
+      enrichedUpdates.depositChangeToWallet !== undefined ? Boolean(enrichedUpdates.depositChangeToWallet) : Boolean(prevOrder.depositChangeToWallet)
+    );
+    enrichedUpdates.depositChangeToWallet = depositFlag && finalChange > 0;
+
+    const cancelledNow = (enrichedUpdates.status ?? prevOrder.status) === 'Cancelled';
+    const wasCancelled = prevOrder.status === 'Cancelled';
+
+    // Wallet effect of an order = -(wallet charge) + (deposited change). Cancelled orders have no effect.
+    const effectOf = (method: string | undefined, bill: number, dep: number, cancelled: boolean) =>
+      cancelled ? 0 : (method === 'Wallet' ? -bill : 0) + dep;
+    const oldEffect = effectOf(prevOrder.paymentMethod, Number(prevOrder.totalBill) || 0, depositedChangeOf(prevOrder), wasCancelled);
+    const newEffect = effectOf(finalMethod, finalBill, enrichedUpdates.depositChangeToWallet ? Math.max(0, finalChange) : 0, cancelledNow);
+    const walletDelta = newEffect - oldEffect;
+
+    // 1. Update the order first
+    const doc = await Order.findOneAndUpdate(query, enrichedUpdates, { new: true }).lean();
+    if (!doc) return null;
+
+    // 2. Then apply the wallet difference
+    const walletTarget =
+      (prevOrder.customerEmail || '').toLowerCase().trim() ||
+      prevOrder.userId ||
+      (prevOrder.customerName || '').trim();
+    if (walletDelta !== 0 && walletTarget) {
+      await updateUserBalance(walletTarget, Math.abs(walletDelta), walletDelta > 0 ? 'add' : 'deduct').catch(() => {});
+    }
+
+    const formatted: OrderData = {
+      ...(doc as any),
+      _id: (doc as any)._id.toString(),
+      orderDate: (doc as any).orderDate?.toISOString?.() || new Date().toISOString(),
+      createdAt: (doc as any).createdAt?.toISOString?.() || new Date().toISOString(),
+    } as unknown as OrderData;
+
+    persistentStore.updateOrder(id, formatted);
+    ordersCache = ordersCache.map(o => (o._id === formatted._id) ? formatted : o);
+    cloudBackupService.backupOrder(formatted);
+
+    await recalcCustomerTotals(formatted.customerEmail || '', formatted.userId || '', formatted.customerName || '');
+    invalidateOrdersCache();
+    invalidateUsersCache();
+    return formatted;
   }
 
+  // Local dev fallback (no database)
   const pFallback = persistentStore.updateOrder(id, updates);
   invalidateOrdersCache();
   invalidateUsersCache();
@@ -1560,110 +1596,45 @@ export async function deleteOrder(id: string): Promise<boolean> {
   invalidateOrdersCache();
   invalidateUsersCache();
 
-  let orderDoc: any = null;
-  const isObjectId = id.match(/^[0-9a-fA-F]{24}$/);
+  const isObjectId = /^[0-9a-fA-F]{24}$/.test(id);
   const query = isObjectId ? { _id: id } : { orderNumber: id };
 
-  try {
-    const db = await connectToDatabase();
-    if (db && Order) {
-      orderDoc = await Order.findOne(query).lean();
-    }
-  } catch (findErr) {
-    console.warn('MongoDB Order.findOne error on delete:', findErr);
+  let db: any = null;
+  try { db = await connectToDatabase(); } catch { db = null; }
+
+  let existing: any = null;
+  if (db && Order) {
+    // Delete first, atomically. Only the request that actually removed the order may refund.
+    existing = await Order.findOneAndDelete(query).lean();
+    if (!existing) return false;
+  } else {
+    existing = persistentStore.getOrders().find(o => o._id === id || o.orderNumber === id) ||
+               ordersCache.find(o => o._id === id || o.orderNumber === id) || null;
+    if (!existing) return false;
   }
 
-  const existing = orderDoc ||
-                   persistentStore.getOrders().find(o => o._id === id || o.orderNumber === id) ||
-                   ordersCache.find(o => o._id === id || o.orderNumber === id);
+  const custEmail = (existing.customerEmail || '').toLowerCase().trim();
+  const custNameRaw = (existing.customerName || '').trim();
+  const custUserId = existing.userId || '';
+  const walletTarget = custEmail || custUserId || custNameRaw;
+  const bill = Number(existing.totalBill) || 0;
 
-  const custEmail = (existing?.customerEmail || '').toLowerCase().trim();
-  const custName = (existing?.customerName || '').toLowerCase().trim();
-  const custUserId = existing?.userId || '';
-  const bill = Number(existing?.totalBill) || 0;
-  const method = existing?.paymentMethod;
-
-  // 1. If paid with Wallet, refund the totalBill back to the user's wallet
-  if (method === 'Wallet' && bill > 0 && (custUserId || custEmail || custName)) {
-    try {
-      await updateUserBalance(custUserId || custEmail || custName, bill, 'add');
-    } catch (refErr) {
-      console.warn('Error refunding wallet on order delete:', refErr);
+  if (walletTarget && existing.status !== 'Cancelled') {
+    if (existing.paymentMethod === 'Wallet' && bill > 0) {
+      await updateUserBalance(walletTarget, bill, 'add').catch((e) => console.warn('Wallet refund failed:', e));
     }
-  }
-
-  // 1b. If cash change was credited to user wallet, reverse that change credit upon order cancellation/delete
-  if (existing?.depositChangeToWallet && Number(existing?.changeDue) > 0 && (custUserId || custEmail || custName)) {
-    try {
-      await updateUserBalance(custUserId || custEmail || custName, Number(existing.changeDue), 'deduct');
-    } catch (dedErr) {
-      console.warn('Error reversing change deposit on order delete:', dedErr);
+    const dep = depositedChangeOf(existing);
+    if (dep > 0) {
+      await updateUserBalance(walletTarget, dep, 'deduct').catch((e) => console.warn('Deposit reversal failed:', e));
     }
   }
 
-  // 2. Remove order from MongoDB Atlas
-  try {
-    const db = await connectToDatabase();
-    if (db && Order) {
-      await Order.findOneAndDelete(query);
-    }
-  } catch (err) {
-    console.error('MongoDB Order.findOneAndDelete error:', err);
-  }
+  const sid = existing._id?.toString?.() || id;
+  persistentStore.deleteOrder(sid);
+  if (sid !== id) persistentStore.deleteOrder(id);
+  ordersCache = ordersCache.filter(o => o._id !== sid && o._id !== id);
 
-  // 3. Remove order from memory & persistent store
-  persistentStore.deleteOrder(id);
-  ordersCache = ordersCache.filter(o => o._id !== id && o.orderNumber !== id);
-
-  // 4. Recalculate and auto-sync accurate totalSpent & currentDue from remaining orders in MongoDB
-  try {
-    const db = await connectToDatabase();
-    if (db && Order && User && (custEmail || custUserId || custName)) {
-      const orderFilterList: any[] = [];
-      if (custEmail) orderFilterList.push({ customerEmail: custEmail });
-      if (custUserId) orderFilterList.push({ userId: custUserId });
-      if (custName) orderFilterList.push({ customerName: custName });
-
-      const remainingOrders = await Order.find({ $or: orderFilterList }).select('totalBill status changeDue paidAmount').lean();
-      const realTotalSpent = remainingOrders.reduce((sum: number, o: any) => sum + (Number(o.totalBill) || 0), 0);
-      const realCurrentDue = remainingOrders
-        .filter((o: any) => o.status === 'Due' || o.changeDue < 0)
-        .reduce((sum: number, o: any) => sum + Math.max(0, (Number(o.totalBill) || 0) - (Number(o.paidAmount) || 0)), 0);
-
-      const userFilterList: any[] = [];
-      if (custEmail) userFilterList.push({ email: custEmail });
-      if (custUserId) userFilterList.push({ uid: custUserId });
-      if (custName) userFilterList.push({ name: custName });
-
-      await User.updateMany(
-        { $or: userFilterList },
-        { $set: { totalSpent: realTotalSpent, currentDue: realCurrentDue } }
-      );
-
-      if (Customer && custName) {
-        await Customer.updateOne(
-          { name: custName },
-          { $set: { totalSpent: realTotalSpent, totalOrders: remainingOrders.length, currentDue: realCurrentDue } }
-        );
-      }
-
-      const matched = usersCache.find(u =>
-        (custEmail && u.email.toLowerCase() === custEmail) ||
-        (custUserId && u.id === custUserId) ||
-        (custName && u.name.toLowerCase() === custName)
-      );
-      if (matched) {
-        matched.totalSpent = realTotalSpent;
-        matched.currentDue = realCurrentDue;
-        persistentStore.updateUserProfile(matched.email, {
-          totalSpent: realTotalSpent,
-          currentDue: realCurrentDue,
-        });
-      }
-    }
-  } catch (syncErr) {
-    console.warn('Error recalculating user spent after delete:', syncErr);
-  }
+  await recalcCustomerTotals(custEmail, custUserId, custNameRaw);
 
   invalidateOrdersCache();
   invalidateUsersCache();
@@ -1688,7 +1659,6 @@ export async function getAllMenuItems(): Promise<MenuItemData[]> {
       menuItemsCache = mapped;
       cachedMenuResult = mapped;
       lastMenuFetch = now;
-      mapped.forEach(m => persistentStore.saveMenuItem(m));
       return mapped;
     }
   } catch (err) {
@@ -1853,7 +1823,8 @@ export async function getChatMessages(query: {
           ]
         };
       }
-      const docs = await Message.find(filter).sort({ createdAt: 1 }).limit(200).lean();
+      // Newest 200 messages, returned oldest-first for display
+      const docs = (await Message.find(filter).sort({ createdAt: -1 }).limit(200).lean()).reverse();
       if (docs && docs.length > 0) {
         const mapped: ChatMessage[] = docs.map((d: any) => ({
           id: d._id.toString(),
@@ -2601,11 +2572,14 @@ export async function updateCallSignal(callId: string, updates: {
       if (Object.keys(pushFields).length > 0) {
         updateOp.$push = pushFields;
       }
-      const updatedDoc = await Setting.findOneAndUpdate(
-        { key: `call_${callId}` },
-        updateOp,
-        { new: true }
-      ).lean();
+      // A late 'accepted'/'ringing' must never revive a call that already ended or was rejected
+      const filter: any = { key: `call_${callId}` };
+      const guarded = updates.status === 'accepted' || updates.status === 'ringing';
+      if (guarded) filter['value.status'] = { $nin: ['ended', 'rejected'] };
+      let updatedDoc: any = await Setting.findOneAndUpdate(filter, updateOp, { new: true }).lean();
+      if (!updatedDoc && guarded) {
+        updatedDoc = await Setting.findOne({ key: `call_${callId}` }).lean();
+      }
       if (updatedDoc && (updatedDoc as any).value) {
         session = (updatedDoc as any).value;
         activeCallSessions.set(callId, session!);
@@ -2892,8 +2866,8 @@ export async function assignDailyDuty(dutyData: {
           $set: {
             ...dutyData,
             date: cleanDate,
-            status: 'assigned',
-            acknowledged: false,
+            status: 'in_progress', // auto-accepted on assignment
+            acknowledged: true,
             updatedAt: now,
           },
           $setOnInsert: { createdAt: now }
@@ -2916,13 +2890,13 @@ export async function assignDailyDuty(dutyData: {
     assignedByUserId: dutyData.assignedByUserId,
     assignedByName: dutyData.assignedByName || 'Admin',
     instructions: dutyData.instructions || 'Collect money, purchase snacks/refreshments, and deliver on time.',
-    status: 'assigned',
+    status: 'in_progress',
     tasks: dutyData.tasks || [
       'Collect Catering Cash / Payments',
       'Purchase Fresh Snacks / Refreshments',
       'Deliver & Distribute to Members'
     ],
-    acknowledged: false,
+    acknowledged: true,
     createdAt: saved?.createdAt?.toISOString?.() || now.toISOString(),
     updatedAt: now.toISOString(),
   };

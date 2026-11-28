@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { checkAndRunTelegramAutomations } from '@/lib/telegramService';
 
 export const dynamic = 'force-dynamic';
+// PNG rendering + uploads to several groups can take a while
+export const maxDuration = 60;
 
 export async function GET() {
   const result = await checkAndRunTelegramAutomations();

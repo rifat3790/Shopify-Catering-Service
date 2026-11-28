@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requireAdmin } from '@/lib/serverAuth';
 import { getAllMenuItems, createMenuItem, updateMenuItem, deleteMenuItem } from '@/lib/dataStore';
 
 export async function GET() {
@@ -17,6 +18,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const __auth = await requireAdmin(request);
+  if (__auth instanceof NextResponse) return __auth;
+
   try {
     const body = await request.json();
     if (!body.name || !body.price) {
@@ -30,6 +34,9 @@ export async function POST(request: Request) {
 }
 
 export async function PUT(request: Request) {
+  const __auth = await requireAdmin(request);
+  if (__auth instanceof NextResponse) return __auth;
+
   try {
     const body = await request.json();
     const { id, ...updates } = body;
@@ -44,6 +51,9 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const __auth = await requireAdmin(request);
+  if (__auth instanceof NextResponse) return __auth;
+
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');

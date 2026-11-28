@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requireAdmin } from '@/lib/serverAuth';
 import { 
   createPasswordResetRequest, 
   getActivePasswordResetRequests, 
@@ -6,7 +7,10 @@ import {
   cancelPasswordResetRequest 
 } from '@/lib/dataStore';
 
-export async function GET() {
+export async function GET(request: Request) {
+  const __auth = await requireAdmin(request);
+  if (__auth instanceof NextResponse) return __auth;
+
   try {
     const requests = await getActivePasswordResetRequests();
     return NextResponse.json({ success: true, data: requests });
@@ -30,10 +34,12 @@ export async function POST(request: Request) {
           { status: 400 }
         );
       }
-      const resetReq = await createPasswordResetRequest(email.trim());
+      const resetReq: any = await createPasswordResetRequest(email.trim());
+      // Never expose the verification code to the requester — only admins may see it.
+      const { code: _hidden, ...safeReq } = resetReq || {};
       return NextResponse.json({
         success: true,
-        data: resetReq,
+        data: safeReq,
         message: 'Password reset code has been generated and sent to the Admin Dashboard.',
       });
     }
@@ -50,6 +56,8 @@ export async function POST(request: Request) {
     }
 
     if (action === 'cancel') {
+      const who = await requireAdmin(request);
+      if (who instanceof NextResponse) return who;
       if (!requestId) {
         return NextResponse.json(
           { success: false, error: 'Request ID is required' },

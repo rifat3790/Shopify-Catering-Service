@@ -13,6 +13,7 @@ export interface IDutyAssignment extends Document {
   tasks?: string[];
   status: 'assigned' | 'in_progress' | 'completed';
   acknowledged: boolean;
+  telegramNotifiedFor?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -42,6 +43,7 @@ const DutyAssignmentSchema = new Schema<IDutyAssignment>(
       default: 'assigned',
     },
     acknowledged: { type: Boolean, default: false },
+    telegramNotifiedFor: { type: String, default: '' }, // "date|email" once the Telegram duty alert was delivered
   },
   {
     timestamps: true,

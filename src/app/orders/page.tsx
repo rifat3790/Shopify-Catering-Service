@@ -105,10 +105,11 @@ function OrdersPageContent() {
         method: 'DELETE',
         cache: 'no-store',
       });
-      if (res.ok) {
+      const delJson = await res.json().catch(() => ({}));
+      if (res.ok && delJson.success !== false) {
         clearClientCache();
         setOrders(prev => {
-          const next = prev.filter(o => o._id !== targetId && o.orderNumber !== targetId);
+          const next = prev.filter(o => (deleteConfirmOrder._id ? o._id !== deleteConfirmOrder._id : o.orderNumber !== targetId));
           setClientCache('orders_list', next);
           return next;
         });
@@ -156,9 +157,10 @@ function OrdersPageContent() {
 
   // Summary Metrics calculated dynamically for the selected date period
   const totalOrdersCount = ordersInDateRange.length;
-  const totalBilled = ordersInDateRange.reduce((sum, o) => sum + (o.totalBill || 0), 0);
-  const totalPaid = ordersInDateRange.reduce((sum, o) => sum + (o.paidAmount || 0), 0);
-  const totalDue = ordersInDateRange.filter(o => o.status === 'Due' || o.changeDue < 0).length;
+  const billableInRange = ordersInDateRange.filter(o => o.status !== 'Cancelled');
+  const totalBilled = billableInRange.reduce((sum, o) => sum + (o.totalBill || 0), 0);
+  const totalPaid = billableInRange.reduce((sum, o) => sum + Math.min(o.paidAmount || 0, o.totalBill || 0), 0);
+  const totalDue = billableInRange.filter(o => o.status === 'Due' || o.changeDue < 0).length;
 
   // Download ONE consolidated master orders table image containing all details in the current tab
   const handleDownloadAllInTab = async () => {
@@ -684,7 +686,7 @@ function OrdersPageContent() {
           if (isEditing && json.data) {
             setOrders(prev => {
               const next = prev.map(o =>
-                (o._id === json.data._id || o.orderNumber === json.data.orderNumber) ? json.data : o
+                (o._id === json.data._id) ? json.data : o
               );
               setClientCache('orders_list', next);
               return next;

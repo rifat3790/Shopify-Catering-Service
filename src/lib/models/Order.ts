@@ -66,7 +66,8 @@ const OrderSchema = new Schema<IOrder>(
     depositChangeToWallet: { type: Boolean, default: false },
     notes: { type: String },
     orderDate: { type: Date, default: Date.now },
-    dateString: { type: String, default: () => new Date().toISOString().split('T')[0] },
+    // Bangladesh calendar date (UTC+6), so orders between 00:00-05:59 BDT land on the right day
+    dateString: { type: String, default: () => new Date(Date.now() + 6 * 3600 * 1000).toISOString().split('T')[0] },
   },
   {
     timestamps: true,

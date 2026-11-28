@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requireAdmin } from '@/lib/serverAuth';
 import { getUserById, updateUserRole, updateUserBalance, updateUserDue, deleteUser } from '@/lib/dataStore';
 
 export async function GET(
@@ -24,11 +25,17 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const __auth = await requireAdmin(request);
+  if (__auth instanceof NextResponse) return __auth;
+
   try {
     const { id } = await params;
     const body = await request.json();
 
     if (body.role) {
+      if ((__auth as any).role !== 'super_admin') {
+        return NextResponse.json({ success: false, error: 'Only the super admin can change roles.' }, { status: 403 });
+      }
       const updated = await updateUserRole(id, body.role, body.email);
       return NextResponse.json({ success: true, data: updated });
     }
@@ -59,6 +66,9 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const __auth = await requireAdmin(request);
+  if (__auth instanceof NextResponse) return __auth;
+
   try {
     const { id } = await params;
     const url = new URL(request.url);

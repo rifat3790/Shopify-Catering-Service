@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAllOrders, createOrder, updateOrder, deleteOrder } from '@/lib/dataStore';
 import { filterOrdersByDate, DateFilterType } from '@/lib/dateFilterUtils';
+import { authorizeOrderCreate, authorizeOrderModify, stripPrivilegedOrderFields } from '@/lib/orderAccess';
 
 export async function GET(request: Request) {
   try {
@@ -56,7 +57,10 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    const rawBody = await request.json();
+    const authz = await authorizeOrderCreate(request, rawBody);
+    if (authz instanceof NextResponse) return authz;
+    const body = authz.body;
     const finalName = body.customerName || body.name || 'Member';
 
     const newOrder = await createOrder({
@@ -83,7 +87,10 @@ export async function PUT(request: Request) {
       return NextResponse.json({ success: false, error: 'Order identifier is required' }, { status: 400 });
     }
 
-    const updated = await updateOrder(targetId, updates);
+    const who = await authorizeOrderModify(request, String(targetId));
+    if (who instanceof NextResponse) return who;
+
+    const updated = await updateOrder(targetId, stripPrivilegedOrderFields(who, updates));
     if (!updated) {
       return NextResponse.json({ success: false, error: 'Order not found' }, { status: 404 });
     }
@@ -106,8 +113,14 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ success: false, error: 'Order ID is required' }, { status: 400 });
     }
 
+    const who = await authorizeOrderModify(request, id);
+    if (who instanceof NextResponse) return who;
+
     const ok = await deleteOrder(id);
-    return NextResponse.json({ success: ok, message: 'Order deleted successfully' });
+    if (!ok) {
+      return NextResponse.json({ success: false, error: 'Order not found or already deleted' }, { status: 404 });
+    }
+    return NextResponse.json({ success: true, message: 'Order deleted successfully' });
   } catch (error: any) {
     console.error('API /orders DELETE error:', error);
     return NextResponse.json(

@@ -30,12 +30,15 @@ export function filterOrdersByDate<T extends { orderDate?: string | Date; create
     return items;
   }
 
-  const now = new Date();
-  
-  // Start of today (00:00:00.000)
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-  // End of today (23:59:59.999)
-  const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+  // All boundaries are computed in Bangladesh time (UTC+6), independent of the device/server timezone
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const bdToday = getBangladeshTodayDateString(); // YYYY-MM-DD
+  const [bdY, bdM, bdD] = bdToday.split('-').map(Number);
+
+  // Start of today (00:00:00.000 BDT)
+  const startOfToday = new Date(`${bdToday}T00:00:00+06:00`);
+  // End of today (23:59:59.999 BDT)
+  const endOfToday = new Date(startOfToday.getTime() + DAY_MS - 1);
 
   // Start of yesterday
   const startOfYesterday = new Date(startOfToday.getTime() - 24 * 60 * 60 * 1000);
@@ -48,7 +51,9 @@ export function filterOrdersByDate<T extends { orderDate?: string | Date; create
   const thirtyDaysAgo = new Date(startOfToday.getTime() - 29 * 24 * 60 * 60 * 1000);
 
   // 1 year ago
-  const oneYearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate(), 0, 0, 0, 0);
+  const oneYearAgo = new Date(
+    `${bdY - 1}-${String(bdM).padStart(2, '0')}-${String(bdD).padStart(2, '0')}T00:00:00+06:00`
+  );
 
   return items.filter((item) => {
     const rawDate = item.orderDate || item.createdAt;
@@ -75,12 +80,19 @@ export function filterOrdersByDate<T extends { orderDate?: string | Date; create
   });
 }
 
-export function calculateStatsFromOrders(orders: any[], totalMemberBalance?: number) {
+/** Amount actually collected for an order: tendered cash minus change handed back (never above the bill). */
+export function collectedAmount(o: any): number {
+  return Math.min(Number(o?.paidAmount) || 0, Number(o?.totalBill) || 0);
+}
+
+export function calculateStatsFromOrders(allOrders: any[], totalMemberBalance?: number) {
+  // Cancelled orders don't count towards billed / collected / due figures
+  const orders = allOrders.filter(o => o.status !== 'Cancelled');
   const completedOrders = orders.filter(o => o.status === 'Paid');
   const activeOrdersCount = orders.filter(o => Number(o.totalBill) > 0).length;
   
   const totalBill = orders.reduce((acc, curr) => acc + (Number(curr.totalBill) || 0), 0);
-  const totalPaid = orders.reduce((acc, curr) => acc + (Number(curr.paidAmount) || 0), 0);
+  const totalPaid = orders.reduce((acc, curr) => acc + collectedAmount(curr), 0);
   
   const totalRefundChange = orders.reduce((acc, curr) => {
     const diff = (Number(curr.paidAmount) || 0) - (Number(curr.totalBill) || 0);
@@ -97,7 +109,7 @@ export function calculateStatsFromOrders(orders: any[], totalMemberBalance?: num
   return {
     ordersCount: activeOrdersCount,
     completedOrdersCount: completedOrders.length,
-    totalOrders: orders.length,
+    totalOrders: allOrders.length,
     totalBill,
     totalPaid,
     totalRefundChange,

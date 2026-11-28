@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requireSuperAdmin } from '@/lib/serverAuth';
 import { persistentStore } from '@/lib/persistentStore';
 import { SUPER_ADMIN_EMAIL, RoutePermissions, DEFAULT_ROUTE_PERMISSIONS } from '@/lib/types';
 import { connectToDatabase } from '@/lib/mongodb';
@@ -33,6 +34,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const __auth = await requireSuperAdmin(request);
+  if (__auth instanceof NextResponse) return __auth;
+
   try {
     const body = await request.json();
     const { permissions, requesterEmail } = body;
